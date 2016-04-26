@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Render.Table
     ( -- * Layout types and combinators
       LayoutSpec(..)
@@ -254,33 +255,36 @@ data Table = Table
            }
 
 data TableStyle = TableStyle
-                { vSep      :: Char
-                , hSep      :: Char
-                , headerSep :: Char
-                , tSep      :: Char
-                , tlSep     :: Char
-                , trSep     :: Char
-                , bSep      :: Char
-                , blSep     :: Char
-                , brSep     :: Char
-                , cSep      :: Char
-                , liSep     :: Char
-                , riSep     :: Char
+                { vSep        :: Char
+                , hSep        :: Char
+                , hHeaderSep  :: Char
+                , lcHeaderSep :: Char
+                , rcHeaderSep :: Char
+                , cHeaderSep  :: Char
+                , tcSep       :: Char
+                , tlSep       :: Char
+                , trSep       :: Char
+                , bcSep       :: Char
+                , blSep       :: Char
+                , brSep       :: Char
+                , cSep        :: Char
+                , liSep       :: Char
+                , riSep       :: Char
                 }
 
 layoutTable :: Table -> TableStyle -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTable (Table h rGs) (TableStyle vSep hSep headerSep tSep tlSep trSep bSep blSep brSep cSep liSep riSep) specs headerPosSpecs =
-    topLine : headerLine : headerBorderLine : rowGroupLines ++ [bottomLine]
+layoutTable (Table h rGs) (TableStyle { .. }) specs headerPosSpecs =
+    topLine : headerLine : headerSepLine : rowGroupLines ++ [bottomLine]
   where
     -- Vertical seperator lines
-    topLine          = vLineDetail hSep tlSep tSep trSep hSpacers
-    bottomLine       = vLineDetail hSep blSep bSep brSep hSpacers
-    groupSepLine     = liSep : hSep : intercalate [hSep, cSep, hSep] hSpacers ++ [hSep, riSep]
+    topLine       = vLineDetail hSep tlSep tcSep trSep hSpacers
+    bottomLine    = vLineDetail hSep blSep bcSep brSep hSpacers
+    groupSepLine  = liSep : hSep : intercalate [hSep, cSep, hSep] hSpacers ++ [hSep, riSep]
+    headerSepLine = vLineDetail hHeaderSep lcHeaderSep cHeaderSep rcHeaderSep hHeaderSepSpacers
 
     -- Vertical content lines
-    headerLine       = vLine ' ' vSep (apply h headerRowMods)
-    headerBorderLine = vLine headerSep vSep hHeaderSepSpacers
-    rowGroupLines    = intercalate [groupSepLine] $ map (map (vLine ' ' vSep) . applyRowMods . cells) rGs
+    headerLine    = vLine ' ' vSep (apply h headerRowMods)
+    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' vSep) . applyRowMods . cells) rGs
 
 
     vLine hs d                  = vLineDetail hs d d d
@@ -289,7 +293,7 @@ layoutTable (Table h rGs) (TableStyle vSep hSep headerSep tSep tlSep trSep bSep 
     -- Spacers consisting of columns of seperator elements.
     genHSpacers c     = map (flip replicate c) colWidths
     hSpacers          = genHSpacers hSep
-    hHeaderSepSpacers = genHSpacers headerSep
+    hHeaderSepSpacers = genHSpacers hHeaderSep
 
     unalignedCMIs = map unalignedCMI cMIs
     headerRowMods = zipWith columnModifier headerPosSpecs unalignedCMIs
@@ -303,8 +307,14 @@ layoutTable (Table h rGs) (TableStyle vSep hSep headerSep tSep tlSep trSep bSep 
     colWidths        = map widthCMI cMIs
     apply            = zipWith $ flip ($)
 
+asciiRoundS :: TableStyle
+asciiRoundS = TableStyle '|' '-' '=' ':' ':' '|' '.' '.' '.' '\'' '\'' '\'' '+' ':' ':'
+
+unicodeS :: TableStyle
+unicodeS = TableStyle '│' '─' '═' '╞' '╡' '╪' '┬' '┌' '┐' '┴' '└' '┘' '┼' '├' '┤'
+
 layoutTableDef :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTableDef t = layoutTable t $ TableStyle '|' '-' '=' '.' '.' '.' '\'' '\'' '\'' '+' '|' '|'
+layoutTableDef t = layoutTable t asciiRound
 
 layoutTableUnicode :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTableUnicode t = undefined -- layoutTable t $ TableStyle '|' '-' '=' '\'' '.'
+layoutTableUnicode t = layoutTable t unicodeS
