@@ -1,4 +1,43 @@
-module Render.Table where
+module Render.Table
+    ( -- * Layout types and combinators
+      LayoutSpec(..)
+    , LenSpec(..)
+    , PosSpec(..)
+    , AlignSpec(..)
+    , OccSpec(..)
+    , defaultL
+    , numL
+    , limitL
+    , limitLeftL
+      -- * Column modification functions
+    , pad
+    , trimOrPad
+    , align
+      -- * Column modifaction primitives
+    , ColModInfo(..)
+    , widthCMI
+    , unalignedCMI
+    , ensureWidthCMI
+    , columnModifier
+    , AlignInfo(..)
+    , widthAI
+    , genColModInfo
+    , genAlignInfo
+      -- * Basic grid and table layout
+    , layoutCells
+    , layoutLines
+    , layoutString
+      -- * Grid modification functions
+    , altLines
+    , checkeredCells
+      -- * Advanced table layout
+    , RowGroup(..)
+    , Table(..)
+    , layoutTable
+    , layoutTableDef
+    , layoutTableUnicode
+    ) where
+
 
 -- TODO add seperator styles
 -- TODO integrate with PrettyPrint/Doc: e.g. color patterns for readability ? could also be done with just the lines
@@ -9,38 +48,48 @@ import Data.Bifunctor
 import Data.List
 import Data.Maybe
 
--- | = Layout types and combinators
--- Specify the layout of columns. Layout combinators have a 'L' as postfix.
+{- = Layout types and combinators
+   Specify the layout of columns. Layout combinators have a 'L' as postfix.
+-}
 
+-- | Determines the layout of a column.
 data LayoutSpec = LayoutSpec LenSpec PosSpec AlignSpec
 
-data LenSpec = FullLength | LimitTo Int
+-- | Determines how long a column will be.
+data LenSpec = Expand | LimitTo Int
 
+-- | Determines how a column will be positioned.
 data PosSpec = LeftPos | RightPos | CenterPos
 
+-- | Determines whether a column will align at a specific letter.
 data AlignSpec = AlignAtChar OccSpec | NoAlign
 
+-- | Specifies an occurence of a letter.
 data OccSpec = OccSpec Char Int deriving Show
 
+-- | The default layout will allow maximum expand and is positioned on the left.
 defaultL :: LayoutSpec
-defaultL = LayoutSpec FullLength LeftPos NoAlign
+defaultL = LayoutSpec Expand LeftPos NoAlign
 
-numberL :: LayoutSpec
-numberL = LayoutSpec FullLength RightPos (AlignAtChar $ OccSpec '.' 0)
+-- | Numbers are positioned on the right and aligned on the floating point dot.
+numL :: LayoutSpec
+numL = LayoutSpec Expand RightPos (AlignAtChar $ OccSpec '.' 0)
 
+-- | Limits the column length and positions according to the given 'PosSpec'.
 limitL :: Int -> PosSpec -> LayoutSpec
 limitL l pS = LayoutSpec (LimitTo l) pS NoAlign
 
+-- | Limits the column length and positions on the left.
 limitLeftL :: Int -> LayoutSpec
 limitLeftL i = limitL i LeftPos
 
--- | = Single-cell layout functions.
+--  = Single-cell layout functions.
 
 spaces :: Int -> String
 spaces = flip replicate ' '
 
--- | Assume the given length is greater or equal than the given strings length.
--- Pads the given 'String' accordingly, using the position specification.
+-- | Assume the given length is greater or equal than the length of the 'String'
+-- passed. Pads the given 'String' accordingly, using the position specification.
 pad :: Int -> PosSpec -> String -> String
 pad l p s = case p of
     LeftPos   -> take l (s ++ repeat ' ')
@@ -65,7 +114,8 @@ trimOrPad l p s =
     else pad l p s
 
 -- | Align a column by first finding the position to pad with and then padding
--- the missing lengths to the maximum value.
+-- the missing lengths to the maximum value. If no such position is found, it
+-- will align it such that it gets aligned before that position.
 align :: OccSpec -> AlignInfo -> String -> String
 align oS (AlignInfo l r) s = case splitAtOcc oS s of
     (ls, rs) -> spaces (l - length ls) ++ ls ++ case rs of
@@ -83,31 +133,6 @@ splitAtOcc (OccSpec c occ) = first reverse . go 0 []
                         then (ls, xs)
                         else go (succ n) (x : ls) xs'
                    else go n (x : ls) xs'
-
-columnModifier :: PosSpec -> ColModInfo -> (String -> String)
-columnModifier posSpec lenInfo = case lenInfo of
-    FillAligned oS ai -> align oS ai
-    FillTo maxLen     -> pad maxLen posSpec
-    ShortenTo lim mT  -> trimOrPad lim posSpec . maybe id (uncurry align) mT
-
--- | = Grid layout functions
-
--- | Modifies cells according to the given 'LayoutSpec'.
-layoutCells :: [LayoutSpec] -> [[String]] -> [[String]]
-layoutCells specs tab = zipWith apply tab
-                        . repeat
-                        . zipWith columnModifier (map (\(LayoutSpec _ posSpec _) -> posSpec) specs)
-                        $ genColModInfo (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs) tab
-  where
-    apply = zipWith $ flip ($)
-
--- | Behaves like 'layoutCells' but produces lines.
-layoutLines :: [LayoutSpec] -> [[String]] -> [String]
-layoutLines specs tab = map unwords $ layoutCells specs tab
-
--- | Behaves like 'layoutCells' but produces a 'String'.
-layoutString :: [LayoutSpec] -> [[String]] -> String
-layoutString ls t = intercalate "\n" $ layoutLines ls t
 
 -- | Specifies how a column should be modified.
 data ColModInfo = FillAligned OccSpec AlignInfo
@@ -145,32 +170,66 @@ ensureWidthCMI w posSpec cmi = case cmi of
     FillTo maxLen                     -> FillTo (max maxLen w)
     _                                 -> cmi
 
--- | Since determining a maximum in two directions is not possible, a 'Monoid'
--- instance is provided.
+-- | Generates a function which modifies a given 'String' according to
+-- 'PosSpec' and 'ColModInfo'.
+columnModifier :: PosSpec -> ColModInfo -> (String -> String)
+columnModifier posSpec lenInfo = case lenInfo of
+    FillAligned oS ai -> align oS ai
+    FillTo maxLen     -> pad maxLen posSpec
+    ShortenTo lim mT  -> trimOrPad lim posSpec . maybe id (uncurry align) mT
+
+-- | Specifies the length before and after a letter.
 data AlignInfo = AlignInfo Int Int deriving Show
 
+-- | The column width when using the 'AlignInfo'.
 widthAI :: AlignInfo -> Int
 widthAI (AlignInfo l r) = l + r
 
+-- | Since determining a maximum in two directions is not possible, a 'Monoid'
+-- instance is provided.
 instance Monoid AlignInfo where
     mempty = AlignInfo 0 0
     mappend (AlignInfo ll lr) (AlignInfo rl rr) = AlignInfo (max ll rl) (max lr rr)
 
+-- | Derive the 'ColModInfo' by using layout specifications and looking at the
+-- table.
 genColModInfo :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
-genColModInfo lenSpecs cells = zipWith ($) (fmap fSel lenSpecs) $ transpose cells
+genColModInfo specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
   where
     fSel specs = case specs of
-        (FullLength, NoAlign       ) -> FillTo . maximum . fmap length
-        (FullLength, AlignAtChar oS) -> FillAligned oS . foldMap (genAlignInfo oS)
-        (LimitTo i , NoAlign       ) -> const $ ShortenTo i Nothing
-        (LimitTo i , AlignAtChar oS) -> ShortenTo i . Just . (,) oS . foldMap (genAlignInfo oS)
-
+        (Expand   , NoAlign       ) -> FillTo . maximum . fmap length
+        (Expand   , AlignAtChar oS) -> FillAligned oS . foldMap (genAlignInfo oS)
+        (LimitTo i, NoAlign       ) -> const $ ShortenTo i Nothing
+        (LimitTo i, AlignAtChar oS) -> ShortenTo i . Just . (,) oS . foldMap (genAlignInfo oS)
+-- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
 genAlignInfo :: OccSpec -> String -> AlignInfo
 genAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
 
--- | = Grid modifier functions
+-----------------------
+-- Basic layout
+-----------------------
 
--- | Applies functions alternating to given lines.
+-- | Modifies cells according to the given 'LayoutSpec'.
+layoutCells :: [LayoutSpec] -> [[String]] -> [[String]]
+layoutCells specs tab = zipWith apply tab
+                        . repeat
+                        . zipWith columnModifier (map (\(LayoutSpec _ posSpec _) -> posSpec) specs)
+                        $ genColModInfo (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs) tab
+  where
+    apply = zipWith $ flip ($)
+
+-- | Behaves like 'layoutCells' but produces lines.
+layoutLines :: [LayoutSpec] -> [[String]] -> [String]
+layoutLines specs tab = map unwords $ layoutCells specs tab
+
+-- | Behaves like 'layoutCells' but produces a 'String'.
+layoutString :: [LayoutSpec] -> [[String]] -> String
+layoutString ls t = intercalate "\n" $ layoutLines ls t
+
+--  = Grid modifier functions
+
+-- | Applies functions alternating to given lines. This makes it easy to color
+-- lines to improve readability in a row.
 altLines :: [a -> b] -> [a] -> [b]
 altLines = zipWith ($) . cycle
 
@@ -180,8 +239,10 @@ altLines = zipWith ($) . cycle
 checkeredCells  :: (a -> b) -> (a -> b) -> [[a]] -> [[b]]
 checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 
--- | = Advanced layout
+--  = Advanced layout
 
+-- | Groups rows together, which are not seperated from each other. Optionally
+-- a label with vertical text on the left can be added.
 data RowGroup = RowGroup
               { cells     :: [[String]] 
               , optVLabel :: Maybe String
@@ -192,27 +253,43 @@ data Table = Table
            , rowGroups :: [RowGroup]
            }
 
-layoutTable :: Char -> Char -> Char -> Char -> Char -> Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTable vBorder hBorder headerBorder bottomUp topDown (Table h rGs) specs headerPosSpecs =
+data TableStyle = TableStyle
+                { vSep      :: Char
+                , hSep      :: Char
+                , headerSep :: Char
+                , tSep      :: Char
+                , tlSep     :: Char
+                , trSep     :: Char
+                , bSep      :: Char
+                , blSep     :: Char
+                , brSep     :: Char
+                , cSep      :: Char
+                , liSep     :: Char
+                , riSep     :: Char
+                }
+
+layoutTable :: Table -> TableStyle -> [LayoutSpec] -> [PosSpec] -> [String]
+layoutTable (Table h rGs) (TableStyle vSep hSep headerSep tSep tlSep trSep bSep blSep brSep cSep liSep riSep) specs headerPosSpecs =
     topLine : headerLine : headerBorderLine : rowGroupLines ++ [bottomLine]
   where
     -- Vertical seperator lines
-    topLine          = vLine hBorder topDown hSpacers
-    bottomLine       = vLine hBorder bottomUp hSpacers
-    groupSepLine     = vBorder : hBorder : intercalate [hBorder, '+', hBorder] hSpacers ++ [hBorder, vBorder]
+    topLine          = vLineDetail hSep tlSep tSep trSep hSpacers
+    bottomLine       = vLineDetail hSep blSep bSep brSep hSpacers
+    groupSepLine     = liSep : hSep : intercalate [hSep, cSep, hSep] hSpacers ++ [hSep, riSep]
 
     -- Vertical content lines
-    headerLine       = vLine ' ' vBorder (apply h headerRowMods)
-    headerBorderLine = vLine headerBorder vBorder hHeaderSepSpacers
-    rowGroupLines    = intercalate [groupSepLine] $ map (map (vLine ' ' vBorder) . applyRowMods . cells) rGs
+    headerLine       = vLine ' ' vSep (apply h headerRowMods)
+    headerBorderLine = vLine headerSep vSep hHeaderSepSpacers
+    rowGroupLines    = intercalate [groupSepLine] $ map (map (vLine ' ' vSep) . applyRowMods . cells) rGs
 
 
-    vLine border detail cols = let detailStr = [detail] in intercalate [border] $ detailStr : intersperse detailStr cols ++ [detailStr]
+    vLine hs d                  = vLineDetail hs d d d
+    vLineDetail hS dL d dR cols = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
 
     -- Spacers consisting of columns of seperator elements.
     genHSpacers c     = map (flip replicate c) colWidths
-    hSpacers          = genHSpacers hBorder
-    hHeaderSepSpacers = genHSpacers headerBorder
+    hSpacers          = genHSpacers hSep
+    hHeaderSepSpacers = genHSpacers headerSep
 
     unalignedCMIs = map unalignedCMI cMIs
     headerRowMods = zipWith columnModifier headerPosSpecs unalignedCMIs
@@ -226,8 +303,8 @@ layoutTable vBorder hBorder headerBorder bottomUp topDown (Table h rGs) specs he
     colWidths        = map widthCMI cMIs
     apply            = zipWith $ flip ($)
 
-layoutTable' :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTable' = layoutTable '|' '-' '=' '\'' '.'
+layoutTableDef :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
+layoutTableDef t = layoutTable t $ TableStyle '|' '-' '=' '.' '.' '.' '\'' '\'' '\'' '+' '|' '|'
 
-layoutTableUnicode' :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTableUnicode' = layoutTable '|' '-' '=' '\'' '.'
+layoutTableUnicode :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
+layoutTableUnicode t = undefined -- layoutTable t $ TableStyle '|' '-' '=' '\'' '.'
