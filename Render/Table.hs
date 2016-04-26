@@ -19,6 +19,7 @@ module Render.Table
     , widthCMI
     , unalignedCMI
     , ensureWidthCMI
+    , ensureWidthOfCMI
     , columnModifier
     , AlignInfo(..)
     , widthAI
@@ -34,6 +35,12 @@ module Render.Table
       -- * Advanced table layout
     , RowGroup(..)
     , layoutTable
+    , asciiRoundS
+    , unicodeS
+    , unicodeRoundS
+    , unicodeBoldS
+    , unicodeBoldStripedS
+    , unicodeBoldHeaderS
     ) where
 
 
@@ -49,16 +56,16 @@ import Data.Maybe
 -}
 
 -- | Determines the layout of a column.
-data LayoutSpec = LayoutSpec LenSpec PosSpec AlignSpec
+data LayoutSpec = LayoutSpec LenSpec PosSpec AlignSpec deriving Show
 
 -- | Determines how long a column will be.
-data LenSpec = Expand | LimitTo Int
+data LenSpec = Expand | LimitTo Int deriving Show
 
 -- | Determines how a column will be positioned.
-data PosSpec = LeftPos | RightPos | CenterPos
+data PosSpec = LeftPos | RightPos | CenterPos deriving Show
 
 -- | Determines whether a column will align at a specific letter.
-data AlignSpec = AlignAtChar OccSpec | NoAlign
+data AlignSpec = AlignAtChar OccSpec | NoAlign deriving Show
 
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec Char Int deriving Show
@@ -100,14 +107,16 @@ pad l p s = case p of
 -- has been trimmed in length, otherwise behaves like 'pad'.
 trimOrPad :: Int -> PosSpec -> String -> String
 trimOrPad l p s =
-    if length s > l
+    if lenS > l
     -- Too long, shorten it.
     then case p of
         -- Show dots left.
-        RightPos  -> take l $ ".." ++ s
+        RightPos  -> ".." ++ drop (lenS - l + 2) s
         -- Show dots right.
         _         -> take l $ take (l - 2) s ++ ".."
     else pad l p s
+  where
+    lenS = length s
 
 -- | Align a column by first finding the position to pad with and then padding
 -- the missing lengths to the maximum value. If no such position is found, it
@@ -165,6 +174,10 @@ ensureWidthCMI w posSpec cmi = case cmi of
                             in AlignInfo (q + lw) (q + rw + r)
     FillTo maxLen                     -> FillTo (max maxLen w)
     _                                 -> cmi
+
+-- | Ensures that the given 'String' will fit into the modified columns.
+ensureWidthOfCMI :: String -> PosSpec -> ColModInfo -> ColModInfo
+ensureWidthOfCMI = ensureWidthCMI . length
 
 -- | Generates a function which modifies a given 'String' according to
 -- 'PosSpec' and 'ColModInfo'.
@@ -287,21 +300,21 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
 
     -- Vertical seperator lines
     topLine       = vLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
-    bottomLine    = vLineDetail groupSepH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
+    bottomLine    = vLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
     groupSepLine  = groupSepLC : groupSepH : intercalate [groupSepH, groupSepC, groupSepH] hGroupSpacers ++ [groupSepH, groupSepRC]
     headerSepLine = vLineDetail headerSepH headerSepLC headerSepC headerSepRC hHeaderSpacers
 
     -- Vertical content lines
     rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' groupV) . applyRowMods . cells) rGs
 
-    -- Optional functions for the header
+    -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
         Just (h, headerPosSpecs) ->
-            let headerLine    = vLine ' ' headerV (apply h headerRowMods)
+            let headerLine    = vLine ' ' headerV (zippedApply h headerRowMods)
                 headerRowMods = zipWith columnModifier headerPosSpecs $ map unalignedCMI cMIs
             in
             ( (headerLine :) . (headerSepLine :)
-            , zipWith ($) (zipWith ($) (map (ensureWidthCMI . length) h) posSpecs)
+            , zipWith ($) $ zipWith ($) (map ensureWidthOfCMI h) posSpecs
             , headerTopH
             , headerTopL
             , headerTopC
@@ -317,12 +330,12 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
             )
 
     posSpecs         = map (\(LayoutSpec _ posSpec _) -> posSpec) specs
-    applyRowMods xss = zipWith apply xss $ repeat rowMods
+    applyRowMods xss = zipWith zippedApply xss $ repeat rowMods
     rowMods          = zipWith columnModifier posSpecs cMIs
     cMIs             = fitHeaderIntoCMIs $ genColModInfos (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs)
                                          $ concatMap cells rGs
     colWidths        = map widthCMI cMIs
-    apply            = zipWith $ flip ($)
+    zippedApply      = zipWith $ flip ($)
 
 asciiRoundS :: TableStyle
 asciiRoundS = TableStyle 
@@ -392,12 +405,12 @@ unicodeBoldHeaderS = unicodeS
 
 unicodeRoundS :: TableStyle
 unicodeRoundS = unicodeS
-              { groupTopL = roundedTL
-              , groupTopR = roundedTR
+              { groupTopL    = roundedTL
+              , groupTopR    = roundedTR
               , groupBottomL = roundedBL
               , groupBottomR = roundedBR
-              , headerTopL = roundedTL
-              , headerTopR = roundedTR
+              , headerTopL   = roundedTL
+              , headerTopR   = roundedTR
               }
   where
     roundedTL = '╭'
