@@ -34,15 +34,11 @@ module Render.Table
       -- * Advanced table layout
     , RowGroup(..)
     , layoutTable
-    , layoutTableDef
-    , layoutTableUnicode
     ) where
 
 
--- TODO add seperator styles
 -- TODO integrate with PrettyPrint/Doc: e.g. color patterns for readability ? could also be done with just the lines
--- TODO headers?
--- TODO alignment at characters
+-- TODO
 
 import Data.Bifunctor
 import Data.List
@@ -251,21 +247,28 @@ data RowGroup = RowGroup
               }
 
 data TableStyle = TableStyle
-                { vSep        :: Char
-                , hSep        :: Char
-                , hHeaderSep  :: Char
-                , lcHeaderSep :: Char
-                , rcHeaderSep :: Char
-                , cHeaderSep  :: Char
-                , tcSep       :: Char
-                , tlSep       :: Char
-                , trSep       :: Char
-                , bcSep       :: Char
-                , blSep       :: Char
-                , brSep       :: Char
-                , cSep        :: Char
-                , liSep       :: Char
-                , riSep       :: Char
+                { headerSepH   :: Char
+                , headerSepLC  :: Char
+                , headerSepRC  :: Char
+                , headerSepC   :: Char
+                , headerTopL   :: Char
+                , headerTopR   :: Char
+                , headerTopC   :: Char
+                , headerTopH   :: Char
+                , headerV      :: Char
+                , groupV       :: Char
+                , groupSepH    :: Char
+                , groupSepC    :: Char
+                , groupSepLC   :: Char
+                , groupSepRC   :: Char
+                , groupTopC    :: Char
+                , groupTopL    :: Char
+                , groupTopR    :: Char
+                , groupTopH    :: Char
+                , groupBottomC :: Char
+                , groupBottomL :: Char
+                , groupBottomR :: Char
+                , groupBottomH :: Char
                 }
 
 layoutTable :: [RowGroup] -> Maybe ([String], [PosSpec]) -> TableStyle -> [LayoutSpec] -> [String]
@@ -277,29 +280,41 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
     vLineDetail hS dL d dR cols = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
 
     -- Spacers consisting of columns of seperator elements.
-    genHSpacers c     = map (flip replicate c) colWidths
-    hSpacers          = genHSpacers hSep
-    hHeaderSepSpacers = genHSpacers hHeaderSep
+    genHSpacers c    = map (flip replicate c) colWidths
+    hHeaderSpacers   = genHSpacers headerSepH
+    hGroupSpacers = genHSpacers groupSepH
+
 
     -- Vertical seperator lines
-    topLine       = vLineDetail hSep tlSep tcSep trSep hSpacers
-    bottomLine    = vLineDetail hSep blSep bcSep brSep hSpacers
-    groupSepLine  = liSep : hSep : intercalate [hSep, cSep, hSep] hSpacers ++ [hSep, riSep]
-    headerSepLine = vLineDetail hHeaderSep lcHeaderSep cHeaderSep rcHeaderSep hHeaderSepSpacers
+    topLine       = vLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
+    bottomLine    = vLineDetail groupSepH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
+    groupSepLine  = groupSepLC : groupSepH : intercalate [groupSepH, groupSepC, groupSepH] hGroupSpacers ++ [groupSepH, groupSepRC]
+    headerSepLine = vLineDetail headerSepH headerSepLC headerSepC headerSepRC hHeaderSpacers
 
     -- Vertical content lines
-    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' vSep) . applyRowMods . cells) rGs
+    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' groupV) . applyRowMods . cells) rGs
 
     -- Optional functions for the header
-    (addHeaderLines, fitHeaderIntoCMIs) = case optHeaderInfo of
+    (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
         Just (h, headerPosSpecs) ->
-            let headerLine    = vLine ' ' vSep (apply h headerRowMods)
+            let headerLine    = vLine ' ' headerV (apply h headerRowMods)
                 headerRowMods = zipWith columnModifier headerPosSpecs $ map unalignedCMI cMIs
             in
             ( (headerLine :) . (headerSepLine :)
             , zipWith ($) (zipWith ($) (map (ensureWidthCMI . length) h) posSpecs)
+            , headerTopH
+            , headerTopL
+            , headerTopC
+            , headerTopR
             )
-        Nothing -> (id, id)
+        Nothing ->
+            ( id
+            , id
+            , groupTopH
+            , groupTopL
+            , groupTopC
+            , groupTopR
+            )
 
     posSpecs         = map (\(LayoutSpec _ posSpec _) -> posSpec) specs
     applyRowMods xss = zipWith apply xss $ repeat rowMods
@@ -310,14 +325,111 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
     apply            = zipWith $ flip ($)
 
 asciiRoundS :: TableStyle
-asciiRoundS = TableStyle '|' '-' '=' ':' ':' '|' '.' '.' '.' '\'' '\'' '\'' '+' ':' ':'
+asciiRoundS = TableStyle 
+            { headerSepH   = '='
+            , headerSepLC  = ':'
+            , headerSepRC  = ':'
+            , headerSepC   = '|'
+            , headerTopL   = '.'
+            , headerTopR   = '.'
+            , headerTopC   = '.'
+            , headerTopH   = '-'
+            , headerV      = '|'
+            , groupV       = '|'
+            , groupSepH    = '-'
+            , groupSepC    = '+'
+            , groupSepLC   = ':'
+            , groupSepRC   = ':'
+            , groupTopC    = '.'
+            , groupTopL    = '.'
+            , groupTopR    = '.'
+            , groupTopH    = '-'
+            , groupBottomC = '\''
+            , groupBottomL = '\''
+            , groupBottomR = '\''
+            , groupBottomH = '-'
+            }
 
 -- | Uses special unicode characters to draw clean boxes. 
 unicodeS :: TableStyle
-unicodeS = TableStyle '│' '─' '═' '╞' '╡' '╪' '┬' '┌' '┐' '┴' '└' '┘' '┼' '├' '┤'
+unicodeS = TableStyle
+         { headerSepH   = '═'
+         , headerSepLC  = '╞'
+         , headerSepRC  = '╡'
+         , headerSepC   = '╪'
+         , headerTopL   = '┌'
+         , headerTopR   = '┐'
+         , headerTopC   = '┬'
+         , headerTopH   = '─'
+         , headerV      = '│'
+         , groupV       = '│'
+         , groupSepH    = '─'
+         , groupSepC    = '┼'
+         , groupSepLC   = '├'
+         , groupSepRC   = '┤'
+         , groupTopC    = '┬'
+         , groupTopL    = '┌'
+         , groupTopR    = '┐'
+         , groupTopH    = '─'
+         , groupBottomC = '┴'
+         , groupBottomL = '└'
+         , groupBottomR = '┘'
+         , groupBottomH = '─'
+         }
 
-layoutTableDef :: [RowGroup] -> Maybe ([String], [PosSpec]) -> [LayoutSpec] -> [String]
-layoutTableDef rGs optHI = layoutTable rGs optHI asciiRoundS
+unicodeBoldHeaderS :: TableStyle
+unicodeBoldHeaderS = unicodeS
+                   { headerSepH  = '━'
+                   , headerSepLC = '┡'
+                   , headerSepRC = '┩'
+                   , headerSepC  = '╇'
+                   , headerTopL  = '┏'
+                   , headerTopR  = '┓'
+                   , headerTopC  = '┳'
+                   , headerTopH  = '━'
+                   , headerV     = '┃'
+                   }
 
-layoutTableUnicode :: [RowGroup] -> Maybe ([String], [PosSpec]) -> [LayoutSpec] -> [String]
-layoutTableUnicode rGs optHI = layoutTable rGs optHI unicodeS
+unicodeRoundS :: TableStyle
+unicodeRoundS = unicodeS
+              { groupTopL = roundedTL
+              , groupTopR = roundedTR
+              , groupBottomL = roundedBL
+              , groupBottomR = roundedBR
+              , headerTopL = roundedTL
+              , headerTopR = roundedTR
+              }
+  where
+    roundedTL = '╭'
+    roundedTR = '╮'
+    roundedBL = '╰'
+    roundedBR = '╯'
+
+unicodeBoldS :: TableStyle
+unicodeBoldS = TableStyle
+             { headerSepH   = '━'
+             , headerSepLC  = '┣'
+             , headerSepRC  = '┫'
+             , headerSepC   = '╋'
+             , headerTopL   = '┏'
+             , headerTopR   = '┓'
+             , headerTopC   = '┳'
+             , headerTopH   = '━'
+             , headerV      = '┃'
+             , groupV       = '┃'
+             , groupSepH    = '━'
+             , groupSepC    = '╋'
+             , groupSepLC   = '┣'
+             , groupSepRC   = '┫'
+             , groupTopC    = '┳'
+             , groupTopL    = '┏'
+             , groupTopR    = '┓'
+             , groupTopH    = '━'
+             , groupBottomC = '┻'
+             , groupBottomL = '┗'
+             , groupBottomR = '┛'
+             , groupBottomH = '━'
+             }
+
+unicodeBoldStripedS :: TableStyle
+unicodeBoldStripedS = unicodeBoldS { groupSepH = '-', groupSepC = '┃', groupSepLC = '┃', groupSepRC = '┃' }
