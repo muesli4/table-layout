@@ -22,7 +22,7 @@ module Render.Table
     , columnModifier
     , AlignInfo(..)
     , widthAI
-    , genColModInfo
+    , genColModInfos
     , genAlignInfo
       -- * Basic grid and table layout
     , layoutCells
@@ -33,7 +33,6 @@ module Render.Table
     , checkeredCells
       -- * Advanced table layout
     , RowGroup(..)
-    , Table(..)
     , layoutTable
     , layoutTableDef
     , layoutTableUnicode
@@ -194,8 +193,8 @@ instance Monoid AlignInfo where
 
 -- | Derive the 'ColModInfo' by using layout specifications and looking at the
 -- table.
-genColModInfo :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
-genColModInfo specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
+genColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
+genColModInfos specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
   where
     fSel specs = case specs of
         (Expand   , NoAlign       ) -> FillTo . maximum . fmap length
@@ -215,7 +214,7 @@ layoutCells :: [LayoutSpec] -> [[String]] -> [[String]]
 layoutCells specs tab = zipWith apply tab
                         . repeat
                         . zipWith columnModifier (map (\(LayoutSpec _ posSpec _) -> posSpec) specs)
-                        $ genColModInfo (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs) tab
+                        $ genColModInfos (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs) tab
   where
     apply = zipWith $ flip ($)
 
@@ -240,7 +239,9 @@ altLines = zipWith ($) . cycle
 checkeredCells  :: (a -> b) -> (a -> b) -> [[a]] -> [[b]]
 checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 
---  = Advanced layout
+------------------
+-- Advanced layout
+------------------
 
 -- | Groups rows together, which are not seperated from each other. Optionally
 -- a label with vertical text on the left can be added.
@@ -248,11 +249,6 @@ data RowGroup = RowGroup
               { cells     :: [[String]] 
               , optVLabel :: Maybe String
               }
-
-data Table = Table
-           { header    :: [String]
-           , rowGroups :: [RowGroup]
-           }
 
 data TableStyle = TableStyle
                 { vSep        :: Char
@@ -272,21 +268,11 @@ data TableStyle = TableStyle
                 , riSep       :: Char
                 }
 
-layoutTable :: Table -> TableStyle -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTable (Table h rGs) (TableStyle { .. }) specs headerPosSpecs =
-    topLine : headerLine : headerSepLine : rowGroupLines ++ [bottomLine]
+layoutTable :: [RowGroup] -> Maybe ([String], [PosSpec]) -> TableStyle -> [LayoutSpec] -> [String]
+layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
+    topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
-    -- Vertical seperator lines
-    topLine       = vLineDetail hSep tlSep tcSep trSep hSpacers
-    bottomLine    = vLineDetail hSep blSep bcSep brSep hSpacers
-    groupSepLine  = liSep : hSep : intercalate [hSep, cSep, hSep] hSpacers ++ [hSep, riSep]
-    headerSepLine = vLineDetail hHeaderSep lcHeaderSep cHeaderSep rcHeaderSep hHeaderSepSpacers
-
-    -- Vertical content lines
-    headerLine    = vLine ' ' vSep (apply h headerRowMods)
-    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' vSep) . applyRowMods . cells) rGs
-
-
+    -- Line helpers
     vLine hs d                  = vLineDetail hs d d d
     vLineDetail hS dL d dR cols = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
 
@@ -295,26 +281,43 @@ layoutTable (Table h rGs) (TableStyle { .. }) specs headerPosSpecs =
     hSpacers          = genHSpacers hSep
     hHeaderSepSpacers = genHSpacers hHeaderSep
 
-    unalignedCMIs = map unalignedCMI cMIs
-    headerRowMods = zipWith columnModifier headerPosSpecs unalignedCMIs
+    -- Vertical seperator lines
+    topLine       = vLineDetail hSep tlSep tcSep trSep hSpacers
+    bottomLine    = vLineDetail hSep blSep bcSep brSep hSpacers
+    groupSepLine  = liSep : hSep : intercalate [hSep, cSep, hSep] hSpacers ++ [hSep, riSep]
+    headerSepLine = vLineDetail hHeaderSep lcHeaderSep cHeaderSep rcHeaderSep hHeaderSepSpacers
+
+    -- Vertical content lines
+    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' vSep) . applyRowMods . cells) rGs
+
+    -- Optional functions for the header
+    (addHeaderLines, fitHeaderIntoCMIs) = case optHeaderInfo of
+        Just (h, headerPosSpecs) ->
+            let headerLine    = vLine ' ' vSep (apply h headerRowMods)
+                headerRowMods = zipWith columnModifier headerPosSpecs $ map unalignedCMI cMIs
+            in
+            ( (headerLine :) . (headerSepLine :)
+            , zipWith ($) (zipWith ($) (map (ensureWidthCMI . length) h) posSpecs)
+            )
+        Nothing -> (id, id)
 
     posSpecs         = map (\(LayoutSpec _ posSpec _) -> posSpec) specs
     applyRowMods xss = zipWith apply xss $ repeat rowMods
     rowMods          = zipWith columnModifier posSpecs cMIs
-    cMIs             = zipWith ($) (zipWith ($) (map (ensureWidthCMI . length) h) posSpecs)
-                                   $ genColModInfo (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs)
-                                   $ concatMap cells rGs
+    cMIs             = fitHeaderIntoCMIs $ genColModInfos (map (\(LayoutSpec lenSpec _ alignSpec) -> (lenSpec, alignSpec)) specs)
+                                         $ concatMap cells rGs
     colWidths        = map widthCMI cMIs
     apply            = zipWith $ flip ($)
 
 asciiRoundS :: TableStyle
 asciiRoundS = TableStyle '|' '-' '=' ':' ':' '|' '.' '.' '.' '\'' '\'' '\'' '+' ':' ':'
 
+-- | Uses special unicode characters to draw clean boxes. 
 unicodeS :: TableStyle
 unicodeS = TableStyle '│' '─' '═' '╞' '╡' '╪' '┬' '┌' '┐' '┴' '└' '┘' '┼' '├' '┤'
 
-layoutTableDef :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTableDef t = layoutTable t asciiRound
+layoutTableDef :: [RowGroup] -> Maybe ([String], [PosSpec]) -> [LayoutSpec] -> [String]
+layoutTableDef rGs optHI = layoutTable rGs optHI asciiRoundS
 
-layoutTableUnicode :: Table -> [LayoutSpec] -> [PosSpec] -> [String]
-layoutTableUnicode t = layoutTable t unicodeS
+layoutTableUnicode :: [RowGroup] -> Maybe ([String], [PosSpec]) -> [LayoutSpec] -> [String]
+layoutTableUnicode rGs optHI = layoutTable rGs optHI unicodeS
