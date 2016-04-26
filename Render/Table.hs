@@ -128,6 +128,32 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
         [] -> (if r == 0 then "" else spaces r)
         _  -> rs ++ spaces (r - length rs)
 
+
+-- TODO rework missing markers
+alignLimit :: Int -> PosSpec -> OccSpec -> AlignInfo -> String -> String
+alignLimit i p oS ai@(AlignInfo l r) s =
+    let n = l + r - i
+    in if n <= 0
+       then align oS ai s
+       else case splitAtOcc oS s of
+        (ls, rs) -> case p of
+            LeftPos   -> let remRight = r - n
+                         in if remRight < 0
+                            then take (l + remRight) $ spaces (l - length ls) ++ ls
+                            else spaces (l - length ls) ++ ls ++ take remRight (rs ++ repeat ' ')
+            RightPos  -> let remLeft = l - n
+                         in if remLeft < 0
+                            then drop (negate remLeft) rs ++ spaces (r + remLeft - length rs)
+                            else drop n (spaces (l - length ls) ++ ls) ++ take r (rs ++ repeat ' ')
+            CenterPos -> let (q, rem) = n `divMod` 2
+                             remLeft  = l - q - rem
+                             remRight = r - q
+                         in if remLeft < 0
+                            then take remRight $ drop (negate remLeft) rs ++ repeat ' '
+                            else if remRight < 0
+                                 then take (remLeft + remRight) $ spaces (remLeft - length ls) ++ ls
+                                 else spaces (remLeft - length ls) ++ drop (length ls - remLeft) ls ++ take remRight (rs ++ repeat ' ')
+
 splitAtOcc :: OccSpec -> String -> (String, String)
 splitAtOcc (OccSpec c occ) = first reverse . go 0 []
   where
@@ -185,7 +211,7 @@ columnModifier :: PosSpec -> ColModInfo -> (String -> String)
 columnModifier posSpec lenInfo = case lenInfo of
     FillAligned oS ai -> align oS ai
     FillTo maxLen     -> pad maxLen posSpec
-    ShortenTo lim mT  -> trimOrPad lim posSpec . maybe id (uncurry align) mT
+    ShortenTo lim mT  -> maybe (trimOrPad lim posSpec) (uncurry $ alignLimit lim posSpec) mT --trimOrPad lim posSpec . maybe id (uncurry align) mT -- TODO fix in align case
 
 -- | Specifies the length before and after a letter.
 data AlignInfo = AlignInfo Int Int deriving Show
@@ -210,6 +236,7 @@ genColModInfos specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
         (Expand   , AlignAtChar oS) -> FillAligned oS . foldMap (genAlignInfo oS)
         (LimitTo i, NoAlign       ) -> const $ ShortenTo i Nothing
         (LimitTo i, AlignAtChar oS) -> ShortenTo i . Just . (,) oS . foldMap (genAlignInfo oS)
+
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
 genAlignInfo :: OccSpec -> String -> AlignInfo
 genAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
