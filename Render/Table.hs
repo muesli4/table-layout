@@ -91,42 +91,76 @@ limitLeftL i = limitL i LeftPos
 spaces :: Int -> String
 spaces = flip replicate ' '
 
--- | Assume the given length is greater or equal than the length of the 'String'
--- passed. Pads the given 'String' accordingly, using the position specification.
-pad :: Int -> PosSpec -> String -> String
-pad l p s = case p of
-    LeftPos   -> take l (s ++ repeat ' ')
-    RightPos  -> spaces (l - length s) ++ s
-    CenterPos -> let fillL  = l - length s
-                     (q, r) = fillL `divMod` 2
+fillLeft' :: Int -> Int -> String -> String
+fillLeft' i lenS s = spaces (i - lenS) ++ s
+
+fillLeft :: Int -> String -> String
+fillLeft i s = fillLeft' i (length s) s
+
+fillRight :: Int -> String -> String
+fillRight i s = take i $ s ++ repeat ' '
+
+fillCenter :: Int -> String -> String
+fillCenter i s = let missing  = i - length s
+                     (q, r) = missing `divMod` 2
                  -- Puts more on the right if odd.
                  in spaces q ++ s ++ spaces (q + r)
+
+-- | Fits to the given lengths by either trimming or filling it to the right.
+fitRightWith :: String -> Int -> Int -> String -> String
+fitRightWith m mLen i s = if length s <= i
+                          then fillRight i s
+                          else take (i - mLen) s ++ take mLen m
+
+fitLeftWith :: String -> Int -> Int -> String -> String
+fitLeftWith m mLen i s = if lenS <= i
+                         then fillLeft' i lenS s
+                         else take mLen m ++ drop (lenS - i + mLen) s
+  where
+    lenS = length s
+
+-- TODO make marker selectable ?
+fitRight :: Int -> String -> String
+fitRight = fitRightWith "…" 1
+
+-- TODO make marker selectable ?
+fitLeft :: Int -> String -> String
+fitLeft = fitLeftWith "…" 1
+
+-- | Assume the given length is greater or equal than the length of the 'String'
+-- passed. Pads the given 'String' accordingly, using the position specification.
+pad :: Int -> PosSpec -> String -> String -- TODO PosSpec first
+pad l p s = case p of
+    LeftPos   -> fillRight l s
+    RightPos  -> fillLeft l s
+    CenterPos -> fillCenter l s
+                 
 
 -- | If the given text is too long, the 'String' will be shortened according to
 -- the position specification, also adds some dots to indicate that the column
 -- has been trimmed in length, otherwise behaves like 'pad'.
 trimOrPad :: Int -> PosSpec -> String -> String
-trimOrPad l p s =
-    if lenS > l
-    -- Too long, shorten it.
-    then case p of
-        -- Show dots left.
-        RightPos  -> ".." ++ drop (lenS - l + 2) s
-        -- Show dots right.
-        _         -> take l $ take (l - 2) s ++ ".."
-    else pad l p s
+trimOrPad l p s = case p of
+    LeftPos   -> fitRight l s
+    RightPos  -> fitLeft l s
+    CenterPos -> fitRight l s -- TODO Center should trim on both sides
   where
     lenS = length s
 
 -- | Align a column by first finding the position to pad with and then padding
 -- the missing lengths to the maximum value. If no such position is found, it
 -- will align it such that it gets aligned before that position.
+--
+-- This function assumes:
+-- @
+--     ai <> genAlignInfo s = ai
+-- @
 align :: OccSpec -> AlignInfo -> String -> String
 align oS (AlignInfo l r) s = case splitAtOcc oS s of
-    (ls, rs) -> spaces (l - length ls) ++ ls ++ case rs of
+    (ls, rs) -> fillLeft l ls ++ case rs of
         -- No alignment character found.
         [] -> (if r == 0 then "" else spaces r)
-        _  -> rs ++ spaces (r - length rs)
+        _  -> fillRight r rs
 
 
 -- TODO rework missing markers
@@ -139,20 +173,23 @@ alignLimit i p oS ai@(AlignInfo l r) s =
         (ls, rs) -> case p of
             LeftPos   -> let remRight = r - n
                          in if remRight < 0
-                            then take (l + remRight) $ spaces (l - length ls) ++ ls
-                            else spaces (l - length ls) ++ ls ++ take remRight (rs ++ repeat ' ')
+                            then fitRight (l + remRight) ls
+                            else fillLeft l ls ++ fitRight remRight rs
             RightPos  -> let remLeft = l - n
                          in if remLeft < 0
                             then drop (negate remLeft) rs ++ spaces (r + remLeft - length rs)
-                            else drop n (spaces (l - length ls) ++ ls) ++ take r (rs ++ repeat ' ')
+                            else fitLeft (l - n) ls ++ fillRight r rs
             CenterPos -> let (q, rem) = n `divMod` 2
                              remLeft  = l - q - rem
                              remRight = r - q
                          in if remLeft < 0
-                            then take remRight $ drop (negate remLeft) rs ++ repeat ' '
+                            -- TODO implement dual fit
+                            then fitRight remRight $ drop (negate remLeft) rs -- take remRight $ drop (negate remLeft) rs ++ repeat ' '
                             else if remRight < 0
                                  then take (remLeft + remRight) $ spaces (remLeft - length ls) ++ ls
                                  else spaces (remLeft - length ls) ++ drop (length ls - remLeft) ls ++ take remRight (rs ++ repeat ' ')
+
+
 
 splitAtOcc :: OccSpec -> String -> (String, String)
 splitAtOcc (OccSpec c occ) = first reverse . go 0 []
