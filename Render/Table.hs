@@ -190,23 +190,20 @@ alignLimit i p oS ai@(AlignInfo l r) s             =
         (ls, rs) -> case p of
             LeftPos   -> let remRight = r - n
                          in if remRight < 0
-                            then fitRight (l + remRight) ls
+                            then fitRight (l + remRight) $ fillLeft l ls
                             else fillLeft l ls ++ fitRight remRight rs
             RightPos  -> let remLeft = l - n
                          in if remLeft < 0
                             then drop (negate remLeft) rs ++ spaces (r + remLeft - length rs)
                             else fitLeft (l - n) ls ++ fillRight r rs
             CenterPos -> let (q, rem) = n `divMod` 2
-                             remLeft  = l - q - rem
-                             remRight = r - q
-                        -- TODO implement dual fit
-                         in if | remLeft < 0   -> fitRight remRight $ drop (negate remLeft) rs
-                                                  -- take remRight $ drop (negate remLeft) rs ++ repeat ' '
-                               | remRight < 0  -> take (remLeft + remRight) $ spaces (remLeft - length ls) ++ ls
+                             remLeft  = l - q
+                             remRight = r - q - rem
+                         in if | remLeft < 0   -> fitLeft (remRight + remLeft) $ fitRight remRight rs
+                               | remRight < 0  -> fitRight (remLeft + remRight) $ fitLeft remLeft ls
                                | remLeft == 0  -> "…" ++ drop 1 (fitRight remRight rs)
                                | remRight == 0 -> reverse $ "…" ++ drop 1 (reverse $ fitLeft remLeft ls)
                                | otherwise     -> fitLeft remLeft ls ++ fitRight remRight rs
-                                 -- Some leftovers on boths sides exist. TODO missing 0 case does not work
 
 splitAtOcc :: OccSpec -> String -> (String, String)
 splitAtOcc (OccSpec c occ) = first reverse . go 0 []
