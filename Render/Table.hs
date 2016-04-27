@@ -49,7 +49,15 @@ module Render.Table
     , HeaderLayoutSpec(..)
     , centerHL
     , leftHL
-    , layoutTable
+    , layoutTableLines
+
+      -- * Text justification
+      -- $justify
+    , justifyTextsAsGrid
+    , justifyWordListsAsGrid
+    , columnsAsGrid
+    , justifyText
+    , justify
 
       -- * Table styles
     , asciiRoundS
@@ -61,10 +69,8 @@ module Render.Table
     ) where
 
 
--- TODO integrate with PrettyPrint/Doc: e.g. color patterns for readability ? could also be done with just the lines
--- TODO make full line markers selectable
 -- TODO break cells into multiple cells using justify functions
--- TODO multiple alignment points
+-- TODO multiple alignment points - useful?
 
 import Control.Arrow
 --import Data.Bifunctor
@@ -72,6 +78,7 @@ import Data.List
 import Data.Maybe
 
 import Render.Table.PrimMod
+import Render.Table.Justify
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
@@ -135,7 +142,7 @@ limitLeftL i = limitL i LeftPos
 
 -- | Assume the given length is greater or equal than the length of the 'String'
 -- passed. Pads the given 'String' accordingly, using the position specification.
-pad :: PosSpec -> Int -> String -> String -- TODO PosSpec first
+pad :: PosSpec -> Int -> String -> String
 pad p = case p of
     LeftPos   -> fillRight
     RightPos  -> fillLeft
@@ -165,7 +172,8 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
         [] -> (if r == 0 then "" else spaces r)
         _  -> fillRight r rs
 
--- TODO special cases are ugly
+-- | Aligns a column using a fixed width, fitting it to the width by either
+-- filling or fitting while respecting the alignment.
 alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _             = ""
 alignFixed _ cms 1 _  _                  (_ : (_ : _)) = "…"
@@ -274,11 +282,12 @@ instance Monoid AlignInfo where
 deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
 deriveColModInfos specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
   where
-    fSel specs = case specs of
+    fSel specs       = case specs of
         (Expand , NoAlign       ) -> FillTo . maximum . fmap length
-        (Expand , AlignAtChar oS) -> FillAligned oS . foldMap (deriveAlignInfo oS)
+        (Expand , AlignAtChar oS) -> FillAligned oS . deriveAlignInfos oS
         (Fixed i, NoAlign       ) -> const $ FitTo i Nothing
-        (Fixed i, AlignAtChar oS) -> FitTo i . Just . (,) oS . foldMap (deriveAlignInfo oS)
+        (Fixed i, AlignAtChar oS) -> FitTo i . Just . (,) oS . deriveAlignInfos oS
+    deriveAlignInfos = foldMap . deriveAlignInfo
 
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo
@@ -373,8 +382,8 @@ leftHL = HeaderLayoutSpec LeftPos Nothing
 
 -- | Layouts a good-looking table with a optional header. Note that specifying
 -- too few layout specifications or columns will result in not showing them.
-layoutTable :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> TableStyle -> [LayoutSpec] -> [String]
-layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
+layoutTableLines :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> [LayoutSpec] -> TableStyle -> [String]
+layoutTableLines rGs optHeaderInfo specs (TableStyle { .. }) =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
     -- Line helpers
@@ -400,8 +409,9 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
         Just (h, headerLayoutSpecs) ->
             let headerLine    = vLine ' ' headerV (zipApply h headerRowMods)
-                -- TODO choose header CutMarkSpec?
-                headerRowMods = zipWith3 (\(HeaderLayoutSpec posSpec optCutMarkSpec) cutMarkSpec -> columnModifier posSpec $ fromMaybe cutMarkSpec optCutMarkSpec)
+                headerRowMods = zipWith3 (\(HeaderLayoutSpec posSpec optCutMarkSpec) cutMarkSpec ->
+                                              columnModifier posSpec $ fromMaybe cutMarkSpec optCutMarkSpec
+                                         )
                                          headerLayoutSpecs
                                          cMSs
                                          (map unalignedCMI cMIs)
@@ -430,6 +440,16 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
                                          $ concatMap cells rGs
     colWidths        = map widthCMI cMIs
     zipApply         = zipWith $ flip ($)
+
+
+-------------------------------------------------------------------------------
+-- Text justification
+-------------------------------------------------------------------------------
+
+-- $justify
+-- Text can easily be justified and distributed over multiple lines. Such
+-- columns can easily be combined with other columns.
+--
 
 -------------------------------------------------------------------------------
 -- Table styles
