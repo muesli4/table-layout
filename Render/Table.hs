@@ -175,32 +175,37 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
 -- filling or fitting while respecting the alignment.
 alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _               = ""
-alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms "  "
+alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeft "  "
 alignFixed p cms i oS ai@(AlignInfo l r) s               =
     let n = l + r - i
     in if n <= 0
        then pad p i $ align oS ai s
        else case splitAtOcc oS s of
         (ls, rs) -> case p of
-            LeftPos   -> let remRight = r - n
-                         in if remRight < 0
-                            then fitRight' (l + remRight) $ fillLeft l ls
-                            else fillLeft l ls ++ fitRight' remRight rs
-            RightPos  -> let remLeft = l - n
-                         in if remLeft < 0
-                            then fitLeft' (r + remLeft) $ fillRight r rs
-                            else fitLeft' remLeft ls ++ fillRight r rs
-            CenterPos -> let (q, rem) = n `divMod` 2
-                             remLeft  = l - q
-                             remRight = r - q - rem
-                         in if | remLeft < 0   -> fitLeft' (remRight + remLeft) $ fitRight' remRight rs
-                               | remRight < 0  -> fitRight' (remLeft + remRight) $ fitLeft' remLeft ls
-                               | remLeft == 0  -> applyMarkLeftWith cms $ fitRight' remRight rs
-                               | remRight == 0 -> applyMarkRightWith cms $ fitLeft' remLeft ls
-                               | otherwise     -> fitRight' (remRight + remLeft) $ fitLeft' remLeft ls ++ rs
+            LeftPos   ->
+                let remRight = r - n
+                in if remRight < 0
+                   then fitRight (l + remRight) $ fillLeft l ls
+                   else fillLeft l ls ++ fitRight remRight rs
+            RightPos  ->
+                let remLeft = l - n
+                in if remLeft < 0
+                   then fitLeft (r + remLeft) $ fillRight r rs
+                   else fitLeft remLeft ls ++ fillRight r rs
+            CenterPos ->
+                let (q, rem) = n `divMod` 2
+                    remLeft  = l - q
+                    remRight = r - q - rem
+                in if | remLeft < 0   -> fitLeft (remRight + remLeft) $ fitRight remRight rs
+                      | remRight < 0  -> fitRight (remLeft + remRight) $ fitLeft remLeft ls
+                      | remLeft == 0  -> applyMarkLeft cms $ fitRight remRight rs
+                      | remRight == 0 -> applyMarkRight $ fitLeft remLeft ls
+                      | otherwise     -> fitRight (remRight + remLeft) $ fitLeft remLeft ls ++ rs
   where
-    fitRight' = fitRightWith cms
-    fitLeft'  = fitLeftWith cms
+    fitRight       = fitRightWith cms
+    fitLeft        = fitLeftWith cms
+    applyMarkLeft  = applyMarkLeftWith cms
+    applyMarkRight = applyMarkRightWith cms
 
 splitAtOcc :: OccSpec -> String -> (String, String)
 splitAtOcc (OccSpec c occ) = first reverse . go 0 []
