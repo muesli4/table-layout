@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiWayIf #-}
 module Render.Table
     ( -- * Layout types and combinators
+      -- $layout
       LayoutSpec(..)
     , LenSpec(..)
     , PosSpec(..)
@@ -11,10 +12,13 @@ module Render.Table
     , numL
     , limitL
     , limitLeftL
+
       -- * Column modification functions
     , pad
     , trimOrPad
     , align
+    , alignLimit
+
       -- * Column modifaction primitives
     , ColModInfo(..)
     , widthCMI
@@ -26,16 +30,21 @@ module Render.Table
     , widthAI
     , genColModInfos
     , genAlignInfo
+
       -- * Basic grid and table layout
     , layoutCells
     , layoutLines
     , layoutString
+
       -- * Grid modification functions
     , altLines
     , checkeredCells
+
       -- * Advanced table layout
     , RowGroup(..)
     , layoutTable
+
+      -- * Table styles
     , asciiRoundS
     , unicodeS
     , unicodeRoundS
@@ -46,14 +55,20 @@ module Render.Table
 
 
 -- TODO integrate with PrettyPrint/Doc: e.g. color patterns for readability ? could also be done with just the lines
--- TODO
+-- TODO make full line markers selectable
+-- TODO break cells into multiple cells using justify functions
 
 import Data.Bifunctor
 import Data.List
 import Data.Maybe
 
-{- = Layout types and combinators
-   Specify the layout of columns. Layout combinators have a 'L' as postfix.
+import Render.Table.PrimMod
+
+-------------------------------------------------------------------------------
+-- Layout types and combinators
+-------------------------------------------------------------------------------
+{- $layout
+    Specify the layout of columns. Layout combinators have a 'L' as postfix.
 -}
 
 -- | Determines the layout of a column.
@@ -62,7 +77,8 @@ data LayoutSpec = LayoutSpec LenSpec PosSpec AlignSpec deriving Show
 -- | Determines how long a column will be.
 data LenSpec = Expand | LimitTo Int deriving Show
 
--- | Determines how a column will be positioned.
+-- | Determines how a column will be positioned. Note that on an odd number of
+-- space centering is left-biased.
 data PosSpec = LeftPos | RightPos | CenterPos deriving Show
 
 -- | Determines whether a column will align at a specific letter.
@@ -87,60 +103,9 @@ limitL l pS = LayoutSpec (LimitTo l) pS NoAlign
 limitLeftL :: Int -> LayoutSpec
 limitLeftL i = limitL i LeftPos
 
---  = Single-cell layout functions.
-
-spaces :: Int -> String
-spaces = flip replicate ' '
-
-fillLeft' :: Int -> Int -> String -> String
-fillLeft' i lenS s = spaces (i - lenS) ++ s
-
-fillLeft :: Int -> String -> String
-fillLeft i s = fillLeft' i (length s) s
-
-fillRight :: Int -> String -> String
-fillRight i s = take i $ s ++ repeat ' '
-
-fillCenter' :: Int -> Int -> String -> String
-fillCenter' i lenS s = let missing = i - lenS
-                           (q, r)  = missing `divMod` 2
-                       -- Puts more on the right if odd.
-                       in spaces q ++ s ++ spaces (q + r)
-
-fillCenter :: Int -> String -> String
-fillCenter i s = fillCenter' i (length s) s
-
--- | Fits to the given lengths by either trimming or filling it to the right.
-fitRightWith :: String -> Int -> Int -> String -> String
-fitRightWith m mLen i s = if length s <= i
-                          then fillRight i s
-                          else take i $ take (i - mLen) s ++ take mLen m
-
-fitLeftWith :: String -> Int -> Int -> String -> String
-fitLeftWith m mLen i s = if lenS <= i
-                         then fillLeft' i lenS s
-                         else take i $ take mLen m ++ drop (lenS - i + mLen) s
-  where
-    lenS = length s
-
-fitCenterWith :: String -> Int -> Int -> String -> String
-fitCenterWith m mLen i s = if lenS <= i
-                           then fillCenter' i lenS s
-                           else case splitAt (lenS `div` 2) s of
-                               (ls, rs) -> take i $ fitLeft halfI ls ++ fitRight (halfI + r) rs
-  where
-    lenS       = length s
-    (halfI, r) = i `divMod` 2
-
--- TODO make marker selectable ?
-fitRight :: Int -> String -> String
-fitRight = fitRightWith "…" 1
-
-fitLeft :: Int -> String -> String
-fitLeft = fitLeftWith "…" 1
-
-fitCenter :: Int -> String -> String
-fitCenter = fitCenterWith "…" 1
+-------------------------------------------------------------------------------
+-- Single-cell layout functions.
+-------------------------------------------------------------------------------
 
 -- | Assume the given length is greater or equal than the length of the 'String'
 -- passed. Pads the given 'String' accordingly, using the position specification.
@@ -229,7 +194,8 @@ widthCMI cmi = case cmi of
     FillTo maxLen    -> maxLen
     ShortenTo lim _  -> lim
 
--- | Remove alignment from a 'ColModInfo
+-- | Remove alignment from a 'ColModInfo'. This is used to change alignment of
+-- headers, while using the combined width information.
 unalignedCMI :: ColModInfo -> ColModInfo
 unalignedCMI cmi = case cmi of
     FillAligned _ ai -> FillTo $ widthAI ai
@@ -292,9 +258,9 @@ genColModInfos specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
 genAlignInfo :: OccSpec -> String -> AlignInfo
 genAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
 
------------------------
+-------------------------------------------------------------------------------
 -- Basic layout
------------------------
+-------------------------------------------------------------------------------
 
 -- | Modifies cells according to the given 'LayoutSpec'.
 layoutCells :: [LayoutSpec] -> [[String]] -> [[String]]
@@ -313,7 +279,9 @@ layoutLines specs tab = map unwords $ layoutCells specs tab
 layoutString :: [LayoutSpec] -> [[String]] -> String
 layoutString ls t = intercalate "\n" $ layoutLines ls t
 
---  = Grid modifier functions
+-------------------------------------------------------------------------------
+-- Grid modifier functions
+-------------------------------------------------------------------------------
 
 -- | Applies functions alternating to given lines. This makes it easy to color
 -- lines to improve readability in a row.
@@ -326,9 +294,9 @@ altLines = zipWith ($) . cycle
 checkeredCells  :: (a -> b) -> (a -> b) -> [[a]] -> [[b]]
 checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 
-------------------
+-------------------------------------------------------------------------------
 -- Advanced layout
-------------------
+-------------------------------------------------------------------------------
 
 -- | Groups rows together, which are not seperated from each other. Optionally
 -- a label with vertical text on the left can be added.
@@ -414,6 +382,10 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
                                          $ concatMap cells rGs
     colWidths        = map widthCMI cMIs
     zippedApply      = zipWith $ flip ($)
+
+-------------------------------------------------------------------------------
+-- Table styles
+-------------------------------------------------------------------------------
 
 asciiRoundS :: TableStyle
 asciiRoundS = TableStyle 
