@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiWayIf #-}
 module Render.Table
     ( -- * Layout types and combinators
       LayoutSpec(..)
@@ -100,32 +101,46 @@ fillLeft i s = fillLeft' i (length s) s
 fillRight :: Int -> String -> String
 fillRight i s = take i $ s ++ repeat ' '
 
+fillCenter' :: Int -> Int -> String -> String
+fillCenter' i lenS s = let missing = i - lenS
+                           (q, r)  = missing `divMod` 2
+                       -- Puts more on the right if odd.
+                       in spaces q ++ s ++ spaces (q + r)
+
 fillCenter :: Int -> String -> String
-fillCenter i s = let missing  = i - length s
-                     (q, r) = missing `divMod` 2
-                 -- Puts more on the right if odd.
-                 in spaces q ++ s ++ spaces (q + r)
+fillCenter i s = fillCenter' i (length s) s
 
 -- | Fits to the given lengths by either trimming or filling it to the right.
 fitRightWith :: String -> Int -> Int -> String -> String
 fitRightWith m mLen i s = if length s <= i
                           then fillRight i s
-                          else take (i - mLen) s ++ take mLen m
+                          else take i $ take (i - mLen) s ++ take mLen m
 
 fitLeftWith :: String -> Int -> Int -> String -> String
 fitLeftWith m mLen i s = if lenS <= i
                          then fillLeft' i lenS s
-                         else take mLen m ++ drop (lenS - i + mLen) s
+                         else take i $ take mLen m ++ drop (lenS - i + mLen) s
   where
     lenS = length s
+
+fitCenterWith :: String -> Int -> Int -> String -> String
+fitCenterWith m mLen i s = if lenS <= i
+                           then fillCenter' i lenS s
+                           else case splitAt (lenS `div` 2) s of
+                               (ls, rs) -> take i $ fitLeft halfI ls ++ fitRight (halfI + r) rs
+  where
+    lenS       = length s
+    (halfI, r) = i `divMod` 2
 
 -- TODO make marker selectable ?
 fitRight :: Int -> String -> String
 fitRight = fitRightWith "…" 1
 
--- TODO make marker selectable ?
 fitLeft :: Int -> String -> String
 fitLeft = fitLeftWith "…" 1
+
+fitCenter :: Int -> String -> String
+fitCenter = fitCenterWith "…" 1
 
 -- | Assume the given length is greater or equal than the length of the 'String'
 -- passed. Pads the given 'String' accordingly, using the position specification.
@@ -143,7 +158,7 @@ trimOrPad :: Int -> PosSpec -> String -> String
 trimOrPad l p s = case p of
     LeftPos   -> fitRight l s
     RightPos  -> fitLeft l s
-    CenterPos -> fitRight l s -- TODO Center should trim on both sides
+    CenterPos -> fitCenter l s -- TODO Center should trim on both sides
   where
     lenS = length s
 
@@ -163,12 +178,14 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
         _  -> fillRight r rs
 
 
--- TODO rework missing markers
+-- TODO special cases are ugly
 alignLimit :: Int -> PosSpec -> OccSpec -> AlignInfo -> String -> String
-alignLimit i p oS ai@(AlignInfo l r) s =
+alignLimit 0 _ _  _                  _             = ""
+alignLimit 1 _ _  _                  (_ : (_ : _)) = "…"
+alignLimit i p oS ai@(AlignInfo l r) s             =
     let n = l + r - i
     in if n <= 0
-       then align oS ai s
+       then pad i p $ align oS ai s
        else case splitAtOcc oS s of
         (ls, rs) -> case p of
             LeftPos   -> let remRight = r - n
@@ -182,14 +199,14 @@ alignLimit i p oS ai@(AlignInfo l r) s =
             CenterPos -> let (q, rem) = n `divMod` 2
                              remLeft  = l - q - rem
                              remRight = r - q
-                         in if remLeft < 0
-                            -- TODO implement dual fit
-                            then fitRight remRight $ drop (negate remLeft) rs -- take remRight $ drop (negate remLeft) rs ++ repeat ' '
-                            else if remRight < 0
-                                 then take (remLeft + remRight) $ spaces (remLeft - length ls) ++ ls
-                                 else spaces (remLeft - length ls) ++ drop (length ls - remLeft) ls ++ take remRight (rs ++ repeat ' ')
-
-
+                        -- TODO implement dual fit
+                         in if | remLeft < 0   -> fitRight remRight $ drop (negate remLeft) rs
+                                                  -- take remRight $ drop (negate remLeft) rs ++ repeat ' '
+                               | remRight < 0  -> take (remLeft + remRight) $ spaces (remLeft - length ls) ++ ls
+                               | remLeft == 0  -> "…" ++ drop 1 (fitRight remRight rs)
+                               | remRight == 0 -> reverse $ "…" ++ drop 1 (reverse $ fitLeft remLeft ls)
+                               | otherwise     -> fitLeft remLeft ls ++ fitRight remRight rs
+                                 -- Some leftovers on boths sides exist. TODO missing 0 case does not work
 
 splitAtOcc :: OccSpec -> String -> (String, String)
 splitAtOcc (OccSpec c occ) = first reverse . go 0 []
@@ -248,7 +265,7 @@ columnModifier :: PosSpec -> ColModInfo -> (String -> String)
 columnModifier posSpec lenInfo = case lenInfo of
     FillAligned oS ai -> align oS ai
     FillTo maxLen     -> pad maxLen posSpec
-    ShortenTo lim mT  -> maybe (trimOrPad lim posSpec) (uncurry $ alignLimit lim posSpec) mT --trimOrPad lim posSpec . maybe id (uncurry align) mT -- TODO fix in align case
+    ShortenTo lim mT  -> maybe (trimOrPad lim posSpec) (uncurry $ alignLimit lim posSpec) mT
 
 -- | Specifies the length before and after a letter.
 data AlignInfo = AlignInfo Int Int deriving Show
