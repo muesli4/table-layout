@@ -53,19 +53,14 @@ module Render.Table
 
       -- * Text justification
       -- $justify
+    , justify
+    , justifyText
+    , columnsAsGrid
     , justifyTextsAsGrid
     , justifyWordListsAsGrid
-    , columnsAsGrid
-    , justifyText
-    , justify
 
       -- * Table styles
-    , asciiRoundS
-    , unicodeS
-    , unicodeRoundS
-    , unicodeBoldS
-    , unicodeBoldStripedS
-    , unicodeBoldHeaderS
+    , module Render.Table.Style
     ) where
 
 
@@ -79,6 +74,7 @@ import Data.Maybe
 
 import Render.Table.PrimMod
 import Render.Table.Justify
+import Render.Table.Style
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
@@ -175,9 +171,9 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
 -- | Aligns a column using a fixed width, fitting it to the width by either
 -- filling or fitting while respecting the alignment.
 alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
-alignFixed _ cms 0 _  _                  _             = ""
-alignFixed _ cms 1 _  _                  (_ : (_ : _)) = "…"
-alignFixed p cms i oS ai@(AlignInfo l r) s             =
+alignFixed _ cms 0 _  _                  _               = ""
+alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms "  "
+alignFixed p cms i oS ai@(AlignInfo l r) s               =
     let n = l + r - i
     in if n <= 0
        then pad p i $ align oS ai s
@@ -198,7 +194,7 @@ alignFixed p cms i oS ai@(AlignInfo l r) s             =
                                | remRight < 0  -> fitRight' (remLeft + remRight) $ fitLeft' remLeft ls
                                | remLeft == 0  -> applyMarkLeftWith cms $ fitRight' remRight rs
                                | remRight == 0 -> applyMarkRightWith cms $ fitLeft' remLeft ls
-                               | otherwise     -> fitLeft' remLeft ls ++ fitRight' remRight rs
+                               | otherwise     -> fitRight' (remRight + remLeft) $ fitLeft' remLeft ls ++ rs
   where
     fitRight' = fitRightWith cms
     fitLeft'  = fitLeftWith cms
@@ -341,33 +337,6 @@ data RowGroup = RowGroup
               , optVLabel :: Maybe String
               }
 
--- | Specifies the different letters to construct the non-content structure of a
--- table.
-data TableStyle = TableStyle
-                { headerSepH   :: Char
-                , headerSepLC  :: Char
-                , headerSepRC  :: Char
-                , headerSepC   :: Char
-                , headerTopL   :: Char
-                , headerTopR   :: Char
-                , headerTopC   :: Char
-                , headerTopH   :: Char
-                , headerV      :: Char
-                , groupV       :: Char
-                , groupSepH    :: Char
-                , groupSepC    :: Char
-                , groupSepLC   :: Char
-                , groupSepRC   :: Char
-                , groupTopC    :: Char
-                , groupTopL    :: Char
-                , groupTopR    :: Char
-                , groupTopH    :: Char
-                , groupBottomC :: Char
-                , groupBottomL :: Char
-                , groupBottomR :: Char
-                , groupBottomH :: Char
-                }
-
 -- | Specifies how a header is layout, by omitting the cut mark it will use the
 -- one specified in the 'LayoutSpec' like the other cells in that column.
 data HeaderLayoutSpec = HeaderLayoutSpec PosSpec (Maybe CutMarkSpec)
@@ -450,121 +419,3 @@ layoutTableLines rGs optHeaderInfo specs (TableStyle { .. }) =
 -- Text can easily be justified and distributed over multiple lines. Such
 -- columns can easily be combined with other columns.
 --
-
--------------------------------------------------------------------------------
--- Table styles
--------------------------------------------------------------------------------
-
-asciiRoundS :: TableStyle
-asciiRoundS = TableStyle 
-            { headerSepH   = '='
-            , headerSepLC  = ':'
-            , headerSepRC  = ':'
-            , headerSepC   = '|'
-            , headerTopL   = '.'
-            , headerTopR   = '.'
-            , headerTopC   = '.'
-            , headerTopH   = '-'
-            , headerV      = '|'
-            , groupV       = '|'
-            , groupSepH    = '-'
-            , groupSepC    = '+'
-            , groupSepLC   = ':'
-            , groupSepRC   = ':'
-            , groupTopC    = '.'
-            , groupTopL    = '.'
-            , groupTopR    = '.'
-            , groupTopH    = '-'
-            , groupBottomC = '\''
-            , groupBottomL = '\''
-            , groupBottomR = '\''
-            , groupBottomH = '-'
-            }
-
--- | Uses special unicode characters to draw clean thin boxes. 
-unicodeS :: TableStyle
-unicodeS = TableStyle
-         { headerSepH   = '═'
-         , headerSepLC  = '╞'
-         , headerSepRC  = '╡'
-         , headerSepC   = '╪'
-         , headerTopL   = '┌'
-         , headerTopR   = '┐'
-         , headerTopC   = '┬'
-         , headerTopH   = '─'
-         , headerV      = '│'
-         , groupV       = '│'
-         , groupSepH    = '─'
-         , groupSepC    = '┼'
-         , groupSepLC   = '├'
-         , groupSepRC   = '┤'
-         , groupTopC    = '┬'
-         , groupTopL    = '┌'
-         , groupTopR    = '┐'
-         , groupTopH    = '─'
-         , groupBottomC = '┴'
-         , groupBottomL = '└'
-         , groupBottomR = '┘'
-         , groupBottomH = '─'
-         }
-
--- | Same as 'unicodeS' but uses bold headers.
-unicodeBoldHeaderS :: TableStyle
-unicodeBoldHeaderS = unicodeS
-                   { headerSepH  = '━'
-                   , headerSepLC = '┡'
-                   , headerSepRC = '┩'
-                   , headerSepC  = '╇'
-                   , headerTopL  = '┏'
-                   , headerTopR  = '┓'
-                   , headerTopC  = '┳'
-                   , headerTopH  = '━'
-                   , headerV     = '┃'
-                   }
-
--- | Same as 'unicodeS' but uses round edges.
-unicodeRoundS :: TableStyle
-unicodeRoundS = unicodeS
-              { groupTopL    = roundedTL
-              , groupTopR    = roundedTR
-              , groupBottomL = roundedBL
-              , groupBottomR = roundedBR
-              , headerTopL   = roundedTL
-              , headerTopR   = roundedTR
-              }
-  where
-    roundedTL = '╭'
-    roundedTR = '╮'
-    roundedBL = '╰'
-    roundedBR = '╯'
-
--- | Uses bold lines.
-unicodeBoldS :: TableStyle
-unicodeBoldS = TableStyle
-             { headerSepH   = '━'
-             , headerSepLC  = '┣'
-             , headerSepRC  = '┫'
-             , headerSepC   = '╋'
-             , headerTopL   = '┏'
-             , headerTopR   = '┓'
-             , headerTopC   = '┳'
-             , headerTopH   = '━'
-             , headerV      = '┃'
-             , groupV       = '┃'
-             , groupSepH    = '━'
-             , groupSepC    = '╋'
-             , groupSepLC   = '┣'
-             , groupSepRC   = '┫'
-             , groupTopC    = '┳'
-             , groupTopL    = '┏'
-             , groupTopR    = '┓'
-             , groupTopH    = '━'
-             , groupBottomC = '┻'
-             , groupBottomL = '┗'
-             , groupBottomR = '┛'
-             , groupBottomH = '━'
-             }
-
--- | Uses bold lines with exception of group seperators, which are striped slim.
-unicodeBoldStripedS :: TableStyle
-unicodeBoldStripedS = unicodeBoldS { groupSepH = '-', groupSepC = '┃', groupSepLC = '┃', groupSepRC = '┃' }
