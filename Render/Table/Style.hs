@@ -1,3 +1,5 @@
+-- | This module provides a primitive styling facility. To make your own style
+-- have a look at <https://en.wikipedia.org/wiki/Box-drawing_character>.
 module Render.Table.Style where
 
 -- | Specifies the different letters to construct the non-content structure of a

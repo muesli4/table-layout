@@ -17,6 +17,35 @@ module Render.Table
     , noCutMark
     , shortCutMark
 
+      -- * Basic grid and table layout
+    , layoutAsCells
+    , layoutAsLines
+    , layoutAsString
+
+      -- * Grid modification functions
+    , altLines
+    , checkeredCells
+
+      -- * Advanced table layout
+    , RowGroup
+    , rowGroup
+    , HeaderLayoutSpec(..)
+    , centerHL
+    , leftHL
+    , layoutTableAsLines
+    , layoutTableAsString
+
+      -- * Text justification
+      -- $justify
+    , justify
+    , justifyText
+    , columnsAsGrid
+    , justifyTextsAsGrid
+    , justifyWordListsAsGrid
+
+      -- * Table styles
+    , module Render.Table.Style
+
       -- * Column modification functions
     , pad
     , trimOrPad
@@ -34,38 +63,12 @@ module Render.Table
     , widthAI
     , deriveColModInfos
     , deriveAlignInfo
-
-      -- * Basic grid and table layout
-    , layoutCells
-    , layoutLines
-    , layoutString
-
-      -- * Grid modification functions
-    , altLines
-    , checkeredCells
-
-      -- * Advanced table layout
-    , RowGroup(..)
-    , HeaderLayoutSpec(..)
-    , centerHL
-    , leftHL
-    , layoutTableLines
-
-      -- * Text justification
-      -- $justify
-    , justify
-    , justifyText
-    , columnsAsGrid
-    , justifyTextsAsGrid
-    , justifyWordListsAsGrid
-
-      -- * Table styles
-    , module Render.Table.Style
     ) where
 
-
--- TODO break cells into multiple cells using justify functions
 -- TODO multiple alignment points - useful?
+-- TODO optional: vertical group labels
+-- TODO provide a special version of ensureWidthOfCMI to force header visibility
+-- TODO optional: provide extra layout for a RowGroup
 
 import Control.Arrow
 --import Data.Bifunctor
@@ -276,7 +279,7 @@ instance Monoid AlignInfo where
 -- | Derive the 'ColModInfo' by using layout specifications and looking at the
 -- table.
 deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
-deriveColModInfos specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
+deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
     fSel specs       = case specs of
         (Expand , NoAlign       ) -> FillTo . maximum . fmap length
@@ -294,8 +297,8 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -------------------------------------------------------------------------------
 
 -- | Modifies cells according to the given 'LayoutSpec'.
-layoutCells :: [LayoutSpec] -> [[String]] -> [[String]]
-layoutCells specs tab = zipWith apply tab
+layoutAsCells :: [LayoutSpec] -> [[String]] -> [[String]]
+layoutAsCells specs tab = zipWith apply tab
                         . repeat
                         -- TODO refactor
                         . zipWith (uncurry columnModifier) (map (posSpec &&& cutMarkSpec) specs)
@@ -304,12 +307,12 @@ layoutCells specs tab = zipWith apply tab
     apply = zipWith $ flip ($)
 
 -- | Behaves like 'layoutCells' but produces lines.
-layoutLines :: [LayoutSpec] -> [[String]] -> [String]
-layoutLines specs tab = map unwords $ layoutCells specs tab
+layoutAsLines :: [LayoutSpec] -> [[String]] -> [String]
+layoutAsLines specs tab = map unwords $ layoutAsCells specs tab
 
 -- | Behaves like 'layoutCells' but produces a 'String'.
-layoutString :: [LayoutSpec] -> [[String]] -> String
-layoutString ls t = intercalate "\n" $ layoutLines ls t
+layoutAsString :: [LayoutSpec] -> [[String]] -> String
+layoutAsString ls t = intercalate "\n" $ layoutAsLines ls t
 
 -------------------------------------------------------------------------------
 -- Grid modifier functions
@@ -330,12 +333,14 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 -- Advanced layout
 -------------------------------------------------------------------------------
 
--- | Groups rows together, which are not seperated from each other. Optionally
--- a label with vertical text on the left can be added.
+-- | Groups rows together, which are not seperated from each other.
 data RowGroup = RowGroup
-              { cells     :: [[String]] 
-              , optVLabel :: Maybe String
+              { rows     :: [[String]] 
               }
+
+-- | Construct a row group from a list of rows.
+rowGroup :: [[String]] -> RowGroup
+rowGroup = RowGroup
 
 -- | Specifies how a header is layout, by omitting the cut mark it will use the
 -- one specified in the 'LayoutSpec' like the other cells in that column.
@@ -350,9 +355,10 @@ leftHL :: HeaderLayoutSpec
 leftHL = HeaderLayoutSpec LeftPos Nothing
 
 -- | Layouts a good-looking table with a optional header. Note that specifying
--- too few layout specifications or columns will result in not showing them.
-layoutTableLines :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> [LayoutSpec] -> TableStyle -> [String]
-layoutTableLines rGs optHeaderInfo specs (TableStyle { .. }) =
+-- fewer layout specifications than columns or vice versa will result in not
+-- showing them.
+layoutTableAsLines :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> [LayoutSpec] -> TableStyle -> [String]
+layoutTableAsLines rGs optHeaderInfo specs (TableStyle { .. }) =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
     -- Line helpers
@@ -372,7 +378,7 @@ layoutTableLines rGs optHeaderInfo specs (TableStyle { .. }) =
     headerSepLine = vLineDetail headerSepH headerSepLC headerSepC headerSepRC hHeaderSpacers
 
     -- Vertical content lines
-    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' groupV) . applyRowMods . cells) rGs
+    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' groupV) . applyRowMods . rows) rGs
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
@@ -406,9 +412,12 @@ layoutTableLines rGs optHeaderInfo specs (TableStyle { .. }) =
     applyRowMods xss = zipWith zipApply xss $ repeat rowMods
     rowMods          = zipWith3 columnModifier posSpecs cMSs cMIs
     cMIs             = fitHeaderIntoCMIs $ deriveColModInfos (map (lenSpec &&& alignSpec) specs)
-                                         $ concatMap cells rGs
+                                         $ concatMap rows rGs
     colWidths        = map widthCMI cMIs
     zipApply         = zipWith $ flip ($)
+
+layoutTableAsString :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> [LayoutSpec] -> TableStyle -> String
+layoutTableAsString rGs optHeaderInfo specs = intercalate "\n" . layoutTableAsLines rGs optHeaderInfo specs
 
 
 -------------------------------------------------------------------------------
