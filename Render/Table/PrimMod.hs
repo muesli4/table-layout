@@ -1,10 +1,34 @@
 -- | This module contains primitive modifiers for 'String's to be filled or fitted to a specific length.
-module Render.Table.PrimMod where
+module Render.Table.PrimMod
+    ( CutMarkSpec
+    , cutMark
+    , spaces
+    , fillLeft'
+    , fillLeft
+    , fillRight
+    , fillCenter'
+    , fillCenter
+    , fitRightWith
+    , fitLeftWith
+    , fitCenterWith
+    , applyMarkLeftWith
+    , applyMarkRightWith
+    )
+    where
 
--- | Specifies how the place looks where a 'String' has been cut and also how
--- far it can extend. Setting the length to 0 will result in not applying any
--- mark.
-data CutMarkSpec = CutMarkSpec String Int deriving Show
+-- | Specifies how the place looks where a 'String' has been cut. Note that the
+-- cut mark may be cut itself, to fit into a column.
+data CutMarkSpec = CutMarkSpec
+                 { leftMark  :: String
+                 , rightMark :: String
+                 }
+
+instance Show CutMarkSpec where
+    show (CutMarkSpec l r) = "cutMark " ++ show l ++ ' ' : show (reverse r)
+
+-- | Display custom characters on a cut.
+cutMark :: String -> String -> CutMarkSpec
+cutMark l r = CutMarkSpec l (reverse r)
 
 spaces :: Int -> String
 spaces = flip replicate ' '
@@ -47,22 +71,28 @@ fitLeftWith cms i s =
   where
     lenS = length s
 
--- | Fits to the given length by either trimming or filling it on both sides.
+-- | Fits to the given length by either trimming or filling it on both sides,
+-- but when only 1 character should be trimmed it will trim left.
 fitCenterWith :: CutMarkSpec -> Int -> String -> String
-fitCenterWith cms i s = 
-    if lenS <= i
+fitCenterWith cms i s             = 
+    if diff >= 0
     then fillCenter' i lenS s
-    else case splitAt (lenS `div` 2) s of
-        (ls, rs) -> take i $ fitLeftWith cms halfI ls ++ fitRightWith cms (halfI + r) rs
+    else case splitAt halfLenS s of
+        (ls, rs) -> addMarks $ drop (halfLenS - halfI) ls ++ take (halfI + r) rs
   where
+    addMarks   = applyMarkLeftWith cms . if diff == (-1) then id else applyMarkRightWith cms
+    diff       = i - lenS
     lenS       = length s
+    halfLenS   = lenS `div` 2
     (halfI, r) = i `divMod` 2
 
 -- | Applies a 'CutMarkSpec' to the left of a 'String', while preserving the length.
 applyMarkLeftWith :: CutMarkSpec -> String -> String
-applyMarkLeftWith (CutMarkSpec m mLen) = zipWith ($) (map const (take mLen m) ++ repeat id)
+applyMarkLeftWith cms = applyMarkLeftBy leftMark cms
 
 -- | Applies a 'CutMarkSpec' to the right of a 'String', while preserving the length.
 applyMarkRightWith :: CutMarkSpec -> String -> String
-applyMarkRightWith cms = reverse . applyMarkLeftWith cms . reverse
+applyMarkRightWith cms = reverse . applyMarkLeftBy rightMark cms . reverse
 
+applyMarkLeftBy :: (a -> String) -> a -> String -> String
+applyMarkLeftBy f v = zipWith ($) $ map const (f v) ++ repeat id

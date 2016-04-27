@@ -12,10 +12,12 @@ module Render.Table
     , numL
     , limitL
     , limitLeftL
-    , CutMarkSpec(..)
+    , CutMarkSpec
     , defaultCutMark
-    , noCutMark
     , shortCutMark
+    , noCutMark
+    , singleCutMark
+    , cutMark
 
       -- * Basic grid and table layout
     , layoutAsCells
@@ -65,13 +67,13 @@ module Render.Table
     , deriveAlignInfo
     ) where
 
--- TODO multiple alignment points - useful?
--- TODO optional: vertical group labels
--- TODO provide a special version of ensureWidthOfCMI to force header visibility
--- TODO optional: provide extra layout for a RowGroup
+-- TODO AlignSpec:   multiple alignment points - useful?
+-- TODO RowGroup:    optional: vertical group labels
+-- TODO RowGroup:    optional: provide extra layout for a RowGroup
+-- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
+-- TODO keep show instances ?
 
 import Control.Arrow
---import Data.Bifunctor
 import Data.List
 import Data.Maybe
 
@@ -107,17 +109,22 @@ data AlignSpec = AlignAtChar OccSpec | NoAlign deriving Show
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec Char Int deriving Show
 
+-- | Use the same cut mark for left and right.
+singleCutMark :: String -> CutMarkSpec
+singleCutMark l = cutMark l (reverse l)
+
 -- | Default cut mark used when cutting off text.
 defaultCutMark :: CutMarkSpec
-defaultCutMark = CutMarkSpec ".." 2
+defaultCutMark = singleCutMark ".."
 
 -- | Don't use a cut mark.
 noCutMark :: CutMarkSpec
-noCutMark = CutMarkSpec "" 0
+noCutMark = singleCutMark ""
 
 -- | A single unicode character showing three dots is used as cut mark.
 shortCutMark :: CutMarkSpec
-shortCutMark = CutMarkSpec "…" 1
+shortCutMark = singleCutMark "…"
+
 
 -- | The default layout will allow maximum expand and is positioned on the left.
 defaultL :: LayoutSpec
@@ -175,7 +182,7 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
 -- filling or fitting while respecting the alignment.
 alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _               = ""
-alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeft "  "
+--alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeft "  "
 alignFixed p cms i oS ai@(AlignInfo l r) s               =
     let n = l + r - i
     in if n <= 0
@@ -198,7 +205,7 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                     remRight = r - q - rem
                 in if | remLeft < 0   -> fitLeft (remRight + remLeft) $ fitRight remRight rs
                       | remRight < 0  -> fitRight (remLeft + remRight) $ fitLeft remLeft ls
-                      | remLeft == 0  -> applyMarkLeft cms $ fitRight remRight rs
+                      | remLeft == 0  -> applyMarkLeft $ fitRight remRight rs
                       | remRight == 0 -> applyMarkRight $ fitLeft remLeft ls
                       | otherwise     -> fitRight (remRight + remLeft) $ fitLeft remLeft ls ++ rs
   where
