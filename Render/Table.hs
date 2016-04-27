@@ -8,17 +8,20 @@ module Render.Table
     , PosSpec(..)
     , AlignSpec(..)
     , OccSpec(..)
-    , CutMarkSpec(..)
     , defaultL
     , numL
     , limitL
     , limitLeftL
+    , CutMarkSpec(..)
+    , defaultCutMark
+    , noCutMark
+    , shortCutMark
 
       -- * Column modification functions
     , pad
     , trimOrPad
     , align
-    , alignLimit
+    , alignFixed
 
       -- * Column modifaction primitives
     , ColModInfo(..)
@@ -43,6 +46,9 @@ module Render.Table
 
       -- * Advanced table layout
     , RowGroup(..)
+    , HeaderLayoutSpec(..)
+    , centerHL
+    , leftHL
     , layoutTable
 
       -- * Table styles
@@ -60,7 +66,8 @@ module Render.Table
 -- TODO break cells into multiple cells using justify functions
 -- TODO multiple alignment points
 
-import Data.Bifunctor
+import Control.Arrow
+--import Data.Bifunctor
 import Data.List
 import Data.Maybe
 
@@ -74,10 +81,15 @@ import Render.Table.PrimMod
 -}
 
 -- | Determines the layout of a column.
-data LayoutSpec = LayoutSpec LenSpec PosSpec AlignSpec CutMarkSpec deriving Show
+data LayoutSpec = LayoutSpec
+                { lenSpec     :: LenSpec
+                , posSpec     :: PosSpec
+                , alignSpec   :: AlignSpec
+                , cutMarkSpec :: CutMarkSpec
+                } deriving Show
 
 -- | Determines how long a column will be.
-data LenSpec = Expand | LimitTo Int deriving Show
+data LenSpec = Expand | Fixed Int deriving Show
 
 -- | Determines how a column will be positioned. Note that on an odd number of
 -- space centering is left-biased.
@@ -89,19 +101,29 @@ data AlignSpec = AlignAtChar OccSpec | NoAlign deriving Show
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec Char Int deriving Show
 
-defaultCMS = CutMarkSpec "..." 3
+-- | Default cut mark used when cutting off text.
+defaultCutMark :: CutMarkSpec
+defaultCutMark = CutMarkSpec ".." 2
+
+-- | Don't use a cut mark.
+noCutMark :: CutMarkSpec
+noCutMark = CutMarkSpec "" 0
+
+-- | A single unicode character showing three dots is used as cut mark.
+shortCutMark :: CutMarkSpec
+shortCutMark = CutMarkSpec "…" 1
 
 -- | The default layout will allow maximum expand and is positioned on the left.
 defaultL :: LayoutSpec
-defaultL = LayoutSpec Expand LeftPos NoAlign defaultCMS
+defaultL = LayoutSpec Expand LeftPos NoAlign defaultCutMark
 
 -- | Numbers are positioned on the right and aligned on the floating point dot.
 numL :: LayoutSpec
-numL = LayoutSpec Expand RightPos (AlignAtChar $ OccSpec '.' 0) defaultCMS
+numL = LayoutSpec Expand RightPos (AlignAtChar $ OccSpec '.' 0) defaultCutMark
 
 -- | Limits the column length and positions according to the given 'PosSpec'.
 limitL :: Int -> PosSpec -> LayoutSpec
-limitL l pS = LayoutSpec (LimitTo l) pS NoAlign defaultCMS
+limitL l pS = LayoutSpec (Fixed l) pS NoAlign defaultCutMark
 
 -- | Limits the column length and positions on the left.
 limitLeftL :: Int -> LayoutSpec
@@ -144,10 +166,10 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
         _  -> fillRight r rs
 
 -- TODO special cases are ugly
-alignLimit :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
-alignLimit _ cms 0 _  _                  _             = ""
-alignLimit _ cms 1 _  _                  (_ : (_ : _)) = "…"
-alignLimit p cms i oS ai@(AlignInfo l r) s             =
+alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
+alignFixed _ cms 0 _  _                  _             = ""
+alignFixed _ cms 1 _  _                  (_ : (_ : _)) = "…"
+alignFixed p cms i oS ai@(AlignInfo l r) s             =
     let n = l + r - i
     in if n <= 0
        then pad p i $ align oS ai s
@@ -187,7 +209,7 @@ splitAtOcc (OccSpec c occ) = first reverse . go 0 []
 -- | Specifies how a column should be modified.
 data ColModInfo = FillAligned OccSpec AlignInfo
                 | FillTo Int
-                | ShortenTo Int (Maybe (OccSpec, AlignInfo))
+                | FitTo Int (Maybe (OccSpec, AlignInfo))
                 deriving Show
 
 -- | Get the exact width after the modification.
@@ -195,14 +217,14 @@ widthCMI :: ColModInfo -> Int
 widthCMI cmi = case cmi of
     FillAligned _ ai -> widthAI ai
     FillTo maxLen    -> maxLen
-    ShortenTo lim _  -> lim
+    FitTo lim _      -> lim
 
 -- | Remove alignment from a 'ColModInfo'. This is used to change alignment of
 -- headers, while using the combined width information.
 unalignedCMI :: ColModInfo -> ColModInfo
 unalignedCMI cmi = case cmi of
     FillAligned _ ai -> FillTo $ widthAI ai
-    ShortenTo i _    -> ShortenTo i Nothing
+    FitTo i _        -> FitTo i Nothing
     _                -> cmi
 
 -- | Ensures that the modification provides a minimum width, but only if it is
@@ -231,8 +253,8 @@ columnModifier :: PosSpec -> CutMarkSpec -> ColModInfo -> (String -> String)
 columnModifier posSpec cms lenInfo = case lenInfo of
     FillAligned oS ai -> align oS ai
     FillTo maxLen     -> pad posSpec maxLen
-    ShortenTo lim mT  ->
-        maybe (trimOrPad posSpec cms lim) (uncurry $ alignLimit posSpec cms lim) mT
+    FitTo lim mT  ->
+        maybe (trimOrPad posSpec cms lim) (uncurry $ alignFixed posSpec cms lim) mT
 
 -- | Specifies the length before and after a letter.
 data AlignInfo = AlignInfo Int Int deriving Show
@@ -253,10 +275,10 @@ deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
 deriveColModInfos specs cells = zipWith ($) (fmap fSel specs) $ transpose cells
   where
     fSel specs = case specs of
-        (Expand   , NoAlign       ) -> FillTo . maximum . fmap length
-        (Expand   , AlignAtChar oS) -> FillAligned oS . foldMap (deriveAlignInfo oS)
-        (LimitTo i, NoAlign       ) -> const $ ShortenTo i Nothing
-        (LimitTo i, AlignAtChar oS) -> ShortenTo i . Just . (,) oS . foldMap (deriveAlignInfo oS)
+        (Expand , NoAlign       ) -> FillTo . maximum . fmap length
+        (Expand , AlignAtChar oS) -> FillAligned oS . foldMap (deriveAlignInfo oS)
+        (Fixed i, NoAlign       ) -> const $ FitTo i Nothing
+        (Fixed i, AlignAtChar oS) -> FitTo i . Just . (,) oS . foldMap (deriveAlignInfo oS)
 
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo
@@ -271,8 +293,8 @@ layoutCells :: [LayoutSpec] -> [[String]] -> [[String]]
 layoutCells specs tab = zipWith apply tab
                         . repeat
                         -- TODO refactor
-                        . zipWith (uncurry columnModifier) (map (\(LayoutSpec _ posSpec _ cms) -> (posSpec, cms)) specs)
-                        $ deriveColModInfos (map (\(LayoutSpec lenSpec _ alignSpec _) -> (lenSpec, alignSpec)) specs) tab
+                        . zipWith (uncurry columnModifier) (map (posSpec &&& cutMarkSpec) specs)
+                        $ deriveColModInfos (map (lenSpec &&& alignSpec) specs) tab
   where
     apply = zipWith $ flip ($)
 
@@ -337,9 +359,21 @@ data TableStyle = TableStyle
                 , groupBottomH :: Char
                 }
 
--- Layouts a good-looking table with a optional header. Note that specifying too
--- few layout specifications or columns will result in not showing them.
-layoutTable :: [RowGroup] -> Maybe ([String], [PosSpec]) -> TableStyle -> [LayoutSpec] -> [String]
+-- | Specifies how a header is layout, by omitting the cut mark it will use the
+-- one specified in the 'LayoutSpec' like the other cells in that column.
+data HeaderLayoutSpec = HeaderLayoutSpec PosSpec (Maybe CutMarkSpec)
+
+-- | A centered header layout.
+centerHL :: HeaderLayoutSpec
+centerHL = HeaderLayoutSpec CenterPos Nothing
+
+-- | A left-positioned header layout.
+leftHL :: HeaderLayoutSpec
+leftHL = HeaderLayoutSpec LeftPos Nothing
+
+-- | Layouts a good-looking table with a optional header. Note that specifying
+-- too few layout specifications or columns will result in not showing them.
+layoutTable :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> TableStyle -> [LayoutSpec] -> [String]
 layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
@@ -350,7 +384,7 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
     -- Spacers consisting of columns of seperator elements.
     genHSpacers c    = map (flip replicate c) colWidths
     hHeaderSpacers   = genHSpacers headerSepH
-    hGroupSpacers = genHSpacers groupSepH
+    hGroupSpacers    = genHSpacers groupSepH
 
 
     -- Vertical seperator lines
@@ -364,11 +398,11 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
-        Just (h, headerPosSpecs) ->
-            let headerLine    = vLine ' ' headerV (zippedApply h headerRowMods)
+        Just (h, headerLayoutSpecs) ->
+            let headerLine    = vLine ' ' headerV (zipApply h headerRowMods)
                 -- TODO choose header CutMarkSpec?
-                headerRowMods = zipWith3 columnModifier
-                                         headerPosSpecs
+                headerRowMods = zipWith3 (\(HeaderLayoutSpec posSpec optCutMarkSpec) cutMarkSpec -> columnModifier posSpec $ fromMaybe cutMarkSpec optCutMarkSpec)
+                                         headerLayoutSpecs
                                          cMSs
                                          (map unalignedCMI cMIs)
             in
@@ -388,14 +422,14 @@ layoutTable rGs optHeaderInfo (TableStyle { .. }) specs =
             , groupTopR
             )
 
-    cMSs             = map (\(LayoutSpec _ _ _ cms) ->  cms) specs
-    posSpecs         = map (\(LayoutSpec _ posSpec _ _) -> posSpec) specs
-    applyRowMods xss = zipWith zippedApply xss $ repeat rowMods
+    cMSs             = map cutMarkSpec specs
+    posSpecs         = map posSpec specs
+    applyRowMods xss = zipWith zipApply xss $ repeat rowMods
     rowMods          = zipWith3 columnModifier posSpecs cMSs cMIs
-    cMIs             = fitHeaderIntoCMIs $ deriveColModInfos (map (\(LayoutSpec lenSpec _ alignSpec _) -> (lenSpec, alignSpec)) specs)
+    cMIs             = fitHeaderIntoCMIs $ deriveColModInfos (map (lenSpec &&& alignSpec) specs)
                                          $ concatMap cells rGs
     colWidths        = map widthCMI cMIs
-    zippedApply      = zipWith $ flip ($)
+    zipApply         = zipWith $ flip ($)
 
 -------------------------------------------------------------------------------
 -- Table styles
