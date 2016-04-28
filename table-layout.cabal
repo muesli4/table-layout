@@ -1,0 +1,54 @@
+name:                table-layout
+
+-- The package version.  See the Haskell package versioning policy (PVP) 
+-- for standards guiding when and how versions should be incremented.
+-- http://www.haskell.org/haskellwiki/Package_versioning_policy
+-- PVP summary:      +-+------- breaking API changes
+--                   | | +----- non-breaking API additions
+--                   | | | +--- code changes with no API change
+version:             0.1.0.0
+
+synopsis:            Layout text as grid or table.
+
+-- description:         
+
+-- URL for the project homepage or repository.
+homepage:            https://github.com/muesli4/table-layout
+license:             BSD3
+license-file:        LICENSE
+author:              Moritz Bruder
+maintainer:          muesli4@gmail.com
+category:            Text
+build-type:          Simple
+-- Extra files to be distributed with the package, such as examples or a 
+-- README.
+-- extra-source-files:  
+
+-- Constraint on the version of Cabal needed to build this package.
+cabal-version:       >=1.10
+
+
+library
+  -- Modules exported by the library.
+  exposed-modules:     Text.Layout.Table, Text.Layout.Table.Justify, Text.Layout.Table.PrimMod, Text.Layout.Table.Style
+  
+  -- Modules included in this library but not exported.
+  -- other-modules:       
+  
+  -- LANGUAGE extensions used by modules in this package.
+  other-extensions:    RecordWildCards, MultiWayIf
+  
+  -- Other library packages from which modules are imported.
+  build-depends:       base >=4.8 && <4.9
+  
+  -- Directories containing source files.
+  hs-source-dirs:      src
+  
+  -- Base language which the package is written in.
+  default-language:    Haskell2010
+
+executable table-layout-test-styles
+  main-is:             Test.hs
+  build-depends:       base >=4.8 && <4.9
+  hs-source-dirs:      src
+  other-modules:       Text.Layout.Table

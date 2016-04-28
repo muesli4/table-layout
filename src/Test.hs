@@ -27,7 +27,7 @@ main =
                 , unicodeBoldStripedS
                 , unicodeBoldHeaderS
                 ]
-    layouts   = [ LayoutSpec l p a shortCutMark
+    layouts   = [ LayoutSpec l p a ellipsisCutMark
                 | l <- [Expand, Fixed 10]
                 , p <- [LeftPos, RightPos, CenterPos]
                 , a <- [NoAlign, AlignAtChar $ OccSpec '.' 0]

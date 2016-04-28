@@ -57,7 +57,7 @@ module Text.Layout.Table
     , OccSpec(..)
     , CutMarkSpec
     , defaultCutMark
-    , shortCutMark
+    , ellipsisCutMark
     , noCutMark
     , singleCutMark
     , cutMark
@@ -114,7 +114,6 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: vertical group labels
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
--- TODO keep show instances ?
 
 import Control.Arrow
 import Data.List
@@ -169,8 +168,8 @@ noCutMark :: CutMarkSpec
 noCutMark = singleCutMark ""
 
 -- | A single unicode character showing three dots is used as cut mark.
-shortCutMark :: CutMarkSpec
-shortCutMark = singleCutMark "…"
+ellipsisCutMark :: CutMarkSpec
+ellipsisCutMark = singleCutMark "…"
 
 -- | The default layout will allow maximum expand and is positioned on the left.
 defaultL :: LayoutSpec
