@@ -1,3 +1,6 @@
+-- | Produce justified text, which is spread over multiple rows, and join it
+-- with other columns. For a simple cut, 'chunksOf' from 'Data.List.Split' is
+-- the way to go.
 {-# LANGUAGE MultiWayIf #-}
 module Render.Table.Justify
     ( justifyTextsAsGrid
@@ -41,6 +44,10 @@ fillSameLength x l = fmap (fillTo $ maximum $ 0 : fmap length l) l
     fillTo i l = take i $ l ++ repeat x
 
 -- | Uses 'words' to split the text into words and justifies it with 'justify'.
+--
+-- >>> justifyText 10 "This text will not fit on one line."
+-- ["This  text","will   not","fit on one","line."]
+--
 justifyText :: Int -> String -> [String]
 justifyText w = justify w . words
 

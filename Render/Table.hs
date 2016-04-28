@@ -1,17 +1,57 @@
+-- | This module provides tools to layout text as grid or table. Besides basic
+-- things like specifying column positioning, alignment on the same character
+-- and length restriction it also provides advanced features like justifying
+-- text and fancy tables with styling support.
+--
+-- >>> putStrLn $ layoutToString [["a", "b"], ["c", "d"]] (repeat defaultL)
+-- a b
+-- c d
+--
+-- Fancy table without header:
+--
+-- >>> putStrLn $ layoutTableToString [rowGroup [["Jack", "184.74"]], rowGroup [["Jane", "162.2"]]] Nothing [defaultL, numL] unicodeRoundS
+-- ╭──────┬────────╮
+-- │ Jack │ 184.74 │
+-- ├──────┼────────┤
+-- │ Jane │ 162.2  │
+-- ╰──────┴────────╯
+--
+-- Fancy table with header:
+--
+-- >>> putStrLn $ layoutTableToString [ rowGroup [["A very long text", "0.42000000"]]
+--                                    , rowGroup [["Short text", "100200.5"]]
+--                                    ]
+--                                    (Just (["Title", "Length"], repeat centerHL))
+--                                    [ limitLeftL 20
+--                                    , LayoutSpec (Fixed 10)
+--                                                 CenterPos
+--                                                 dotAlign
+--                                                 shortCutMark
+--                                    ]
+--                                    unicodeRoundS
+-- ╭──────────────────────┬────────────╮
+-- │        Title         │   Length   │
+-- ╞══════════════════════╪════════════╡
+-- │ A very long text     │    0.4200… │
+-- ├──────────────────────┼────────────┤
+-- │ Short text           │ …200.5     │
+-- ╰──────────────────────┴────────────╯
+--
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
 module Render.Table
     ( -- * Layout types and combinators
       -- $layout
       LayoutSpec(..)
-    , LenSpec(..)
-    , PosSpec(..)
-    , AlignSpec(..)
-    , OccSpec(..)
     , defaultL
     , numL
     , limitL
     , limitLeftL
+    , LenSpec(..)
+    , PosSpec(..)
+    , AlignSpec(..)
+    , dotAlign
+    , OccSpec(..)
     , CutMarkSpec
     , defaultCutMark
     , shortCutMark
@@ -20,9 +60,9 @@ module Render.Table
     , cutMark
 
       -- * Basic grid and table layout
-    , layoutAsCells
-    , layoutAsLines
-    , layoutAsString
+    , layoutToCells
+    , layoutToLines
+    , layoutToString
 
       -- * Grid modification functions
     , altLines
@@ -34,8 +74,8 @@ module Render.Table
     , HeaderLayoutSpec(..)
     , centerHL
     , leftHL
-    , layoutTableAsLines
-    , layoutTableAsString
+    , layoutTableToLines
+    , layoutTableToString
 
       -- * Text justification
       -- $justify
@@ -100,7 +140,7 @@ data LayoutSpec = LayoutSpec
 data LenSpec = Expand | Fixed Int deriving Show
 
 -- | Determines how a column will be positioned. Note that on an odd number of
--- space centering is left-biased.
+-- space, centering is left-biased.
 data PosSpec = LeftPos | RightPos | CenterPos deriving Show
 
 -- | Determines whether a column will align at a specific letter.
@@ -108,6 +148,10 @@ data AlignSpec = AlignAtChar OccSpec | NoAlign deriving Show
 
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec Char Int deriving Show
+
+-- | Align all text at the dot.
+dotAlign :: AlignSpec
+dotAlign = AlignAtChar $ OccSpec '.' 0
 
 -- | Use the same cut mark for left and right.
 singleCutMark :: String -> CutMarkSpec
@@ -124,7 +168,6 @@ noCutMark = singleCutMark ""
 -- | A single unicode character showing three dots is used as cut mark.
 shortCutMark :: CutMarkSpec
 shortCutMark = singleCutMark "…"
-
 
 -- | The default layout will allow maximum expand and is positioned on the left.
 defaultL :: LayoutSpec
@@ -148,6 +191,10 @@ limitLeftL i = limitL i LeftPos
 
 -- | Assume the given length is greater or equal than the length of the 'String'
 -- passed. Pads the given 'String' accordingly, using the position specification.
+--
+-- >>> pad LeftPos 10 "foo"
+-- "foo       "
+--
 pad :: PosSpec -> Int -> String -> String
 pad p = case p of
     LeftPos   -> fillRight
@@ -157,6 +204,10 @@ pad p = case p of
 -- | If the given text is too long, the 'String' will be shortened according to
 -- the position specification, also adds some dots to indicate that the column
 -- has been trimmed in length, otherwise behaves like 'pad'.
+--
+-- >>> trimOrPad LeftPos (singleCutMark "..") 10 "A longer text."
+-- "A longer.."
+--
 trimOrPad :: PosSpec -> CutMarkSpec -> Int -> String -> String
 trimOrPad p = case p of
     LeftPos   -> fitRightWith
@@ -169,7 +220,7 @@ trimOrPad p = case p of
 --
 -- This function assumes:
 --
--- >    ai <> deriveAlignInfo s = ai
+-- > ai <> deriveAlignInfo s = ai
 --
 align :: OccSpec -> AlignInfo -> String -> String
 align oS (AlignInfo l r) s = case splitAtOcc oS s of
@@ -182,7 +233,7 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
 -- filling or fitting while respecting the alignment.
 alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _               = ""
---alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeft "  "
+alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms " "
 alignFixed p cms i oS ai@(AlignInfo l r) s               =
     let n = l + r - i
     in if n <= 0
@@ -205,13 +256,12 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                     remRight = r - q - rem
                 in if | remLeft < 0   -> fitLeft (remRight + remLeft) $ fitRight remRight rs
                       | remRight < 0  -> fitRight (remLeft + remRight) $ fitLeft remLeft ls
-                      | remLeft == 0  -> applyMarkLeft $ fitRight remRight rs
+                      | remLeft == 0  -> applyMarkLeftWith cms $ fitRight remRight rs
                       | remRight == 0 -> applyMarkRight $ fitLeft remLeft ls
                       | otherwise     -> fitRight (remRight + remLeft) $ fitLeft remLeft ls ++ rs
   where
     fitRight       = fitRightWith cms
     fitLeft        = fitLeftWith cms
-    applyMarkLeft  = applyMarkLeftWith cms
     applyMarkRight = applyMarkRightWith cms
 
 splitAtOcc :: OccSpec -> String -> (String, String)
@@ -289,7 +339,7 @@ instance Monoid AlignInfo where
     mappend (AlignInfo ll lr) (AlignInfo rl rr) = AlignInfo (max ll rl) (max lr rr)
 
 -- | Derive the 'ColModInfo' by using layout specifications and looking at the
--- table.
+-- cells.
 deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
@@ -309,22 +359,22 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -------------------------------------------------------------------------------
 
 -- | Modifies cells according to the given 'LayoutSpec'.
-layoutAsCells :: [LayoutSpec] -> [[String]] -> [[String]]
-layoutAsCells specs tab = zipWith apply tab
+layoutToCells :: [[String]] -> [LayoutSpec] -> [[String]]
+layoutToCells tab specs = zipWith apply tab
                         . repeat
-                        -- TODO refactor
                         . zipWith (uncurry columnModifier) (map (posSpec &&& cutMarkSpec) specs)
                         $ deriveColModInfos (map (lenSpec &&& alignSpec) specs) tab
   where
     apply = zipWith $ flip ($)
 
--- | Behaves like 'layoutCells' but produces lines.
-layoutAsLines :: [LayoutSpec] -> [[String]] -> [String]
-layoutAsLines specs tab = map unwords $ layoutAsCells specs tab
+-- | Behaves like 'layoutCells' but produces lines by joining with whitespace.
+layoutToLines :: [[String]] -> [LayoutSpec] -> [String]
+layoutToLines tab specs = map unwords $ layoutToCells tab specs
 
--- | Behaves like 'layoutCells' but produces a 'String'.
-layoutAsString :: [LayoutSpec] -> [[String]] -> String
-layoutAsString ls t = intercalate "\n" $ layoutAsLines ls t
+-- | Behaves like 'layoutCells' but produces a 'String' by joining with the
+-- newline character.
+layoutToString :: [[String]] -> [LayoutSpec] -> String
+layoutToString tab specs = intercalate "\n" $ layoutToLines tab specs
 
 -------------------------------------------------------------------------------
 -- Grid modifier functions
@@ -369,8 +419,12 @@ leftHL = HeaderLayoutSpec LeftPos Nothing
 -- | Layouts a good-looking table with a optional header. Note that specifying
 -- fewer layout specifications than columns or vice versa will result in not
 -- showing them.
-layoutTableAsLines :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> [LayoutSpec] -> TableStyle -> [String]
-layoutTableAsLines rGs optHeaderInfo specs (TableStyle { .. }) =
+layoutTableToLines :: [RowGroup]                           -- ^ Groups
+                   -> Maybe ([String], [HeaderLayoutSpec]) -- ^ Optional header details
+                   -> [LayoutSpec]                         -- ^ Layout specification of columns
+                   -> TableStyle                           -- ^ Visual table style
+                   -> [String]
+layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
     -- Line helpers
@@ -428,8 +482,12 @@ layoutTableAsLines rGs optHeaderInfo specs (TableStyle { .. }) =
     colWidths        = map widthCMI cMIs
     zipApply         = zipWith $ flip ($)
 
-layoutTableAsString :: [RowGroup] -> Maybe ([String], [HeaderLayoutSpec]) -> [LayoutSpec] -> TableStyle -> String
-layoutTableAsString rGs optHeaderInfo specs = intercalate "\n" . layoutTableAsLines rGs optHeaderInfo specs
+layoutTableToString :: [RowGroup]
+                    -> Maybe ([String], [HeaderLayoutSpec])
+                    -> [LayoutSpec]
+                    -> TableStyle
+                    -> String
+layoutTableToString rGs optHeaderInfo specs = intercalate "\n" . layoutTableToLines rGs optHeaderInfo specs
 
 
 -------------------------------------------------------------------------------
