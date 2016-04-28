@@ -10,7 +10,22 @@ version:             0.1.0.0
 
 synopsis:            Layout text as grid or table.
 
--- description:         
+description:         
+    `table-layout` is a library for text-based table layout, it provides several
+    functions which help in this task from the ground up, although using them is
+    not necessary. It provides the following layout features:
+    .
+    * Fixed-size and arbitrarily sized columns
+    .
+    * Positional alignment of content
+    .
+    * Alignment of text at a character occurence
+    .
+    * Cut marks show that text has been trimmed
+    .
+    * Building fancy tables with optional headers and user styles
+    .
+    * Layout text justified over multiple rows
 
 -- URL for the project homepage or repository.
 homepage:            https://github.com/muesli4/table-layout
@@ -26,6 +41,10 @@ build-type:          Simple
 
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
+
+source-repository head
+    type:            git
+    location:        git://github.com/muesli4/table-layout.git
 
 
 library
@@ -52,3 +71,4 @@ executable table-layout-test-styles
   build-depends:       base >=4.8 && <4.9
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table
+  default-language:    Haskell2010
