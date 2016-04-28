@@ -2,13 +2,13 @@ module Main where
 
 import Control.Monad
 
-import Render.Table
+import Text.Layout.Table
 
 main :: IO ()
 main = 
     forM_ styles $ \style ->
         forM_ layouts $ \layout -> (putStrLn "" >>) $ (print layout >>) $ mapM_ putStrLn $
-            layoutTableAsLines [ rowGroup [ [longText, smallNum]
+            layoutTableToLines [ rowGroup [ [longText, smallNum]
                                           , [shortText, bigNum]
                                           ]
                                ]
@@ -27,7 +27,7 @@ main =
                 , unicodeBoldStripedS
                 , unicodeBoldHeaderS
                 ]
-    layouts   = [ LayoutSpec l p a (cutMark "<.." "..>")
+    layouts   = [ LayoutSpec l p a shortCutMark
                 | l <- [Expand, Fixed 10]
                 , p <- [LeftPos, RightPos, CenterPos]
                 , a <- [NoAlign, AlignAtChar $ OccSpec '.' 0]

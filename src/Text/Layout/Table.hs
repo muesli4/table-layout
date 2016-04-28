@@ -3,6 +3,9 @@
 -- and length restriction it also provides advanced features like justifying
 -- text and fancy tables with styling support.
 --
+-- == Some examples
+-- Layouting text as a plain grid:
+--
 -- >>> putStrLn $ layoutToString [["a", "b"], ["c", "d"]] (repeat defaultL)
 -- a b
 -- c d
@@ -39,7 +42,7 @@
 --
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
-module Render.Table
+module Text.Layout.Table
     ( -- * Layout types and combinators
       -- $layout
       LayoutSpec(..)
@@ -86,7 +89,7 @@ module Render.Table
     , justifyWordListsAsGrid
 
       -- * Table styles
-    , module Render.Table.Style
+    , module Text.Layout.Table.Style
 
       -- * Column modification functions
     , pad
@@ -117,9 +120,9 @@ import Control.Arrow
 import Data.List
 import Data.Maybe
 
-import Render.Table.PrimMod
-import Render.Table.Justify
-import Render.Table.Style
+import Text.Layout.Table.PrimMod
+import Text.Layout.Table.Justify
+import Text.Layout.Table.Style
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
@@ -230,7 +233,7 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
         _  -> fillRight r rs
 
 -- | Aligns a column using a fixed width, fitting it to the width by either
--- filling or fitting while respecting the alignment.
+-- filling or cutting while respecting the alignment.
 alignFixed :: PosSpec -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _               = ""
 alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms " "
