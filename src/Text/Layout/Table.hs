@@ -435,15 +435,12 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
 
     -- Spacers consisting of columns of seperator elements.
     genHSpacers c    = map (flip replicate c) colWidths
-    hHeaderSpacers   = genHSpacers headerSepH
-    hGroupSpacers    = genHSpacers groupSepH
-
 
     -- Vertical seperator lines
     topLine       = vLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
     bottomLine    = vLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
-    groupSepLine  = groupSepLC : groupSepH : intercalate [groupSepH, groupSepC, groupSepH] hGroupSpacers ++ [groupSepH, groupSepRC]
-    headerSepLine = vLineDetail headerSepH headerSepLC headerSepC headerSepRC hHeaderSpacers
+    groupSepLine  = vLineDetail groupSepH groupSepLC groupSepC groupSepRC $ genHSpacers groupSepH
+    headerSepLine = vLineDetail headerSepH headerSepLC headerSepC headerSepRC $ genHSpacers headerSepH
 
     -- Vertical content lines
     rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' groupV) . applyRowMods . rows) rGs
