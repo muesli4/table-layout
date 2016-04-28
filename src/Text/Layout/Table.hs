@@ -25,7 +25,7 @@
 --                                    , rowGroup [["Short text", "100200.5"]]
 --                                    ]
 --                                    (Just (["Title", "Length"], repeat centerHL))
---                                    [ limitLeftL 20
+--                                    [ fixedLeftL 20
 --                                    , LayoutSpec (Fixed 10)
 --                                                 CenterPos
 --                                                 dotAlign
@@ -48,8 +48,8 @@ module Text.Layout.Table
       LayoutSpec(..)
     , defaultL
     , numL
-    , limitL
-    , limitLeftL
+    , fixedL
+    , fixedLeftL
     , LenSpec(..)
     , PosSpec(..)
     , AlignSpec(..)
@@ -139,7 +139,7 @@ data LayoutSpec = LayoutSpec
                 } deriving Show
 
 -- | Determines how long a column will be.
-data LenSpec = Expand | Fixed Int deriving Show
+data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int  deriving Show
 
 -- | Determines how a column will be positioned. Note that on an odd number of
 -- space, centering is left-biased.
@@ -180,12 +180,12 @@ numL :: LayoutSpec
 numL = LayoutSpec Expand RightPos (AlignAtChar $ OccSpec '.' 0) defaultCutMark
 
 -- | Limits the column length and positions according to the given 'PosSpec'.
-limitL :: Int -> PosSpec -> LayoutSpec
-limitL l pS = LayoutSpec (Fixed l) pS NoAlign defaultCutMark
+fixedL :: Int -> PosSpec -> LayoutSpec
+fixedL l pS = LayoutSpec (Fixed l) pS NoAlign defaultCutMark
 
 -- | Limits the column length and positions on the left.
-limitLeftL :: Int -> LayoutSpec
-limitLeftL i = limitL i LeftPos
+fixedLeftL :: Int -> LayoutSpec
+fixedLeftL i = fixedL i LeftPos
 
 -------------------------------------------------------------------------------
 -- Single-cell layout functions.
@@ -345,12 +345,26 @@ instance Monoid AlignInfo where
 deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
-    fSel specs       = case specs of
-        (Expand , NoAlign       ) -> FillTo . maximum . fmap length
-        (Expand , AlignAtChar oS) -> FillAligned oS . deriveAlignInfos oS
-        (Fixed i, NoAlign       ) -> const $ FitTo i Nothing
-        (Fixed i, AlignAtChar oS) -> FitTo i . Just . (,) oS . deriveAlignInfos oS
+    fSel (lenSpec, alignSpec) = case alignSpec of
+        NoAlign        -> let fitTo i             = const $ FitTo i Nothing
+                              maxLen              = maximum . fmap length
+                              expandUntil f i max = if f (max <= i) then FillTo else fitTo i
+                          in case lenSpec of
+            Expand        -> FillTo . maxLen
+            Fixed i       -> fitTo i
+            ExpandUntil i -> expandUntil id i . maxLen
+            FixedUntil i  -> expandUntil not i . maxLen
+        AlignAtChar oS -> let deriveAlignInfos   = foldMap $ deriveAlignInfo oS
+                              fitToAligned i     = FitTo i . Just . (,) oS
+                              fillAligned        = FillAligned oS
+                              expandUntil f i ai = if f (widthAI <= i) then fillAligned else fitToAligned i
+                          in case lenSpec of
+            Expand        -> fillAligned . deriveAlignInfos
+            Fixed i       -> fitToAligned i . deriveAlignInfos
+            ExpandUntil i -> expandUntil id i . deriveAlignInfos
+            FixedUntil i  -> expandUntil not i . deriveAlignInfos
     deriveAlignInfos = foldMap . deriveAlignInfo
+
 
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo
