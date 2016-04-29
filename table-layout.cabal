@@ -12,8 +12,8 @@ synopsis:            Layout text as grid or table.
 
 description:         
     `table-layout` is a library for text-based table layout, it provides several
-    functions which help in this task from the ground up, although using them is
-    not necessary. It provides the following layout features:
+    functions and types which help in this task from the ground up, although
+    using them is not necessary. It provides the following layout features:
     .
     * Fixed-size and arbitrarily sized columns and limiting versions of those
     .
