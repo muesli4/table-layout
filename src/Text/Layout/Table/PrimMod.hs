@@ -1,6 +1,8 @@
--- | This module contains primitive modifiers for 'String's to be filled or fitted to a specific length.
+-- | This module contains primitive modifiers for lists and 'String's to be
+-- filled or fitted to a specific length.
 module Text.Layout.Table.PrimMod
-    ( CutMarkSpec
+    ( -- * String-related tools
+      CutMarkSpec
     , cutMark
     , spaces
     , fillLeft'
@@ -13,6 +15,13 @@ module Text.Layout.Table.PrimMod
     , fitCenterWith
     , applyMarkLeftWith
     , applyMarkRightWith
+
+      -- * List-related tools
+    , fillStart'
+    , fillStart
+    , fillEnd
+    , fillBoth'
+    , fillBoth
     )
     where
 
@@ -33,26 +42,44 @@ cutMark l r = CutMarkSpec l (reverse r)
 spaces :: Int -> String
 spaces = flip replicate ' '
 
+fillStart' :: a -> Int -> Int -> [a] -> [a]
+fillStart' x i lenL l = replicate (i - lenL) x ++ l
+
+fillStart :: a -> Int -> [a] -> [a]
+fillStart x i l = fillStart' x i (length l) l
+
+fillEnd :: a -> Int -> [a] -> [a]
+fillEnd x i l = take i $ l ++ repeat x
+
+fillBoth' :: a -> Int -> Int -> [a] -> [a]
+fillBoth' x i lenL l = 
+    -- Puts more on the beginning if odd.
+    filler q ++ l ++ filler (q + r)
+  where
+    filler  = flip replicate x
+    missing = i - lenL
+    (q, r)  = missing `divMod` 2
+
+fillBoth :: a -> Int -> [a] -> [a]
+fillBoth x i l = fillBoth' x i (length i) l
+
 fillLeft' :: Int -> Int -> String -> String
-fillLeft' i lenS s = spaces (i - lenS) ++ s
+fillLeft' = fillStart' ' '
 
 -- | Fill on the left until the 'String' has the desired length.
 fillLeft :: Int -> String -> String
-fillLeft i s = fillLeft' i (length s) s
+fillLeft = fillStart ' '
 
 -- | Fill on the right until the 'String' has the desired length.
 fillRight :: Int -> String -> String
-fillRight i s = take i $ s ++ repeat ' '
+fillRight = fillEnd ' '
 
 fillCenter' :: Int -> Int -> String -> String
-fillCenter' i lenS s = let missing = i - lenS
-                           (q, r)  = missing `divMod` 2
-                       -- Puts more spaces on the right if odd.
-                       in spaces q ++ s ++ spaces (q + r)
+fillCenter' = fillBoth' ' '
 
 -- | Fill on both sides equally until the 'String' has the desired length.
 fillCenter :: Int -> String -> String
-fillCenter i s = fillCenter' i (length s) s
+fillCenter = fillBoth ' '
 
 -- | Fits to the given length by either trimming or filling it to the right.
 fitRightWith :: CutMarkSpec -> Int -> String -> String
