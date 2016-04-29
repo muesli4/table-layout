@@ -6,7 +6,7 @@ import Text.Layout.Table
 
 main :: IO ()
 main = putStrLn $ layoutTableToString rowGroups
-                                      (Just (["Layout", "Result"], repeat centerHL))
+                                      (Just (["Layout", "Result"], repeat def))
                                       [ LayoutSpec (ExpandUntil 30) LeftPos (charAlign ':') ellipsisCutMark
                                       , LayoutSpec Expand CenterPos noAlign noCutMark
                                       ]
@@ -21,7 +21,7 @@ main = putStrLn $ layoutTableToString rowGroups
                                                  , [shortText, bigNum, "bar"]
                                                  ]
                                       ]
-                                      (Just (["Some text", "Some numbers", "X"], repeat centerHL))
+                                      (Just (["Some text", "Some numbers", "X"], repeat def))
                                       (repeat l)
                                       s
     longText  = "This is long text"
