@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.3.0.0
+version:             0.4.0.0
 
 synopsis:            Layout text as grid or table.
 
@@ -61,7 +61,7 @@ library
   other-extensions:    RecordWildCards, MultiWayIf
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9
+  build-depends:       base >=4.8 && <4.9, data-default-class ==0.0.1
   
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -71,7 +71,7 @@ library
 
 executable table-layout-test-styles
   main-is:             Test.hs
-  build-depends:       base >=4.8 && <4.9
+  build-depends:       base >=4.8 && <4.9, data-default-class ==0.0.1
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table
   default-language:    Haskell2010

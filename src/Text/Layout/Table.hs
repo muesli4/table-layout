@@ -46,7 +46,6 @@ module Text.Layout.Table
     ( -- * Layout types and combinators
       -- $layout
       LayoutSpec(..)
-    , defaultL
     , numL
     , fixedL
     , fixedLeftL
@@ -60,7 +59,6 @@ module Text.Layout.Table
     , isAligned
     , OccSpec
     , CutMarkSpec
-    , defaultCutMark
     , ellipsisCutMark
     , noCutMark
     , singleCutMark
@@ -124,6 +122,7 @@ module Text.Layout.Table
 import Control.Arrow
 import Data.List
 import Data.Maybe
+import Data.Default.Class
 
 import Text.Layout.Table.PrimMod
 import Text.Layout.Table.Justify
@@ -157,6 +156,18 @@ data AlignSpec = AlignPred OccSpec | NoAlign
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec (Char -> Bool) Int
 
+instance Default LayoutSpec where
+    def = LayoutSpec def def def def
+
+instance Default LenSpec where
+    def = Expand
+
+instance Default PosSpec where
+    def = LeftPos
+
+instance Default AlignSpec where
+    def = noAlign
+
 -- | Don't align text.
 noAlign :: AlignSpec
 noAlign = NoAlign
@@ -176,33 +187,13 @@ isAligned as = case as of
     NoAlign -> False
     _       -> True
 
--- | Use the same cut mark for left and right.
-singleCutMark :: String -> CutMarkSpec
-singleCutMark l = cutMark l (reverse l)
-
--- | Default cut mark used when cutting off text.
-defaultCutMark :: CutMarkSpec
-defaultCutMark = singleCutMark ".."
-
--- | Don't use a cut mark.
-noCutMark :: CutMarkSpec
-noCutMark = singleCutMark ""
-
--- | A single unicode character showing three dots is used as cut mark.
-ellipsisCutMark :: CutMarkSpec
-ellipsisCutMark = singleCutMark "…"
-
--- | The default layout will allow maximum expand and is positioned on the left.
-defaultL :: LayoutSpec
-defaultL = LayoutSpec Expand LeftPos NoAlign defaultCutMark
-
 -- | Numbers are positioned on the right and aligned on the floating point dot.
 numL :: LayoutSpec
-numL = LayoutSpec Expand RightPos dotAlign defaultCutMark
+numL = LayoutSpec def RightPos dotAlign def
 
 -- | Fixes the column length and positions according to the given 'PosSpec'.
 fixedL :: Int -> PosSpec -> LayoutSpec
-fixedL l pS = LayoutSpec (Fixed l) pS NoAlign defaultCutMark
+fixedL l pS = LayoutSpec (Fixed l) pS def def
 
 -- | Fixes the column length and positions on the left.
 fixedLeftL :: Int -> LayoutSpec

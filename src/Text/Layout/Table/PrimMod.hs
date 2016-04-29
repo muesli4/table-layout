@@ -1,9 +1,14 @@
 -- | This module contains primitive modifiers for lists and 'String's to be
 -- filled or fitted to a specific length.
 module Text.Layout.Table.PrimMod
-    ( -- * String-related tools
+    ( -- * Cut marks
       CutMarkSpec
     , cutMark
+    , singleCutMark
+    , noCutMark
+    , ellipsisCutMark
+
+      -- * String-related tools
     , spaces
     , fillLeft'
     , fillLeft
@@ -25,6 +30,8 @@ module Text.Layout.Table.PrimMod
     )
     where
 
+import Data.Default.Class
+
 -- | Specifies how the place looks where a 'String' has been cut. Note that the
 -- cut mark may be cut itself, to fit into a column.
 data CutMarkSpec = CutMarkSpec
@@ -32,12 +39,27 @@ data CutMarkSpec = CutMarkSpec
                  , rightMark :: String
                  }
 
+instance Default CutMarkSpec where
+    def = ellipsisCutMark
+
 instance Show CutMarkSpec where
     show (CutMarkSpec l r) = "cutMark " ++ show l ++ ' ' : show (reverse r)
 
 -- | Display custom characters on a cut.
 cutMark :: String -> String -> CutMarkSpec
 cutMark l r = CutMarkSpec l (reverse r)
+
+-- | Use the same cut mark for left and right.
+singleCutMark :: String -> CutMarkSpec
+singleCutMark l = cutMark l (reverse l)
+
+-- | Don't use a cut mark.
+noCutMark :: CutMarkSpec
+noCutMark = singleCutMark ""
+
+-- | A single unicode character showing three dots is used as cut mark.
+ellipsisCutMark :: CutMarkSpec
+ellipsisCutMark = singleCutMark "…"
 
 spaces :: Int -> String
 spaces = flip replicate ' '
