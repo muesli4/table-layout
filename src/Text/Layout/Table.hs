@@ -143,17 +143,13 @@ import           Text.Layout.Table.Primitives.Basic
 -- | Determines the layout of a column.
 data LayoutSpec = LayoutSpec
                 { lenSpec     :: LenSpec
-                , posSpec     :: Position H
+                , position     :: Position H
                 , alignSpec   :: AlignSpec
                 , cutMarkSpec :: CutMarkSpec
                 }
 
 -- | Determines how long a column will be.
 data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int deriving Show
-
--- | Determines how a column will be positioned. Note that on an odd number of
--- space, centering is left-biased.
-data PosSpec = LeftPos | RightPos | CenterPos deriving Show
 
 -- | Determines whether a column will align at a specific letter.
 data AlignSpec = AlignPred OccSpec | NoAlign
@@ -314,12 +310,12 @@ unalignedCMI cmi = case cmi of
 -- | Ensures that the modification provides a minimum width, but only if it is
 -- not limited.
 ensureWidthCMI :: Int -> Position H -> ColModInfo -> ColModInfo
-ensureWidthCMI w posSpec cmi = case cmi of
+ensureWidthCMI w pos cmi = case cmi of
     FillAligned oS ai@(AlignInfo lw rw) ->
         let neededW = widthAI ai - w
         in if neededW >= 0
            then cmi
-           else FillAligned oS $ case posSpec of
+           else FillAligned oS $ case pos of
                Start  -> AlignInfo lw (rw + neededW)
                End    -> AlignInfo (lw + neededW) rw
                Center -> let (q, r) = neededW `divMod` 2 
@@ -334,11 +330,11 @@ ensureWidthOfCMI = ensureWidthCMI . length
 -- | Generates a function which modifies a given 'String' according to
 -- 'Position H', 'CutMarkSpec' and 'ColModInfo'.
 columnModifier :: Position H -> CutMarkSpec -> ColModInfo -> (String -> String)
-columnModifier posSpec cms lenInfo = case lenInfo of
+columnModifier pos cms lenInfo = case lenInfo of
     FillAligned oS ai -> align oS ai
-    FillTo maxLen     -> pad posSpec maxLen
+    FillTo maxLen     -> pad pos maxLen
     FitTo lim mT  ->
-        maybe (trimOrPad posSpec cms lim) (uncurry $ alignFixed posSpec cms lim) mT
+        maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
 
 -- | Specifies the length before and after a letter.
 data AlignInfo = AlignInfo Int Int deriving Show
@@ -394,7 +390,7 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 layoutToCells :: [[String]] -> [LayoutSpec] -> [[String]]
 layoutToCells tab specs = zipWith apply tab
                         . repeat
-                        . zipWith (uncurry columnModifier) (map (posSpec A.&&& cutMarkSpec) specs)
+                        . zipWith (uncurry columnModifier) (map (position A.&&& cutMarkSpec) specs)
                         $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs) tab
   where
     apply = zipWith $ flip ($)
@@ -482,8 +478,8 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
         Just (h, headerLayoutSpecs) ->
             let headerLine    = vLine ' ' headerV (zipApply h headerRowMods)
-                headerRowMods = zipWith3 (\(HeaderLayoutSpec posSpec optCutMarkSpec) cutMarkSpec ->
-                                              columnModifier posSpec $ fromMaybe cutMarkSpec optCutMarkSpec
+                headerRowMods = zipWith3 (\(HeaderLayoutSpec pos optCutMarkSpec) cutMarkSpec ->
+                                              columnModifier pos $ fromMaybe cutMarkSpec optCutMarkSpec
                                          )
                                          headerLayoutSpecs
                                          cMSs
@@ -506,7 +502,7 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
             )
 
     cMSs             = map cutMarkSpec specs
-    posSpecs         = map posSpec specs
+    posSpecs         = map position specs
     applyRowMods xss = zipWith zipApply xss $ repeat rowMods
     rowMods          = zipWith3 columnModifier posSpecs cMSs cMIs
     cMIs             = fitHeaderIntoCMIs $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs)
