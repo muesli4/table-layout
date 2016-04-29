@@ -1,6 +1,6 @@
 -- | This module contains primitive modifiers for lists and 'String's to be
 -- filled or fitted to a specific length.
-module Text.Layout.Table.PrimMod
+module Text.Layout.Table.Primitives.Basic
     ( -- * Cut marks
       CutMarkSpec
     , cutMark

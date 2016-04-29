@@ -7,16 +7,16 @@ import Text.Layout.Table
 main :: IO ()
 main = putStrLn $ layoutTableToString rowGroups
                                       (Just (["Layout", "Result"], repeat def))
-                                      [ LayoutSpec (ExpandUntil 30) LeftPos (charAlign ':') ellipsisCutMark
-                                      , LayoutSpec Expand CenterPos noAlign noCutMark
+                                      [ LayoutSpec (ExpandUntil 30) left (charAlign ':') ellipsisCutMark
+                                      , LayoutSpec Expand center noAlign noCutMark
                                       ]
                                       unicodeRoundS
   where
     rowGroups    = flip concatMap styles $ \style ->
         flip map layouts $ \layout ->
-            rowGroup $ columnsAsGrid CenterVPos [ explain layout
-                                                , genTable layout style
-                                                ]
+            rowGroup $ columnsAsGrid center [ explain layout
+                                            , genTable layout style
+                                            ]
     genTable l s = layoutTableToLines [ rowGroup [ [longText, smallNum, "foo"]
                                                  , [shortText, bigNum, "bar"]
                                                  ]
@@ -44,6 +44,6 @@ main = putStrLn $ layoutTableToString rowGroups
                 ]
     layouts   = [ LayoutSpec l p a ellipsisCutMark
                 | l <- [Expand, Fixed 10, ExpandUntil 10, FixedUntil 10]
-                , p <- [LeftPos, RightPos, CenterPos]
+                , p <- [left, right, center]
                 , a <- [noAlign, dotAlign]
                 ]
