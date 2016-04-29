@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.1.0.0
+version:             0.2.0.0
 
 synopsis:            Layout text as grid or table.
 
@@ -15,17 +15,17 @@ description:
     functions which help in this task from the ground up, although using them is
     not necessary. It provides the following layout features:
     .
-    * Fixed-size and arbitrarily sized columns
+    * Fixed-size and arbitrarily sized columns and limiting versions of those
     .
-    * Positional alignment of content
+    * Positional alignment of content in a column
     .
-    * Alignment of text at a character occurence
+    * Alignment of content within a column at a character occurence
     .
-    * Cut marks show that text has been trimmed
+    * Cut marks show that content has been trimmed
     .
-    * Building fancy tables with optional headers and user styles
+    * Fancy tables with optional headers and user styles
     .
-    * Layout text justified over multiple rows
+    * Justified text layout over multiple rows
 
 -- URL for the project homepage or repository.
 homepage:            https://github.com/muesli4/table-layout

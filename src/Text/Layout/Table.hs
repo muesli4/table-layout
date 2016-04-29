@@ -114,6 +114,7 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: vertical group labels
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
+-- TODO LayoutSpec:  add some kind of combinator to construct LayoutSpec values (e.g. via Monoid, see optparse-applicative)
 
 import Control.Arrow
 import Data.List
@@ -179,11 +180,11 @@ defaultL = LayoutSpec Expand LeftPos NoAlign defaultCutMark
 numL :: LayoutSpec
 numL = LayoutSpec Expand RightPos (AlignAtChar $ OccSpec '.' 0) defaultCutMark
 
--- | Limits the column length and positions according to the given 'PosSpec'.
+-- | Fixes the column length and positions according to the given 'PosSpec'.
 fixedL :: Int -> PosSpec -> LayoutSpec
 fixedL l pS = LayoutSpec (Fixed l) pS NoAlign defaultCutMark
 
--- | Limits the column length and positions on the left.
+-- | Fixes the column length and positions on the left.
 fixedLeftL :: Int -> LayoutSpec
 fixedLeftL i = fixedL i LeftPos
 
@@ -347,23 +348,26 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
     fSel (lenSpec, alignSpec) = case alignSpec of
         NoAlign        -> let fitTo i             = const $ FitTo i Nothing
-                              maxLen              = maximum . fmap length
-                              expandUntil f i max = if f (max <= i) then FillTo else fitTo i
-                          in case lenSpec of
-            Expand        -> FillTo . maxLen
-            Fixed i       -> fitTo i
-            ExpandUntil i -> expandUntil id i . maxLen
-            FixedUntil i  -> expandUntil not i . maxLen
-        AlignAtChar oS -> let deriveAlignInfos   = foldMap $ deriveAlignInfo oS
-                              fitToAligned i     = FitTo i . Just . (,) oS
+                              expandUntil f i max = if f (max <= i)
+                                                    then FillTo max
+                                                    else fitTo i max
+                              fun                 = case lenSpec of
+                                  Expand        -> FillTo
+                                  Fixed i       -> fitTo i
+                                  ExpandUntil i -> expandUntil id i
+                                  FixedUntil i  -> expandUntil not i
+                          in fun . maximum . map length
+        AlignAtChar oS -> let fitToAligned i     = FitTo i . Just . (,) oS
                               fillAligned        = FillAligned oS
-                              expandUntil f i ai = if f (widthAI <= i) then fillAligned else fitToAligned i
-                          in case lenSpec of
-            Expand        -> fillAligned . deriveAlignInfos
-            Fixed i       -> fitToAligned i . deriveAlignInfos
-            ExpandUntil i -> expandUntil id i . deriveAlignInfos
-            FixedUntil i  -> expandUntil not i . deriveAlignInfos
-    deriveAlignInfos = foldMap . deriveAlignInfo
+                              expandUntil f i ai = if f (widthAI ai <= i)
+                                                   then fillAligned ai
+                                                   else fitToAligned i ai
+                              fun                = case lenSpec of
+                                  Expand        -> fillAligned
+                                  Fixed i       -> fitToAligned i
+                                  ExpandUntil i -> expandUntil id i
+                                  FixedUntil i  -> expandUntil not i
+                          in fun . foldMap (deriveAlignInfo oS)
 
 
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
