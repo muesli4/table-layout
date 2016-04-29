@@ -54,7 +54,7 @@ module Text.Layout.Table
     , PosSpec(..)
     , AlignSpec(..)
     , dotAlign
-    , OccSpec(..)
+    , OccSpec
     , CutMarkSpec
     , defaultCutMark
     , ellipsisCutMark
@@ -147,14 +147,17 @@ data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int  deriving S
 data PosSpec = LeftPos | RightPos | CenterPos deriving Show
 
 -- | Determines whether a column will align at a specific letter.
-data AlignSpec = AlignAtChar OccSpec | NoAlign deriving Show
+data AlignSpec = AlignPred OccSpec | NoAlign deriving Show
 
 -- | Specifies an occurence of a letter.
-data OccSpec = OccSpec Char Int deriving Show
+data OccSpec = OccSpec (Char -> Bool) Int deriving Show
 
 -- | Align all text at the dot.
 dotAlign :: AlignSpec
-dotAlign = AlignAtChar $ OccSpec '.' 0
+dotAlign = AlignPred $ OccSpec (== '.') 0
+
+alignPred :: (Char -> Bool) -> AlignSpec
+alignPred p = AlignPred $ OccSpec p 0
 
 -- | Use the same cut mark for left and right.
 singleCutMark :: String -> CutMarkSpec
@@ -178,7 +181,7 @@ defaultL = LayoutSpec Expand LeftPos NoAlign defaultCutMark
 
 -- | Numbers are positioned on the right and aligned on the floating point dot.
 numL :: LayoutSpec
-numL = LayoutSpec Expand RightPos (AlignAtChar $ OccSpec '.' 0) defaultCutMark
+numL = LayoutSpec Expand RightPos dotAlign defaultCutMark
 
 -- | Fixes the column length and positions according to the given 'PosSpec'.
 fixedL :: Int -> PosSpec -> LayoutSpec
@@ -268,11 +271,11 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
     applyMarkRight = applyMarkRightWith cms
 
 splitAtOcc :: OccSpec -> String -> (String, String)
-splitAtOcc (OccSpec c occ) = first reverse . go 0 []
+splitAtOcc (OccSpec p occ) = first reverse . go 0 []
   where
     go n ls xs = case xs of
         []      -> (ls, [])
-        x : xs' -> if c == x
+        x : xs' -> if p x
                    then if n == occ
                         then (ls, xs)
                         else go (succ n) (x : ls) xs'
@@ -357,17 +360,17 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                                   ExpandUntil i -> expandUntil id i
                                   FixedUntil i  -> expandUntil not i
                           in fun . maximum . map length
-        AlignAtChar oS -> let fitToAligned i     = FitTo i . Just . (,) oS
-                              fillAligned        = FillAligned oS
-                              expandUntil f i ai = if f (widthAI ai <= i)
-                                                   then fillAligned ai
-                                                   else fitToAligned i ai
-                              fun                = case lenSpec of
-                                  Expand        -> fillAligned
-                                  Fixed i       -> fitToAligned i
-                                  ExpandUntil i -> expandUntil id i
-                                  FixedUntil i  -> expandUntil not i
-                          in fun . foldMap (deriveAlignInfo oS)
+        AlignPred oS -> let fitToAligned i     = FitTo i . Just . (,) oS
+                             fillAligned        = FillAligned oS
+                             expandUntil f i ai = if f (widthAI ai <= i)
+                                                  then fillAligned ai
+                                                  else fitToAligned i ai
+                             fun                = case lenSpec of
+                                 Expand        -> fillAligned
+                                 Fixed i       -> fitToAligned i
+                                 ExpandUntil i -> expandUntil id i
+                                 FixedUntil i  -> expandUntil not i
+                         in fun . foldMap (deriveAlignInfo oS)
 
 
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
