@@ -52,7 +52,7 @@ source-repository head
 
 library
   -- Modules exported by the library.
-  exposed-modules:     Text.Layout.Table, Text.Layout.Table.Justify, Text.Layout.Table.Style, Text.Layout.Table.Position
+  exposed-modules:     Text.Layout.Table, Text.Layout.Table.Justify, Text.Layout.Table.Style, Text.Layout.Table.Position, Text.Layout.Table.Primitives.Basic, Text.Layout.Table.Internal
   
   -- Modules included in this library but not exported.
   -- other-modules:       

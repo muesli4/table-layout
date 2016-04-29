@@ -7,34 +7,27 @@ import Text.Layout.Table
 main :: IO ()
 main = putStrLn $ layoutTableToString rowGroups
                                       (Just (["Layout", "Result"], repeat def))
-                                      [ LayoutSpec (ExpandUntil 30) left (charAlign ':') ellipsisCutMark
-                                      , LayoutSpec Expand center noAlign noCutMark
+                                      [ column (expandUntil 30) left (charAlign ':') ellipsisCutMark
+                                      , column expand center noAlign noCutMark
                                       ]
                                       unicodeRoundS
   where
     rowGroups    = flip concatMap styles $ \style ->
-        flip map layouts $ \layout ->
-            rowGroup $ columnsAsGrid center [ explain layout
-                                            , genTable layout style
+        flip map columTs $ \(cSpec, is) ->
+            rowGroup $ columnsAsGrid center [ is
+                                            , genTable cSpec style
                                             ]
-    genTable l s = layoutTableToLines [ rowGroup [ [longText, smallNum, "foo"]
+    genTable c s = layoutTableToLines [ rowGroup [ [longText, smallNum, "foo"]
                                                  , [shortText, bigNum, "bar"]
                                                  ]
                                       ]
                                       (Just (["Some text", "Some numbers", "X"], repeat def))
-                                      (repeat l)
+                                      (repeat c)
                                       s
     longText  = "This is long text"
     shortText = "Short"
     bigNum    = "200300400500600.2"
     smallNum  = "4.20000000"
-    explain l = case l of
-        LayoutSpec lenSpec posSpec alignSpec cutMarkSpec ->
-            [ "length: " ++  show lenSpec
-            , "position: " ++ show posSpec
-            , "alignment: " ++ if isAligned alignSpec then "at some point" else "not aligned"
-            , "cut mark: " ++ show cutMarkSpec
-            ]
     styles    = [ asciiRoundS
                 , unicodeS
                 , unicodeRoundS
@@ -42,8 +35,11 @@ main = putStrLn $ layoutTableToString rowGroups
                 , unicodeBoldStripedS
                 , unicodeBoldHeaderS
                 ]
-    layouts   = [ LayoutSpec l p a ellipsisCutMark
-                | l <- [Expand, Fixed 10, ExpandUntil 10, FixedUntil 10]
-                , p <- [left, right, center]
-                , a <- [noAlign, dotAlign]
+    columTs   = [ ( column l p a ellipsisCutMark
+                  , ["len spec: " ++ dL, "position: " ++ pL, "alignment: " ++ aL]
+                  )
+                | (l, dL) <- zip [expand, fixed 10, expandUntil 10, fixedUntil 10]
+                           ["expand", "fixed 10", "expand until 10", "fixed until 10"]
+                , (p, pL) <- zip [left, right, center] ["left", "right", "center"]
+                , (a, aL) <- zip [noAlign, dotAlign] ["no align", "align at '.'"]
                 ]

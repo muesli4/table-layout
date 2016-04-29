@@ -6,13 +6,13 @@
 -- == Some examples
 -- Layouting text as a plain grid:
 --
--- >>> putStrLn $ layoutToString [["a", "b"], ["c", "d"]] (repeat defaultL)
+-- >>> putStrLn $ layoutToString [["a", "b"], ["c", "d"]] (repeat def)
 -- a b
 -- c d
 --
 -- Fancy table without header:
 --
--- >>> putStrLn $ layoutTableToString [rowGroup [["Jack", "184.74"]], rowGroup [["Jane", "162.2"]]] Nothing [defaultL, numL] unicodeRoundS
+-- >>> putStrLn $ layoutTableToString [rowGroup [["Jack", "184.74"]], rowGroup [["Jane", "162.2"]]] Nothing [def , numL] unicodeRoundS
 -- ╭──────┬────────╮
 -- │ Jack │ 184.74 │
 -- ├──────┼────────┤
@@ -24,10 +24,10 @@
 -- >>> putStrLn $ layoutTableToString [ rowGroup [["A very long text", "0.42000000"]]
 --                                    , rowGroup [["Short text", "100200.5"]]
 --                                    ]
---                                    (Just (["Title", "Length"], repeat centerHL))
+--                                    (Just (["Title", "Length"], repeat def))
 --                                    [ fixedLeftL 20
---                                    , LayoutSpec (Fixed 10)
---                                                 CenterPos
+--                                    , ColSpec (fixed 10)
+--                                                 center
 --                                                 dotAlign
 --                                                 ellipsisCutMark
 --                                    ]
@@ -45,11 +45,16 @@
 module Text.Layout.Table
     ( -- * Layout types and combinators
       -- $layout
-      LayoutSpec(..)
-    , numL
-    , fixedL
-    , fixedLeftL
-    , LenSpec(..)
+      ColSpec
+    , column
+    , numCol
+    , fixedCol
+    , fixedLeftCol
+    , LenSpec
+    , expand
+    , fixed
+    , expandUntil
+    , fixedUntil
     , Position
     , H
     , left
@@ -81,9 +86,8 @@ module Text.Layout.Table
       -- * Advanced table layout
     , RowGroup
     , rowGroup
-    , HeaderLayoutSpec(..)
-    , centerHL
-    , leftHL
+    , HeaderColSpec
+    , headerColumn
     , layoutTableToLines
     , layoutTableToString
 
@@ -121,7 +125,7 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: vertical group labels
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
--- TODO LayoutSpec:  add some kind of combinator to construct LayoutSpec values (e.g. via Monoid, see optparse-applicative)
+-- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
 
 import qualified Control.Arrow as A
 import           Data.List
@@ -132,39 +136,36 @@ import           Text.Layout.Table.Justify
 import           Text.Layout.Table.Style
 import           Text.Layout.Table.Position
 import           Text.Layout.Table.Primitives.Basic
+import           Text.Layout.Table.Internal
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
 -------------------------------------------------------------------------------
 {- $layout
-    Specify the layout of columns. Layout combinators have a 'L' as postfix.
+    Specify the layout of columns.
 -}
 
--- | Determines the layout of a column.
-data LayoutSpec = LayoutSpec
-                { lenSpec     :: LenSpec
-                , position     :: Position H
-                , alignSpec   :: AlignSpec
-                , cutMarkSpec :: CutMarkSpec
-                }
+column :: LenSpec -> Position H -> AlignSpec -> CutMarkSpec -> ColSpec
+column = ColSpec
 
--- | Determines how long a column will be.
-data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int deriving Show
+instance Default ColSpec where
+    def = column def def def def
 
--- | Determines whether a column will align at a specific letter.
-data AlignSpec = AlignPred OccSpec | NoAlign
+-- | Allows columns to use as much space as needed.
+expand :: LenSpec
+expand = Expand
 
--- | Specifies an occurence of a letter.
-data OccSpec = OccSpec (Char -> Bool) Int
+-- | Fixes column length to a specific width.
+fixed :: Int -> LenSpec
+fixed = Fixed
 
-instance Default LayoutSpec where
-    def = LayoutSpec def def def def
+-- | The column will expand as long as it is smaller as the given width.
+expandUntil :: Int -> LenSpec
+expandUntil = ExpandUntil
 
-instance Default LenSpec where
-    def = Expand
-
-instance Default AlignSpec where
-    def = noAlign
+-- | The column will be at least as wide as the given width.
+fixedUntil :: Int -> LenSpec
+fixedUntil = FixedUntil
 
 -- | Don't align text.
 noAlign :: AlignSpec
@@ -185,17 +186,25 @@ isAligned as = case as of
     NoAlign -> False
     _       -> True
 
+-- | No alignment is the default.
+instance Default AlignSpec where
+    def = noAlign
+
+instance Default LenSpec where
+    def = Expand
+
+
 -- | Numbers are positioned on the right and aligned on the floating point dot.
-numL :: LayoutSpec
-numL = LayoutSpec def right dotAlign def
+numCol :: ColSpec
+numCol = ColSpec def right dotAlign def
 
 -- | Fixes the column length and positions according to the given 'Position'.
-fixedL :: Int -> Position H -> LayoutSpec
-fixedL l pS = LayoutSpec (Fixed l) pS def def
+fixedCol :: Int -> Position H -> ColSpec
+fixedCol l pS = ColSpec (Fixed l) pS def def
 
 -- | Fixes the column length and positions on the left.
-fixedLeftL :: Int -> LayoutSpec
-fixedLeftL i = fixedL i left
+fixedLeftCol :: Int -> ColSpec
+fixedLeftCol i = fixedCol i left
 
 -------------------------------------------------------------------------------
 -- Single-cell layout functions.
@@ -336,8 +345,9 @@ columnModifier pos cms lenInfo = case lenInfo of
     FitTo lim mT  ->
         maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
 
+-- TODO factor out
 -- | Specifies the length before and after a letter.
-data AlignInfo = AlignInfo Int Int deriving Show
+data AlignInfo = AlignInfo Int Int
 
 -- | The column width when using the 'AlignInfo'.
 widthAI :: AlignInfo -> Int
@@ -386,8 +396,8 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -- Basic layout
 -------------------------------------------------------------------------------
 
--- | Modifies cells according to the given 'LayoutSpec'.
-layoutToCells :: [[String]] -> [LayoutSpec] -> [[String]]
+-- | Modifies cells according to the given 'ColSpec'.
+layoutToCells :: [[String]] -> [ColSpec] -> [[String]]
 layoutToCells tab specs = zipWith apply tab
                         . repeat
                         . zipWith (uncurry columnModifier) (map (position A.&&& cutMarkSpec) specs)
@@ -396,12 +406,12 @@ layoutToCells tab specs = zipWith apply tab
     apply = zipWith $ flip ($)
 
 -- | Behaves like 'layoutCells' but produces lines by joining with whitespace.
-layoutToLines :: [[String]] -> [LayoutSpec] -> [String]
+layoutToLines :: [[String]] -> [ColSpec] -> [String]
 layoutToLines tab specs = map unwords $ layoutToCells tab specs
 
 -- | Behaves like 'layoutCells' but produces a 'String' by joining with the
 -- newline character.
-layoutToString :: [[String]] -> [LayoutSpec] -> String
+layoutToString :: [[String]] -> [ColSpec] -> String
 layoutToString tab specs = intercalate "\n" $ layoutToLines tab specs
 
 -------------------------------------------------------------------------------
@@ -423,37 +433,24 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 -- Advanced layout
 -------------------------------------------------------------------------------
 
--- | Groups rows together, which are not seperated from each other.
-data RowGroup = RowGroup
-              { rows     :: [[String]] 
-              }
-
 -- | Construct a row group from a list of rows.
 rowGroup :: [[String]] -> RowGroup
 rowGroup = RowGroup
 
--- | Specifies how a header is layout, by omitting the cut mark it will use the
--- one specified in the 'LayoutSpec' like the other cells in that column.
-data HeaderLayoutSpec = HeaderLayoutSpec (Position H) (Maybe CutMarkSpec)
+-- | Header columns are usually centered.
+instance Default HeaderColSpec where
+    def = headerColumn center Nothing
 
-instance Default HeaderLayoutSpec where
-    def = centerHL
-
--- | A centered header layout.
-centerHL :: HeaderLayoutSpec
-centerHL = HeaderLayoutSpec center Nothing
-
--- | A left-positioned header layout.
-leftHL :: HeaderLayoutSpec
-leftHL = HeaderLayoutSpec left Nothing
+headerColumn :: Position H -> Maybe CutMarkSpec -> HeaderColSpec
+headerColumn = HeaderColSpec
 
 -- | Layouts a good-looking table with a optional header. Note that specifying
 -- fewer layout specifications than columns or vice versa will result in not
 -- showing them.
-layoutTableToLines :: [RowGroup]                           -- ^ Groups
-                   -> Maybe ([String], [HeaderLayoutSpec]) -- ^ Optional header details
-                   -> [LayoutSpec]                         -- ^ Layout specification of columns
-                   -> TableStyle                           -- ^ Visual table style
+layoutTableToLines :: [RowGroup]                        -- ^ Groups
+                   -> Maybe ([String], [HeaderColSpec]) -- ^ Optional header details
+                   -> [ColSpec]                         -- ^ Layout specification of columns
+                   -> TableStyle                        -- ^ Visual table style
                    -> [String]
 layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
@@ -476,12 +473,12 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
-        Just (h, headerLayoutSpecs) ->
+        Just (h, headerColSpecs) ->
             let headerLine    = vLine ' ' headerV (zipApply h headerRowMods)
-                headerRowMods = zipWith3 (\(HeaderLayoutSpec pos optCutMarkSpec) cutMarkSpec ->
+                headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMarkSpec) cutMarkSpec ->
                                               columnModifier pos $ fromMaybe cutMarkSpec optCutMarkSpec
                                          )
-                                         headerLayoutSpecs
+                                         headerColSpecs
                                          cMSs
                                          (map unalignedCMI cMIs)
             in
@@ -511,8 +508,8 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     zipApply         = zipWith $ flip ($)
 
 layoutTableToString :: [RowGroup]
-                    -> Maybe ([String], [HeaderLayoutSpec])
-                    -> [LayoutSpec]
+                    -> Maybe ([String], [HeaderColSpec])
+                    -> [ColSpec]
                     -> TableStyle
                     -> String
 layoutTableToString rGs optHeaderInfo specs = intercalate "\n" . layoutTableToLines rGs optHeaderInfo specs
