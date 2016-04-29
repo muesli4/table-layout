@@ -61,7 +61,7 @@ fillBoth' x i lenL l =
     (q, r)  = missing `divMod` 2
 
 fillBoth :: a -> Int -> [a] -> [a]
-fillBoth x i l = fillBoth' x i (length i) l
+fillBoth x i l = fillBoth' x i (length l) l
 
 fillLeft' :: Int -> Int -> String -> String
 fillLeft' = fillStart' ' '

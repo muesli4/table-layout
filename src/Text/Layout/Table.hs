@@ -52,8 +52,12 @@ module Text.Layout.Table
     , fixedLeftL
     , LenSpec(..)
     , PosSpec(..)
-    , AlignSpec(..)
+    , AlignSpec
+    , noAlign
+    , charAlign
+    , predAlign
     , dotAlign
+    , isAligned
     , OccSpec
     , CutMarkSpec
     , defaultCutMark
@@ -84,6 +88,7 @@ module Text.Layout.Table
       -- $justify
     , justify
     , justifyText
+    , VertPosSpec(..)
     , columnsAsGrid
     , justifyTextsAsGrid
     , justifyWordListsAsGrid
@@ -137,27 +142,39 @@ data LayoutSpec = LayoutSpec
                 , posSpec     :: PosSpec
                 , alignSpec   :: AlignSpec
                 , cutMarkSpec :: CutMarkSpec
-                } deriving Show
+                }
 
 -- | Determines how long a column will be.
-data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int  deriving Show
+data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int deriving Show
 
 -- | Determines how a column will be positioned. Note that on an odd number of
 -- space, centering is left-biased.
 data PosSpec = LeftPos | RightPos | CenterPos deriving Show
 
 -- | Determines whether a column will align at a specific letter.
-data AlignSpec = AlignPred OccSpec | NoAlign deriving Show
+data AlignSpec = AlignPred OccSpec | NoAlign
 
 -- | Specifies an occurence of a letter.
-data OccSpec = OccSpec (Char -> Bool) Int deriving Show
+data OccSpec = OccSpec (Char -> Bool) Int
+
+-- | Don't align text.
+noAlign :: AlignSpec
+noAlign = NoAlign
+
+predAlign :: (Char -> Bool) -> AlignSpec
+predAlign p = AlignPred $ OccSpec p 0
+
+charAlign :: Char -> AlignSpec
+charAlign = predAlign . (==)
 
 -- | Align all text at the dot.
 dotAlign :: AlignSpec
-dotAlign = AlignPred $ OccSpec (== '.') 0
+dotAlign = charAlign '.'
 
-alignPred :: (Char -> Bool) -> AlignSpec
-alignPred p = AlignPred $ OccSpec p 0
+isAligned :: AlignSpec -> Bool
+isAligned as = case as of
+    NoAlign -> False
+    _       -> True
 
 -- | Use the same cut mark for left and right.
 singleCutMark :: String -> CutMarkSpec
@@ -285,7 +302,6 @@ splitAtOcc (OccSpec p occ) = first reverse . go 0 []
 data ColModInfo = FillAligned OccSpec AlignInfo
                 | FillTo Int
                 | FitTo Int (Maybe (OccSpec, AlignInfo))
-                deriving Show
 
 -- | Get the exact width after the modification.
 widthCMI :: ColModInfo -> Int
@@ -361,15 +377,15 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                                   FixedUntil i  -> expandUntil not i
                           in fun . maximum . map length
         AlignPred oS -> let fitToAligned i     = FitTo i . Just . (,) oS
-                             fillAligned        = FillAligned oS
-                             expandUntil f i ai = if f (widthAI ai <= i)
-                                                  then fillAligned ai
-                                                  else fitToAligned i ai
-                             fun                = case lenSpec of
-                                 Expand        -> fillAligned
-                                 Fixed i       -> fitToAligned i
-                                 ExpandUntil i -> expandUntil id i
-                                 FixedUntil i  -> expandUntil not i
+                            fillAligned        = FillAligned oS
+                            expandUntil f i ai = if f (widthAI ai <= i)
+                                                 then fillAligned ai
+                                                 else fitToAligned i ai
+                            fun                = case lenSpec of
+                                Expand        -> fillAligned
+                                Fixed i       -> fitToAligned i
+                                ExpandUntil i -> expandUntil id i
+                                FixedUntil i  -> expandUntil not i
                          in fun . foldMap (deriveAlignInfo oS)
 
 

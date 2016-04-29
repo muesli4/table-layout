@@ -5,16 +5,20 @@
 module Text.Layout.Table.Justify
     ( justifyTextsAsGrid
     , justifyWordListsAsGrid
-    , columnsAsGrid
-    , fillSameLength
     , justifyText
     , justify
     , dimorphicSummands
     , dimorphicSummandsBy
+      -- * Vertical alignment of whole columns
+    , VertPosSpec(..)
+    , columnsAsGrid
+    , vpadCols
     ) where
 
 import Control.Arrow
 import Data.List
+
+import Text.Layout.Table.PrimMod
 
 -- | Justifies texts and presents the resulting lines in a grid structure (each
 -- text in one column).
@@ -25,23 +29,32 @@ justifyTextsAsGrid = justifyWordListsAsGrid . fmap (second words)
 -- structure (each list of words in one column). This is useful if you don't
 -- want to split just at whitespaces.
 justifyWordListsAsGrid :: [(Int, [String])] -> [[String]]
-justifyWordListsAsGrid = columnsAsGrid . fmap (uncurry justify)
+justifyWordListsAsGrid = columnsAsGrid TopVPos . fmap (uncurry justify)
+
+data VertPosSpec = TopVPos
+                 | CenterVPos
+                 | BottomVPos
 
 {- | Merges multiple columns together and merges them to a valid grid without
    holes. The following example clarifies this:
 
->>> columnsAsGrid [justifyText 10 "This text will not fit on one line.", ["42", "23"]]
+>>> columnsAsGrid TopVPos [justifyText 10 "This text will not fit on one line.", ["42", "23"]]
 [["This  text","42"],["will   not","23"],["fit on one",""],["line.",""]]
 
 -}
-columnsAsGrid :: [[[a]]] -> [[[a]]]
-columnsAsGrid = transpose . fillSameLength []
+columnsAsGrid :: VertPosSpec -> [[[a]]] -> [[[a]]]
+columnsAsGrid vPosSpec = transpose . vpadCols vPosSpec []
 
 -- | Fill all sublists to the same length.
-fillSameLength :: a -> [[a]] -> [[a]]
-fillSameLength x l = fmap (fillTo $ maximum $ 0 : fmap length l) l
+vpadCols :: VertPosSpec -> a -> [[a]] -> [[a]]
+vpadCols vPosSpec x l = fmap fillToMax l
   where
-    fillTo i l = take i $ l ++ repeat x
+    fillToMax = fillTo $ maximum $ 0 : fmap length l
+    fillTo    = let f = case vPosSpec of
+                       TopVPos    -> fillEnd
+                       CenterVPos -> fillBoth
+                       BottomVPos -> fillStart
+                in f x
 
 -- | Uses 'words' to split the text into words and justifies it with 'justify'.
 --
