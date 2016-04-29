@@ -29,7 +29,7 @@
 --                                    , LayoutSpec (Fixed 10)
 --                                                 CenterPos
 --                                                 dotAlign
---                                                 shortCutMark
+--                                                 ellipsisCutMark
 --                                    ]
 --                                    unicodeRoundS
 -- ╭──────────────────────┬────────────╮

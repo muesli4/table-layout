@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.2.0.0
+version:             0.3.0.0
 
 synopsis:            Layout text as grid or table.
 
@@ -26,6 +26,9 @@ description:
     * Fancy tables with optional headers and user styles
     .
     * Justified text layout over multiple rows
+    .
+    /Note:/ This package is currently under development and may not be suited for
+    productive use.
 
 -- URL for the project homepage or repository.
 homepage:            https://github.com/muesli4/table-layout
