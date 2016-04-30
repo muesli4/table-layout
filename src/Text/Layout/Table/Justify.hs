@@ -18,7 +18,7 @@ import Control.Arrow
 import Data.List
 
 import Text.Layout.Table.Primitives.Basic
-import Text.Layout.Table.Position
+import Text.Layout.Table.Position.Internal
 
 -- | Justifies texts and presents the resulting lines in a grid structure (each
 -- text in one column).

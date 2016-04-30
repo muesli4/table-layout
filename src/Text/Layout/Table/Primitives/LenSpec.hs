@@ -6,4 +6,4 @@ module Text.Layout.Table.Primitives.LenSpec
     , fixedUntil
     ) where
 
-import Text.Layout.Primitives.LenSpec.Internal
+import Text.Layout.Table.Primitives.LenSpec.Internal

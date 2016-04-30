@@ -146,11 +146,11 @@ import           Data.Default.Class
 
 import           Text.Layout.Table.Justify
 import           Text.Layout.Table.Style
-import           Text.Layout.Table.Position
+import           Text.Layout.Table.Position.Internal
 import           Text.Layout.Table.Primitives.AlignSpec.Internal
 import           Text.Layout.Table.Primitives.Basic
 import           Text.Layout.Table.Primitives.Column
-import           Text.Layout.Table.Primitives.LenSpec
+import           Text.Layout.Table.Primitives.LenSpec.Internal
 import           Text.Layout.Table.Primitives.Occurence
 import           Text.Layout.Table.Internal
 
@@ -234,16 +234,16 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                 let remRight = r - n
                 in if remRight < 0
                    then fitRight (l + remRight) $ fillLeft l ls
-                   else fillLeft l ls ++ fitRight remRight rs
+                   else fitRight (l + remRight) $ fillLeft l ls ++ rs
             End    ->
                 let remLeft = l - n
                 in if remLeft < 0
                    then fitLeft (r + remLeft) $ fillRight r rs
-                   else fitLeft remLeft ls ++ fillRight r rs
+                   else fitLeft (r + remLeft) $ ls ++ fillRight r rs
             Center ->
                 let (q, rem) = n `divMod` 2
-                    remLeft  = l - q
-                    remRight = r - q - rem
+                    remLeft  = l - q - rem
+                    remRight = r - q
                 in if | remLeft < 0   -> fitLeft (remRight + remLeft) $ fitRight remRight rs
                       | remRight < 0  -> fitRight (remLeft + remRight) $ fitLeft remLeft ls
                       | remLeft == 0  -> applyMarkLeftWith cms $ fitRight remRight rs

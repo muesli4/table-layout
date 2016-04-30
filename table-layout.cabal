@@ -51,11 +51,22 @@ source-repository head
 
 
 library
-  -- Modules exported by the library.
-  exposed-modules:     Text.Layout.Table, Text.Layout.Table.Justify, Text.Layout.Table.Style, Text.Layout.Table.Position, Text.Layout.Table.Primitives.Basic, Text.Layout.Table.Internal
+  exposed-modules:     Text.Layout.Table,
+                       Text.Layout.Table.Justify,
+                       Text.Layout.Table.Style,
+                       Text.Layout.Table.Position, 
+                       Text.Layout.Table.Primitives.Basic, 
+                       Text.Layout.Table.Primitives.AlignSpec, 
+                       Text.Layout.Table.Primitives.Column,
+                       Text.Layout.Table.Primitives.LenSpec,
+                       Text.Layout.Table.Primitives.Occurence,
+                       Text.Layout.Table.Internal
   
-  -- Modules included in this library but not exported.
-  -- other-modules:       
+  other-modules:       
+                       Text.Layout.Table.Primitives.AlignSpec.Internal,
+                       Text.Layout.Table.Primitives.LenSpec.Internal,
+                       Text.Layout.Table.Position.Internal
+
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:    RecordWildCards, MultiWayIf
@@ -77,24 +88,16 @@ executable table-layout-test-styles
   default-language:    Haskell2010
 
 test-suite table-layout-tests
-  type:                detailed-0.9
-  hs-source-dirs:      test, src
-  test-module:         Test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test-suite, src
+  main-is:             Spec.hs
   build-depends:       base,
-                       Cabal,
-                       cabal-test-quickcheck >=0.1 && <0.2,
+                       --Cabal,
                        QuickCheck >=2.8 && < 2.9,
-                       data-default-class >=0.0.1 && < 0.1
+                       HUnit ==1.3.*,
+                       data-default-class >=0.0.1 && < 0.1,
+                       hspec
 
-  other-modules:       Text.Layout.Table,
-                       Text.Layout.Table.Justify,
-                       Text.Layout.Table.Style,
-                       Text.Layout.Table.Position,
-                       Text.Layout.Table.Primitives.Basic,
-                       Text.Layout.Table.Internal
+  other-modules:       Text.Layout.Table, Text.Layout.Table.Primitives.Basic
 
   default-language:    Haskell2010
---                     QuickCheck,
---                     test-framework,
---                     test-framework-hunit,
---                     test-framework-quickcheck2
