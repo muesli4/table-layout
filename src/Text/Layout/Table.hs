@@ -137,7 +137,7 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
--- TODO OccSpec:     expose smart constructors
+-- TODO              move functions not related to direct end-user into Primitives
 
 import qualified Control.Arrow as A
 import           Data.List
@@ -147,36 +147,29 @@ import           Data.Default.Class
 import           Text.Layout.Table.Justify
 import           Text.Layout.Table.Style
 import           Text.Layout.Table.Position
+import           Text.Layout.Table.Primitives.AlignSpec.Internal
 import           Text.Layout.Table.Primitives.Basic
+import           Text.Layout.Table.Primitives.Column
+import           Text.Layout.Table.Primitives.LenSpec
+import           Text.Layout.Table.Primitives.Occurence
 import           Text.Layout.Table.Internal
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
 -------------------------------------------------------------------------------
 
--- | Allows columns to use as much space as needed.
-expand :: LenSpec
-expand = Expand
-
--- | Fixes column length to a specific width.
-fixed :: Int -> LenSpec
-fixed = Fixed
-
--- | The column will expand as long as it is smaller as the given width.
-expandUntil :: Int -> LenSpec
-expandUntil = ExpandUntil
-
--- | The column will be at least as wide as the given width.
-fixedUntil :: Int -> LenSpec
-fixedUntil = FixedUntil
+-- | Align all text at the first dot from the left. This is most useful for
+-- floating point numbers.
+dotAlign :: AlignSpec
+dotAlign = charAlign '.'
 
 -- | Numbers are positioned on the right and aligned on the floating point dot.
 numCol :: ColSpec
-numCol = ColSpec def right dotAlign def
+numCol = column def right dotAlign def
 
 -- | Fixes the column length and positions according to the given 'Position'.
 fixedCol :: Int -> Position H -> ColSpec
-fixedCol l pS = ColSpec (Fixed l) pS def def
+fixedCol l pS = column (Fixed l) pS def def
 
 -- | Fixes the column length and positions on the left.
 fixedLeftCol :: Int -> ColSpec
@@ -261,17 +254,6 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
     fitLeft        = fitLeftWith cms
     applyMarkRight = applyMarkRightWith cms
 
-splitAtOcc :: OccSpec -> String -> (String, String)
-splitAtOcc (OccSpec p occ) = A.first reverse . go 0 []
-  where
-    go n ls xs = case xs of
-        []      -> (ls, [])
-        x : xs' -> if p x
-                   then if n == occ
-                        then (ls, xs)
-                        else go (succ n) (x : ls) xs'
-                   else go n (x : ls) xs'
-
 -- | Specifies how a column should be modified.
 data ColModInfo = FillAligned OccSpec AlignInfo
                 | FillTo Int
@@ -341,27 +323,27 @@ deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
     fSel (lenSpec, alignSpec) = case alignSpec of
-        NoAlign        -> let fitTo i             = const $ FitTo i Nothing
-                              expandUntil f i max = if f (max <= i)
-                                                    then FillTo max
-                                                    else fitTo i max
-                              fun                 = case lenSpec of
-                                  Expand        -> FillTo
-                                  Fixed i       -> fitTo i
-                                  ExpandUntil i -> expandUntil id i
-                                  FixedUntil i  -> expandUntil not i
-                          in fun . maximum . map length
-        AlignPred oS -> let fitToAligned i     = FitTo i . Just . (,) oS
-                            fillAligned        = FillAligned oS
-                            expandUntil f i ai = if f (widthAI ai <= i)
-                                                 then fillAligned ai
-                                                 else fitToAligned i ai
-                            fun                = case lenSpec of
-                                Expand        -> fillAligned
-                                Fixed i       -> fitToAligned i
-                                ExpandUntil i -> expandUntil id i
-                                FixedUntil i  -> expandUntil not i
-                         in fun . foldMap (deriveAlignInfo oS)
+        NoAlign     -> let fitTo i             = const $ FitTo i Nothing
+                           expandUntil f i max = if f (max <= i)
+                                                 then FillTo max
+                                                 else fitTo i max
+                           fun                 = case lenSpec of
+                               Expand        -> FillTo
+                               Fixed i       -> fitTo i
+                               ExpandUntil i -> expandUntil id i
+                               FixedUntil i  -> expandUntil not i
+                       in fun . maximum . map length
+        AlignOcc oS -> let fitToAligned i     = FitTo i . Just . (,) oS
+                           fillAligned        = FillAligned oS
+                           expandUntil f i ai = if f (widthAI ai <= i)
+                                                then fillAligned ai
+                                                else fitToAligned i ai
+                           fun                = case lenSpec of
+                               Expand        -> fillAligned
+                               Fixed i       -> fitToAligned i
+                               ExpandUntil i -> expandUntil id i
+                               FixedUntil i  -> expandUntil not i
+                        in fun . foldMap (deriveAlignInfo oS)
 
 
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
