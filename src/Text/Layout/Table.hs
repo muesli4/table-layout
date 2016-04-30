@@ -241,14 +241,18 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                    then fitLeft (r + remLeft) $ fillRight r rs
                    else fitLeft (r + remLeft) $ ls ++ fillRight r rs
             Center ->
-                let (q, rem) = n `divMod` 2
-                    remLeft  = l - q - rem
-                    remRight = r - q
-                in if | remLeft < 0   -> fitLeft (remRight + remLeft) $ fitRight remRight rs
-                      | remRight < 0  -> fitRight (remLeft + remRight) $ fitLeft remLeft ls
-                      | remLeft == 0  -> applyMarkLeftWith cms $ fitRight remRight rs
-                      | remRight == 0 -> applyMarkRight $ fitLeft remLeft ls
-                      | otherwise     -> fitRight (remRight + remLeft) $ fitLeft remLeft ls ++ rs
+                let (q, rem)      = n `divMod` 2
+                    remLeft       = l - q - rem
+                    remRight      = r - q
+                    lenL          = length ls
+                    lenR          = length rs
+                    (markL, funL) = if lenL > remLeft
+                                    then (applyMarkLeftWith cms, drop $ lenL - remLeft)
+                                    else (id, fillLeft' remLeft lenL)
+                    (markR, funR) = if lenR > remRight
+                                    then (applyMarkRight, take remRight)
+                                    else (id, fillRight remRight)
+                in markL $ markR $ funL ls ++ funR rs
   where
     fitRight       = fitRightWith cms
     fitLeft        = fitLeftWith cms
