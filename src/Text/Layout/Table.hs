@@ -43,36 +43,42 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
 module Text.Layout.Table
-    ( -- * Layout types and combinators
-      -- $layout
-      ColSpec
+    ( -- * Layout combinators
+      -- | Specify how a column is rendered with the combinators in this
+      -- section. Sensible default values are provided with 'def'.
+
+      module Data.Default.Class
+
+      -- ** Columns
+    , ColSpec
     , column
     , numCol
     , fixedCol
     , fixedLeftCol
+      -- ** Length of columns
     , LenSpec
     , expand
     , fixed
     , expandUntil
     , fixedUntil
+      -- ** Positional alignment
     , Position
     , H
     , left
     , right
     , center
+      -- ** Alignment of cells at characters
     , AlignSpec
     , noAlign
     , charAlign
     , predAlign
     , dotAlign
-    , isAligned
-    , OccSpec
-    , CutMarkSpec
-    , ellipsisCutMark
+      -- ** Cut marks
+    , CutMark
     , noCutMark
     , singleCutMark
-    , cutMark
-    , module Data.Default.Class
+    , doubleCutMark
+    , ellipsisCutMark
 
       -- * Basic grid and table layout
     , layoutToCells
@@ -96,6 +102,9 @@ module Text.Layout.Table
     , justify
     , justifyText
     , columnsAsGrid
+    , top
+    , bottom
+    , V
     , justifyTextsAsGrid
     , justifyWordListsAsGrid
 
@@ -109,16 +118,18 @@ module Text.Layout.Table
     , alignFixed
 
       -- * Column modifaction primitives
-    , ColModInfo(..)
+      -- | Render your own kind of tables with the following functions.
+    , ColModInfo
     , widthCMI
     , unalignedCMI
     , ensureWidthCMI
     , ensureWidthOfCMI
     , columnModifier
-    , AlignInfo(..)
+    , AlignInfo
     , widthAI
     , deriveColModInfos
     , deriveAlignInfo
+    , OccSpec
     ) where
 
 -- TODO AlignSpec:   multiple alignment points - useful?
@@ -126,6 +137,7 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
+-- TODO OccSpec:     expose smart constructors
 
 import qualified Control.Arrow as A
 import           Data.List
@@ -141,15 +153,6 @@ import           Text.Layout.Table.Internal
 -------------------------------------------------------------------------------
 -- Layout types and combinators
 -------------------------------------------------------------------------------
-{- $layout
-    Specify the layout of columns.
--}
-
-column :: LenSpec -> Position H -> AlignSpec -> CutMarkSpec -> ColSpec
-column = ColSpec
-
-instance Default ColSpec where
-    def = column def def def def
 
 -- | Allows columns to use as much space as needed.
 expand :: LenSpec
@@ -166,33 +169,6 @@ expandUntil = ExpandUntil
 -- | The column will be at least as wide as the given width.
 fixedUntil :: Int -> LenSpec
 fixedUntil = FixedUntil
-
--- | Don't align text.
-noAlign :: AlignSpec
-noAlign = NoAlign
-
-predAlign :: (Char -> Bool) -> AlignSpec
-predAlign p = AlignPred $ OccSpec p 0
-
-charAlign :: Char -> AlignSpec
-charAlign = predAlign . (==)
-
--- | Align all text at the dot.
-dotAlign :: AlignSpec
-dotAlign = charAlign '.'
-
-isAligned :: AlignSpec -> Bool
-isAligned as = case as of
-    NoAlign -> False
-    _       -> True
-
--- | No alignment is the default.
-instance Default AlignSpec where
-    def = noAlign
-
-instance Default LenSpec where
-    def = Expand
-
 
 -- | Numbers are positioned on the right and aligned on the floating point dot.
 numCol :: ColSpec
@@ -213,7 +189,7 @@ fixedLeftCol i = fixedCol i left
 -- | Assume the given length is greater or equal than the length of the 'String'
 -- passed. Pads the given 'String' accordingly, using the position specification.
 --
--- >>> pad LeftPos 10 "foo"
+-- >>> pad left 10 "foo"
 -- "foo       "
 --
 pad :: Position o -> Int -> String -> String
@@ -226,14 +202,14 @@ pad p = case p of
 -- the position specification, also adds some dots to indicate that the column
 -- has been trimmed in length, otherwise behaves like 'pad'.
 --
--- >>> trimOrPad LeftPos (singleCutMark "..") 10 "A longer text."
+-- >>> trimOrPad left (singleCutMark "..") 10 "A longer text."
 -- "A longer.."
 --
-trimOrPad :: Position o -> CutMarkSpec -> Int -> String -> String
+trimOrPad :: Position o -> CutMark -> Int -> String -> String
 trimOrPad p = case p of
     Start  -> fitRightWith
-    Center -> fitLeftWith
-    End    -> fitCenterWith
+    Center -> fitCenterWith
+    End    -> fitLeftWith
 
 -- | Align a column by first finding the position to pad with and then padding
 -- the missing lengths to the maximum value. If no such position is found, it
@@ -252,7 +228,7 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
 
 -- | Aligns a column using a fixed width, fitting it to the width by either
 -- filling or cutting while respecting the alignment.
-alignFixed :: Position o -> CutMarkSpec -> Int -> OccSpec -> AlignInfo -> String -> String
+alignFixed :: Position o -> CutMark -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _               = ""
 alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms " "
 alignFixed p cms i oS ai@(AlignInfo l r) s               =
@@ -337,12 +313,12 @@ ensureWidthOfCMI :: String -> Position H -> ColModInfo -> ColModInfo
 ensureWidthOfCMI = ensureWidthCMI . length
 
 -- | Generates a function which modifies a given 'String' according to
--- 'Position H', 'CutMarkSpec' and 'ColModInfo'.
-columnModifier :: Position H -> CutMarkSpec -> ColModInfo -> (String -> String)
+-- 'Text.Layout.Table.Position.Position', 'CutMark' and 'ColModInfo'.
+columnModifier :: Position H -> CutMark -> ColModInfo -> (String -> String)
 columnModifier pos cms lenInfo = case lenInfo of
     FillAligned oS ai -> align oS ai
     FillTo maxLen     -> pad pos maxLen
-    FitTo lim mT  ->
+    FitTo lim mT      ->
         maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
 
 -- TODO factor out
@@ -400,16 +376,16 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 layoutToCells :: [[String]] -> [ColSpec] -> [[String]]
 layoutToCells tab specs = zipWith apply tab
                         . repeat
-                        . zipWith (uncurry columnModifier) (map (position A.&&& cutMarkSpec) specs)
+                        . zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs)
                         $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs) tab
   where
     apply = zipWith $ flip ($)
 
--- | Behaves like 'layoutCells' but produces lines by joining with whitespace.
+-- | Behaves like 'layoutToCells' but produces lines by joining with whitespace.
 layoutToLines :: [[String]] -> [ColSpec] -> [String]
 layoutToLines tab specs = map unwords $ layoutToCells tab specs
 
--- | Behaves like 'layoutCells' but produces a 'String' by joining with the
+-- | Behaves like 'layoutToCells' but produces a 'String' by joining with the
 -- newline character.
 layoutToString :: [[String]] -> [ColSpec] -> String
 layoutToString tab specs = intercalate "\n" $ layoutToLines tab specs
@@ -441,7 +417,7 @@ rowGroup = RowGroup
 instance Default HeaderColSpec where
     def = headerColumn center Nothing
 
-headerColumn :: Position H -> Maybe CutMarkSpec -> HeaderColSpec
+headerColumn :: Position H -> Maybe CutMark -> HeaderColSpec
 headerColumn = HeaderColSpec
 
 -- | Layouts a good-looking table with a optional header. Note that specifying
@@ -475,8 +451,8 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
         Just (h, headerColSpecs) ->
             let headerLine    = vLine ' ' headerV (zipApply h headerRowMods)
-                headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMarkSpec) cutMarkSpec ->
-                                              columnModifier pos $ fromMaybe cutMarkSpec optCutMarkSpec
+                headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMark) cutMark ->
+                                              columnModifier pos $ fromMaybe cutMark optCutMark
                                          )
                                          headerColSpecs
                                          cMSs
@@ -498,7 +474,7 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
             , groupTopR
             )
 
-    cMSs             = map cutMarkSpec specs
+    cMSs             = map cutMark specs
     posSpecs         = map position specs
     applyRowMods xss = zipWith zipApply xss $ repeat rowMods
     rowMods          = zipWith3 columnModifier posSpecs cMSs cMIs

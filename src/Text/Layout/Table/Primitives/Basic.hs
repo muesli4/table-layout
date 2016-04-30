@@ -2,26 +2,31 @@
 -- filled or fitted to a specific length.
 module Text.Layout.Table.Primitives.Basic
     ( -- * Cut marks
-      CutMarkSpec
-    , cutMark
+      CutMark
+    , doubleCutMark
     , singleCutMark
     , noCutMark
     , ellipsisCutMark
 
       -- * String-related tools
     , spaces
+
+      -- ** Filling
     , fillLeft'
     , fillLeft
     , fillRight
     , fillCenter'
     , fillCenter
+      -- ** Fitting
     , fitRightWith
     , fitLeftWith
     , fitCenterWith
+      -- ** Applying cut marks
     , applyMarkLeftWith
     , applyMarkRightWith
 
       -- * List-related tools
+      -- ** Filling
     , fillStart'
     , fillStart
     , fillEnd
@@ -34,31 +39,29 @@ import Data.Default.Class
 
 -- | Specifies how the place looks where a 'String' has been cut. Note that the
 -- cut mark may be cut itself, to fit into a column.
-data CutMarkSpec = CutMarkSpec
+data CutMark = CutMark
                  { leftMark  :: String
                  , rightMark :: String
                  }
 
-instance Default CutMarkSpec where
+instance Default CutMark where
     def = ellipsisCutMark
 
-instance Show CutMarkSpec where
-    show (CutMarkSpec l r) = "cutMark " ++ show l ++ ' ' : show (reverse r)
+-- | Specify two different cut marks, one for cuts on the left and one for cuts
+-- on the right.
+doubleCutMark :: String -> String -> CutMark
+doubleCutMark l r = CutMark l (reverse r)
 
--- | Display custom characters on a cut.
-cutMark :: String -> String -> CutMarkSpec
-cutMark l r = CutMarkSpec l (reverse r)
+-- | Use the cut mark on both sides by reversing it on the other.
+singleCutMark :: String -> CutMark
+singleCutMark l = doubleCutMark l (reverse l)
 
--- | Use the same cut mark for left and right.
-singleCutMark :: String -> CutMarkSpec
-singleCutMark l = cutMark l (reverse l)
-
--- | Don't use a cut mark.
-noCutMark :: CutMarkSpec
+-- | Don't show any cut mark when text is cut.
+noCutMark :: CutMark
 noCutMark = singleCutMark ""
 
 -- | A single unicode character showing three dots is used as cut mark.
-ellipsisCutMark :: CutMarkSpec
+ellipsisCutMark :: CutMark
 ellipsisCutMark = singleCutMark "…"
 
 spaces :: Int -> String
@@ -104,7 +107,7 @@ fillCenter :: Int -> String -> String
 fillCenter = fillBoth ' '
 
 -- | Fits to the given length by either trimming or filling it to the right.
-fitRightWith :: CutMarkSpec -> Int -> String -> String
+fitRightWith :: CutMark -> Int -> String -> String
 fitRightWith cms i s =
     if length s <= i
     then fillRight i s
@@ -112,7 +115,7 @@ fitRightWith cms i s =
          --take i $ take (i - mLen) s ++ take mLen m
 
 -- | Fits to the given length by either trimming or filling it to the right.
-fitLeftWith :: CutMarkSpec -> Int -> String -> String
+fitLeftWith :: CutMark -> Int -> String -> String
 fitLeftWith cms i s =
     if lenS <= i
     then fillLeft' i lenS s
@@ -122,7 +125,7 @@ fitLeftWith cms i s =
 
 -- | Fits to the given length by either trimming or filling it on both sides,
 -- but when only 1 character should be trimmed it will trim left.
-fitCenterWith :: CutMarkSpec -> Int -> String -> String
+fitCenterWith :: CutMark -> Int -> String -> String
 fitCenterWith cms i s             = 
     if diff >= 0
     then fillCenter' i lenS s
@@ -135,12 +138,12 @@ fitCenterWith cms i s             =
     halfLenS   = lenS `div` 2
     (halfI, r) = i `divMod` 2
 
--- | Applies a 'CutMarkSpec' to the left of a 'String', while preserving the length.
-applyMarkLeftWith :: CutMarkSpec -> String -> String
+-- | Applies a 'CutMark' to the left of a 'String', while preserving the length.
+applyMarkLeftWith :: CutMark -> String -> String
 applyMarkLeftWith cms = applyMarkLeftBy leftMark cms
 
--- | Applies a 'CutMarkSpec' to the right of a 'String', while preserving the length.
-applyMarkRightWith :: CutMarkSpec -> String -> String
+-- | Applies a 'CutMark' to the right of a 'String', while preserving the length.
+applyMarkRightWith :: CutMark -> String -> String
 applyMarkRightWith cms = reverse . applyMarkLeftBy rightMark cms . reverse
 
 applyMarkLeftBy :: (a -> String) -> a -> String -> String

@@ -21,7 +21,7 @@ left = Start
 right :: Position H
 right = End
 
-center :: Position o
+center :: Position orientation
 center = Center
 
 top :: Position V

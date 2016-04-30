@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.4.0.0
+version:             0.5.0.0
 
 synopsis:            Layout text as grid or table.
 
@@ -61,7 +61,7 @@ library
   other-extensions:    RecordWildCards, MultiWayIf
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9, data-default-class ==0.0.1
+  build-depends:       base >=4.8 && <4.9, data-default-class >=0.0.1 && < 0.1
   
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -71,7 +71,30 @@ library
 
 executable table-layout-test-styles
   main-is:             Test.hs
-  build-depends:       base >=4.8 && <4.9, data-default-class ==0.0.1
+  build-depends:       base >=4.8 && <4.9, data-default-class >=0.0.1 && < 0.1
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table
   default-language:    Haskell2010
+
+test-suite table-layout-tests
+  type:                detailed-0.9
+  hs-source-dirs:      test, src
+  test-module:         Test
+  build-depends:       base,
+                       Cabal,
+                       cabal-test-quickcheck >=0.1 && <0.2,
+                       QuickCheck >=2.8 && < 2.9,
+                       data-default-class >=0.0.1 && < 0.1
+
+  other-modules:       Text.Layout.Table,
+                       Text.Layout.Table.Justify,
+                       Text.Layout.Table.Style,
+                       Text.Layout.Table.Position,
+                       Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Internal
+
+  default-language:    Haskell2010
+--                     QuickCheck,
+--                     test-framework,
+--                     test-framework-hunit,
+--                     test-framework-quickcheck2

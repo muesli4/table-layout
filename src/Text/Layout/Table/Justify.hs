@@ -34,9 +34,11 @@ justifyWordListsAsGrid = columnsAsGrid top . fmap (uncurry justify)
 {- | Merges multiple columns together and merges them to a valid grid without
    holes. The following example clarifies this:
 
->>> columnsAsGrid TopVPos [justifyText 10 "This text will not fit on one line.", ["42", "23"]]
+>>> columnsAsGrid top [justifyText 10 "This text will not fit on one line.", ["42", "23"]]
 [["This  text","42"],["will   not","23"],["fit on one",""],["line.",""]]
 
+The result is intended to be used with 'Text.Layout.Table.layoutToCells' or with
+'Text.Layout.Table.rowGroup'.
 -}
 columnsAsGrid :: Position V -> [[[a]]] -> [[[a]]]
 columnsAsGrid vPos = transpose . vpadCols vPos []
