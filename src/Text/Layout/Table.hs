@@ -36,7 +36,6 @@
 -- ╰──────────────────────┴────────────╯
 --
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE MultiWayIf #-}
 module Text.Layout.Table
     ( -- * Layout combinators
       -- | Specify how a column is rendered with the combinators in this
@@ -76,6 +75,7 @@ module Text.Layout.Table
     , ellipsisCutMark
 
       -- * Basic grid and table layout
+    , Row
     , layoutToCells
     , layoutToLines
     , layoutToString
@@ -96,6 +96,7 @@ module Text.Layout.Table
       -- $justify
     , justify
     , justifyText
+    , Col
     , columnsAsGrid
     , top
     , bottom
@@ -387,7 +388,7 @@ instance Monoid AlignInfo where
 
 -- | Derive the 'ColModInfo' by using layout specifications and looking at the
 -- cells.
-deriveColModInfos :: [(LenSpec, AlignSpec)] -> [[String]] -> [ColModInfo]
+deriveColModInfos :: [(LenSpec, AlignSpec)] -> [Row String] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
     fSel (lenSpec, alignSpec) = case alignSpec of
@@ -423,7 +424,7 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -------------------------------------------------------------------------------
 
 -- | Modifies cells according to the given 'ColSpec'.
-layoutToCells :: [[String]] -> [ColSpec] -> [[String]]
+layoutToCells :: [Row String] -> [ColSpec] -> [Row String]
 layoutToCells tab specs = zipWith apply tab
                         . repeat
                         . zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs)
@@ -432,12 +433,12 @@ layoutToCells tab specs = zipWith apply tab
     apply = zipWith $ flip ($)
 
 -- | Behaves like 'layoutToCells' but produces lines by joining with whitespace.
-layoutToLines :: [[String]] -> [ColSpec] -> [String]
+layoutToLines :: [Row String] -> [ColSpec] -> [String]
 layoutToLines tab specs = map unwords $ layoutToCells tab specs
 
 -- | Behaves like 'layoutToCells' but produces a 'String' by joining with the
 -- newline character.
-layoutToString :: [[String]] -> [ColSpec] -> String
+layoutToString :: [Row String] -> [ColSpec] -> String
 layoutToString tab specs = intercalate "\n" $ layoutToLines tab specs
 
 -------------------------------------------------------------------------------
@@ -460,7 +461,7 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 -------------------------------------------------------------------------------
 
 -- | Construct a row group from a list of rows.
-rowGroup :: [[String]] -> RowGroup
+rowGroup :: [Row String] -> RowGroup
 rowGroup = RowGroup
 
 -- | Header columns are usually centered.

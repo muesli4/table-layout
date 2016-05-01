@@ -14,3 +14,9 @@ data RowGroup = RowGroup
 -- one specified in the 'Text.Layout.Primitives.Column.ColSpec' like the other
 -- cells in that column.
 data HeaderColSpec = HeaderColSpec (Position H) (Maybe CutMark)
+
+-- | An alias for lists, conceptually for values with a horizontal arrangement.
+type Row a = [a]
+
+-- | An alias for lists, conceptually for values with a vertical arrangement.
+type Col a = [a]

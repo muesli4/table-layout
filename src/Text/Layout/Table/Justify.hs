@@ -17,18 +17,19 @@ module Text.Layout.Table.Justify
 import Control.Arrow
 import Data.List
 
+import Text.Layout.Table.Internal
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Position.Internal
 
 -- | Justifies texts and presents the resulting lines in a grid structure (each
 -- text in one column).
-justifyTextsAsGrid :: [(Int, String)] -> [[String]]
+justifyTextsAsGrid :: [(Int, String)] -> [Row String]
 justifyTextsAsGrid = justifyWordListsAsGrid . fmap (second words)
 
 -- | Justifies lists of words and presents the resulting lines in a grid
 -- structure (each list of words in one column). This is useful if you don't
 -- want to split just at whitespaces.
-justifyWordListsAsGrid :: [(Int, [String])] -> [[String]]
+justifyWordListsAsGrid :: [(Int, [String])] -> [Row String]
 justifyWordListsAsGrid = columnsAsGrid top . fmap (uncurry justify)
 
 {- | Merges multiple columns together and merges them to a valid grid without
@@ -40,10 +41,10 @@ justifyWordListsAsGrid = columnsAsGrid top . fmap (uncurry justify)
 The result is intended to be used with 'Text.Layout.Table.layoutToCells' or with
 'Text.Layout.Table.rowGroup'.
 -}
-columnsAsGrid :: Position V -> [[[a]]] -> [[[a]]]
+columnsAsGrid :: Position V -> [Col [a]] -> [Row [a]]
 columnsAsGrid vPos = transpose . vpadCols vPos []
 
--- | Fill all sublists to the same length.
+-- | Fill all columns to the same length by aligning at the given position.
 vpadCols :: Position V -> a -> [[a]] -> [[a]]
 vpadCols vPos x l = fmap fillToMax l
   where
