@@ -62,6 +62,9 @@ spec = do
             alignFixed2' p l = alignFixed p customCM l occS ai2
         it "left 1" $ alignFixed' left 6 "ab:42" `shouldBe` "   ..>"
         it "left 2" $ alignFixed' left 6 "abcd:42" `shouldBe` " ab..>"
+
+        it "left 3" $ alignFixed' left 5 "32" `shouldBe`  "   32"
+
         it "right 1" $ alignFixed' right 6 "ab:1234" `shouldBe` "<..34 "
         it "right 2" $ alignFixed' right 6 "ab:12" `shouldBe` "<..   "
         -- ensure left-biased centering:
@@ -82,7 +85,7 @@ spec = do
         -- TODO add test cases for all combinations of lengths
         -- (i.e.: i mod 2 = 1, i mod 2 = 0, l + r mod 2 = 0, l + r mod 2 = 1)
 
-        prop "center length" $ \s (Positive (Small n)) -> length (alignFixed' center n s) `shouldBe` n
+        prop "alignFixed length" $ forAll hposG $ \p s (Positive (Small n)) -> length (alignFixed' p n s) `shouldBe` n
   where
     customCM = doubleCutMark "<.." "..>"
     occS     = predOccSpec (== ':')

@@ -329,6 +329,13 @@ data ColModInfo = FillAligned OccSpec AlignInfo
                 | FillTo Int
                 | FitTo Int (Maybe (OccSpec, AlignInfo))
 
+-- | Private show function.
+showCMI :: ColModInfo -> String
+showCMI cmi = case cmi of
+    FillAligned oS ai -> "FillAligned .. " ++ showAI ai
+    FillTo i          -> "FillTo " ++ show i
+    FitTo i _         -> "FitTo " ++ show i ++ ".."
+
 -- | Get the exact width after the modification.
 widthCMI :: ColModInfo -> Int
 widthCMI cmi = case cmi of
@@ -349,8 +356,8 @@ unalignedCMI cmi = case cmi of
 ensureWidthCMI :: Int -> Position H -> ColModInfo -> ColModInfo
 ensureWidthCMI w pos cmi = case cmi of
     FillAligned oS ai@(AlignInfo lw rw) ->
-        let neededW = widthAI ai - w
-        in if neededW >= 0
+        let neededW = w - widthAI ai
+        in if neededW <= 0
            then cmi
            else FillAligned oS $ case pos of
                Start  -> AlignInfo lw (rw + neededW)
@@ -376,6 +383,10 @@ columnModifier pos cms lenInfo = case lenInfo of
 -- TODO factor out
 -- | Specifies the length before and after a letter.
 data AlignInfo = AlignInfo Int Int
+
+-- | Private show function.
+showAI :: AlignInfo -> String
+showAI (AlignInfo l r) = "AlignInfo " ++ show l ++ " " ++ show r
 
 -- | The column width when using the 'AlignInfo'.
 widthAI :: AlignInfo -> Int
