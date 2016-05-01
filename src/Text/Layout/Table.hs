@@ -35,6 +35,23 @@
 -- │ Short text           │ …200.5     │
 -- ╰──────────────────────┴────────────╯
 --
+-- Using justified text and 'RowGroup's to group multiple rows together to form one cell:
+--
+-- >>> putStrLn $ layoutTableToString [rowGroup $ columnsAsGrid center [justifyText 50 txt, [show $ length txt]]]
+--                                    (Just (["Text", "Length"], repeat def))
+--                                    [fixedLeftCol 50, numCol]
+--                                    asciiS
+-- +----------------------------------------------------+--------+
+-- |                        Text                        | Length |
+-- +----------------------------------------------------+--------+
+-- | Lorem  ipsum dolor sit amet, consetetur sadipscing |        |
+-- | elitr,  sed  diam nonumy eirmod tempor invidunt ut |        |
+-- | labore  et  dolore  magna  aliquyam erat, sed diam |        |
+-- | voluptua.  At  vero  eos  et  accusam et justo duo |    295 |
+-- | dolores et ea rebum. Stet clita kasd gubergren, no |        |
+-- | sea  takimata  sanctus  est  Lorem ipsum dolor sit |        |
+-- | amet.                                              |        |
+-- +----------------------------------------------------+--------+
 {-# LANGUAGE RecordWildCards #-}
 module Text.Layout.Table
     ( -- * Layout combinators
