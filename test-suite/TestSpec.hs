@@ -37,6 +37,10 @@ spec = do
             it "ex1" $ fitCenter 7 "12345678" `shouldBe` "<..5678"
             it "ex1" $ fitCenter 6 "12345678" `shouldBe` "<....>"
 
+    -- TODO implement test cases
+    -- describe "ColModInfo" $ do
+    --     it "ensureWidthCMI" $ 
+
     describe "pad" $ do
         prop "left" $ propPadLeft
         prop "right" $ propPadRight
