@@ -21,6 +21,10 @@ spec = do
         describe "fillCenter" $ do
             it "ex1" $ fillCenter 4 "ab" `shouldBe` " ab "
 
+    describe "mark" $ do
+        prop "left mark does not change length" $ \s -> length (applyMarkLeftWith customCM s) `shouldBe` length s
+        prop "right mark does not change length" $ \s -> length (applyMarkRightWith customCM s) `shouldBe` length s
+
     describe "fit" $ do
         describe "fitRightWith" $ do
             let fitRight = fitRightWith customCM
@@ -34,12 +38,12 @@ spec = do
             it "ex1" $ fitCenter 6 "12345678" `shouldBe` "<....>"
 
     describe "pad" $ do
-        prop "left" $ forAll strG propPadLeft
-        prop "right" $ forAll strG propPadRight
-        prop "center" $ forAll strG propPadCenter
+        prop "left" $ propPadLeft
+        prop "right" $ propPadRight
+        prop "center" $ propPadCenter
 
     describe "trimOrPad" $ do
-        prop "pad" $ forAll ((,) <$> strG <*> hposG) $ \(s, p) (Positive (Small n)) -> length s > n || trimOrPad p noCutMark n s == pad p n s
+        prop "pad" $ forAll hposG $ \p s (Positive (Small n)) -> length s > n || trimOrPad p noCutMark n s == pad p n s
         it "left" $ trimOrPad left customCM 5 "1234567890" `shouldBe` "12..>"
         it "right" $ trimOrPad right customCM 5 "1234567890" `shouldBe` "<..90"
         it "center" $ trimOrPad center customCM 8 "1234567890" `shouldBe` "<..56..>"
@@ -52,19 +56,37 @@ spec = do
 
     describe "alignFixed" $ do
         -- 5 spaces on each side.
-        let ai              = deriveAlignInfo occS "     :     "
-            alignFixed' p l = alignFixed p customCM l occS ai
+        let ai               = deriveAlignInfo occS "     :     "
+            alignFixed' p l  = alignFixed p customCM l occS ai
+            ai2              = deriveAlignInfo occS "       :   "
+            alignFixed2' p l = alignFixed p customCM l occS ai2
         it "left 1" $ alignFixed' left 6 "ab:42" `shouldBe` "   ..>"
         it "left 2" $ alignFixed' left 6 "abcd:42" `shouldBe` " ab..>"
         it "right 1" $ alignFixed' right 6 "ab:1234" `shouldBe` "<..34 "
         it "right 2" $ alignFixed' right 6 "ab:12" `shouldBe` "<..   "
-        it "center 1" $ alignFixed' center 6 "ab:12" `shouldBe` "ab:12 "
-        it "center 2" $ alignFixed' center 6 "abcd:12" `shouldBe` "<..12 "
+        -- ensure left-biased centering:
+        --  aligned to full length:  " abcd:12   "
+        --  right-biased centering:    "bcd:12"
+        --  left-biased centering:      "cd:12 "
+        it "center 1" $ alignFixed' center 6 "abcd:12" `shouldBe` "<..12 "
+        --  use same string position:   "ab:12 "
+        it "center 2" $ alignFixed' center 6 "ab:12" `shouldBe` "ab:12 "
+        -- ensure left-biased centering:
+        --  aligned to full length:  "   abcd:12 "
+        --  right-biased centering:    " abcd:"
+        --  left-biased centering:      "abcd:1"
+        it "center 3" $ alignFixed2' center 6 "abcd:12" `shouldBe` "abc..>"
+        --  use same string position:   "  ab:1"
+        it "center 4" $ alignFixed2' center 6 "ab:12" `shouldBe`  "  a..>"
+
+        -- TODO add test cases for all combinations of lengths
+        -- (i.e.: i mod 2 = 1, i mod 2 = 0, l + r mod 2 = 0, l + r mod 2 = 1)
+
+        prop "center length" $ \s (Positive (Small n)) -> length (alignFixed' center n s) `shouldBe` n
   where
     customCM = doubleCutMark "<.." "..>"
     occS     = predOccSpec (== ':')
 
-    strG     = listOf $ arbitrary `suchThat` noWS
     hposG    = elements [left, center, right]
     noWS     = (/= ' ')
 
