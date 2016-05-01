@@ -28,7 +28,8 @@ main = putStrLn $ layoutTableToString rowGroups
     shortText = "Short"
     bigNum    = "200300400500600.2"
     smallNum  = "4.20000000"
-    styles    = [ asciiRoundS
+    styles    = [ asciiS
+                , asciiRoundS
                 , unicodeS
                 , unicodeRoundS
                 , unicodeBoldS

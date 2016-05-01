@@ -56,6 +56,33 @@ asciiRoundS = TableStyle
             , groupBottomH = '-'
             }
 
+-- | Uses lines and plus for joints.
+asciiS :: TableStyle
+asciiS = TableStyle
+       { headerSepH   = '-'
+       , headerSepLC  = '+'
+       , headerSepRC  = '+'
+       , headerSepC   = '|'
+       , headerTopL   = '+'
+       , headerTopR   = '+'
+       , headerTopC   = '+'
+       , headerTopH   = '-'
+       , headerV      = '|'
+       , groupV       = '|'
+       , groupSepH    = '-'
+       , groupSepC    = '+'
+       , groupSepLC   = '+'
+       , groupSepRC   = '+'
+       , groupTopC    = '+'
+       , groupTopL    = '+'
+       , groupTopR    = '+'
+       , groupTopH    = '-'
+       , groupBottomC = '+'
+       , groupBottomL = '+'
+       , groupBottomR = '+'
+       , groupBottomH = '-'
+       }
+
 -- | Uses special unicode characters to draw clean thin boxes. 
 unicodeS :: TableStyle
 unicodeS = TableStyle
