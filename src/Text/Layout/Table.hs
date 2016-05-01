@@ -25,7 +25,7 @@
 --                                    , rowGroup [["Short text", "100200.5"]]
 --                                    ]
 --                                    (Just (["Title", "Length"], repeat def))
---                                    [fixedLeftCol 20, column (fixed 10) center dotAlign ellipsisCutMark]
+--                                    [fixedLeftCol 20, column (fixed 10) center dotAlign def]
 --                                    unicodeRoundS
 -- ╭──────────────────────┬────────────╮
 -- │        Title         │   Length   │
@@ -135,10 +135,11 @@ module Text.Layout.Table
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
 -- TODO              move functions not related to direct end-user into Primitives
 
-import qualified Control.Arrow as A
+import qualified Control.Arrow                                   as A
 import           Data.List
 import           Data.Maybe
 import           Data.Default.Class
+import           Data.Default.Instances.Base                          ()
 
 import           Text.Layout.Table.Justify
 import           Text.Layout.Table.Style

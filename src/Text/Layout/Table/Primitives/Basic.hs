@@ -35,6 +35,8 @@ module Text.Layout.Table.Primitives.Basic
     )
     where
 
+-- TODO rename cut marks (they are too long)
+
 import Data.Default.Class
 
 -- | Specifies how the place looks where a 'String' has been cut. Note that the
@@ -44,6 +46,7 @@ data CutMark = CutMark
                  , rightMark :: String
                  }
 
+-- | A single ellipsis unicode character is used to show cut marks.
 instance Default CutMark where
     def = ellipsisCutMark
 

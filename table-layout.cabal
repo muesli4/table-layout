@@ -72,9 +72,10 @@ library
   other-extensions:    RecordWildCards
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9, data-default-class >=0.0.1 && < 0.1
-  
-  -- Directories containing source files.
+  build-depends:       base >=4.8 && <4.9,
+                       data-default-class >=0.0.1 && < 0.1,
+                       data-default-instances-base ==0.1.*
+
   hs-source-dirs:      src
   
   -- Base language which the package is written in.
@@ -82,7 +83,9 @@ library
 
 executable table-layout-test-styles
   main-is:             Test.hs
-  build-depends:       base >=4.8 && <4.9, data-default-class >=0.0.1 && < 0.1
+  build-depends:       base >=4.8 && <4.9,
+                       data-default-class >=0.0.1 && < 0.1,
+                       data-default-instances-base ==0.1.*
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table
   default-language:    Haskell2010
@@ -96,6 +99,7 @@ test-suite table-layout-tests
                        QuickCheck >=2.8 && < 2.9,
                        HUnit ==1.3.*,
                        data-default-class >=0.0.1 && < 0.1,
+                       data-default-instances-base ==0.1.*,
                        hspec
 
   other-modules:       Text.Layout.Table, Text.Layout.Table.Primitives.Basic
