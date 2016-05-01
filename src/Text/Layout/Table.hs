@@ -234,8 +234,9 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                    then fitLeft (r + remLeft) $ fillRight r rs
                    else fitLeft (r + remLeft) $ ls ++ fillRight r rs
             Center ->
-                -- TODO find better solution
-                -- TODO puts space left in odd cases
+                -- This is really complicated, maybe there can be found
+                -- something better.
+                --
                 -- First case l > r:
                 --
                 --       l
