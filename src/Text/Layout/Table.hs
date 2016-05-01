@@ -234,66 +234,67 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                    then fitLeft (r + remLeft) $ fillRight r rs
                    else fitLeft (r + remLeft) $ ls ++ fillRight r rs
             Center ->
-                -- This is really complicated, maybe there can be found
-                -- something better.
-                --
-                -- First case l > r:
-                --
-                --       l
-                -- |<----'----->|
-                -- |<-----------x----->|
-                --              |--.-->|
-                --                  r
-                --      c1 = (l + r) div 2
-                --      |
-                -- |<---'--->|<---.--->|
-                --           .    |
-                --           .    c2 = c1 + (l + r) mod 2
-                --           .
-                --           .  d2 = d1 + i mod 2
-                --           .  |
-                --     |<-.->|<-'-->|
-                --        |
-                --        d1 = i div 2
-                --
-                --     |<----.----->|
-                --           i
-                --               
-                -- needed length on the left side:
-                --     l - c1 + d1
-                --
-                -- needed length on the right side:
-                --     d2 - (l - c1)
-                --
-                -- Second case l < r:
-                -- 
-                --
-                --     l
-                -- |<--'-->|
-                -- |<------x---------->|
-                --         |<----.---->|
-                --               r
-                --      c1 = (l + r) div 2
-                --      |
-                -- |<---'--->|<---.--->|
-                --           .    |
-                --           .    c2 = c1 + (l + r) mod 2
-                --           .
-                --           .  d2 = d1 + i mod 2
-                --           .  |
-                --     |<-.->|<-'-->|
-                --        |
-                --        d1 = i div 2
-                --
-                --     |<----.----->|
-                --           i
-                --               
-                -- needed length on the left side:
-                --     d1 - (r - c2)
-                --
-                -- needed length on the right side:
-                --     (c1 - l) + d2
-                --
+                {-
+                   This is really complicated, maybe there can be found
+                   something better.
+                  
+                   First case l > r:
+                  
+                         l
+                   |<----'----->|
+                   |<-----------x----->|
+                                |--.-->|
+                                    r
+                        c1 = (l + r) div 2
+                        |
+                   |<---'--->|<---.--->|
+                             .    |
+                             .    c2 = c1 + (l + r) mod 2
+                             .
+                             .  d2 = d1 + i mod 2
+                             .  |
+                       |<-.->|<-'-->|
+                          |
+                          d1 = i div 2
+                  
+                       |<----.----->|
+                             i
+                                 
+                   needed length on the left side:
+                       l - c1 + d1
+                  
+                   needed length on the right side:
+                       d2 - (l - c1)
+                  
+                   Second case l < r:
+                   
+                  
+                       l
+                   |<--'-->|
+                   |<------x---------->|
+                           |<----.---->|
+                                 r
+                        c1 = (l + r) div 2
+                        |
+                   |<---'--->|<---.--->|
+                             .    |
+                             .    c2 = c1 + (l + r) mod 2
+                             .
+                             .  d2 = d1 + i mod 2
+                             .  |
+                       |<-.->|<-'-->|
+                          |
+                          d1 = i div 2
+                  
+                       |<----.----->|
+                             i
+                                 
+                   needed length on the left side:
+                       d1 - (r - c2)
+                  
+                   needed length on the right side:
+                       (c1 - l) + d2
+                -}
                 let (c, remC)        = (l + r) `divMod` 2
                     (d, remD)        = i `divMod` 2
                     d2               = d + remD
