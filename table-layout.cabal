@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.5.1.0
+version:             0.5.1.1
 
 synopsis:            Layout text as grid or table.
 
