@@ -4,7 +4,7 @@
 -- text and fancy tables with styling support.
 --
 -- == Some examples
--- Layouting text as a plain grid:
+-- Layouting text as a plain grid (given a list of rows):
 --
 -- >>> putStrLn $ layoutToString [["a", "b"], ["c", "d"]] (repeat def)
 -- a b
@@ -12,7 +12,7 @@
 --
 -- Fancy table without header:
 --
--- >>> putStrLn $ layoutTableToString [rowGroup [["Jack", "184.74"]], rowGroup [["Jane", "162.2"]]] Nothing [def , numL] unicodeRoundS
+-- >>> putStrLn $ layoutTableToString [rowGroup [["Jack", "184.74"]], rowGroup [["Jane", "162.2"]]] def [def , numCol] unicodeRoundS
 -- ╭──────┬────────╮
 -- │ Jack │ 184.74 │
 -- ├──────┼────────┤
@@ -25,12 +25,7 @@
 --                                    , rowGroup [["Short text", "100200.5"]]
 --                                    ]
 --                                    (Just (["Title", "Length"], repeat def))
---                                    [ fixedLeftL 20
---                                    , ColSpec (fixed 10)
---                                                 center
---                                                 dotAlign
---                                                 ellipsisCutMark
---                                    ]
+--                                    [fixedLeftCol 20, column (fixed 10) center dotAlign ellipsisCutMark]
 --                                    unicodeRoundS
 -- ╭──────────────────────┬────────────╮
 -- │        Title         │   Length   │
@@ -226,9 +221,7 @@ alignFixed _ cms 0 _  _                  _               = ""
 alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms " "
 alignFixed p cms i oS ai@(AlignInfo l r) s               =
     let n = l + r - i
-    in if n <= 0
-       then pad p i $ align oS ai s
-       else case splitAtOcc oS s of
+    in case splitAtOcc oS s of
         (ls, rs) -> case p of
             Start  ->
                 let remRight = r - n
@@ -241,18 +234,87 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                    then fitLeft (r + remLeft) $ fillRight r rs
                    else fitLeft (r + remLeft) $ ls ++ fillRight r rs
             Center ->
-                let (q, rem)      = n `divMod` 2
-                    remLeft       = l - q - rem
-                    remRight      = r - q
-                    lenL          = length ls
-                    lenR          = length rs
-                    (markL, funL) = if lenL > remLeft
-                                    then (applyMarkLeftWith cms, drop $ lenL - remLeft)
-                                    else (id, fillLeft' remLeft lenL)
-                    (markR, funR) = if lenR > remRight
-                                    then (applyMarkRight, take remRight)
-                                    else (id, fillRight remRight)
-                in markL $ markR $ funL ls ++ funR rs
+                -- TODO find better solution
+                -- TODO puts space left in odd cases
+                -- First case l > r:
+                --
+                --       l
+                -- |<----'----->|
+                -- |<-----------x----->|
+                --              |--.-->|
+                --                  r
+                --      c1 = (l + r) div 2
+                --      |
+                -- |<---'--->|<---.--->|
+                --           .    |
+                --           .    c2 = c1 + (l + r) mod 2
+                --           .
+                --           .  d2 = d1 + i mod 2
+                --           .  |
+                --     |<-.->|<-'-->|
+                --        |
+                --        d1 = i div 2
+                --
+                --     |<----.----->|
+                --           i
+                --               
+                -- needed length on the left side:
+                --     l - c1 + d1
+                --
+                -- needed length on the right side:
+                --     d2 - (l - c1)
+                --
+                -- Second case l < r:
+                -- 
+                --
+                --     l
+                -- |<--'-->|
+                -- |<------x---------->|
+                --         |<----.---->|
+                --               r
+                --      c1 = (l + r) div 2
+                --      |
+                -- |<---'--->|<---.--->|
+                --           .    |
+                --           .    c2 = c1 + (l + r) mod 2
+                --           .
+                --           .  d2 = d1 + i mod 2
+                --           .  |
+                --     |<-.->|<-'-->|
+                --        |
+                --        d1 = i div 2
+                --
+                --     |<----.----->|
+                --           i
+                --               
+                -- needed length on the left side:
+                --     d1 - (r - c2)
+                --
+                -- needed length on the right side:
+                --     (c1 - l) + d2
+                --
+                let (c, remC)        = (l + r) `divMod` 2
+                    (d, remD)        = i `divMod` 2
+                    d2               = d + remD
+                    c2               = c + remC
+                    -- Note: widthL and widthR can be negative if there is no
+                    -- width left and we need to further trim into the other
+                    -- side.
+                    (widthL, widthR) = if l > c
+                                       then (l - c2 + d, d2 - (l - c2))
+                                       else (d - (r - c), (c2 - l) + d2)
+                    lenL             = length ls
+                    lenR             = length rs
+
+                    toCutLfromR      = negate $ min 0 widthL
+                    toCutRfromL      = max 0 $ negate widthR
+                    (markL, funL)    = if lenL > widthL
+                                       then (applyMarkLeftWith cms, take (widthL - toCutRfromL) . drop (lenL - widthL))
+                                       else (id                   , fillLeft (widthL - toCutRfromL) . take (lenL - toCutRfromL))
+                    (markR, funR)    = if lenR > widthR
+                                       then (applyMarkRight, take widthR)
+                                       else (id            , fillRight widthR)
+                in markL $ markR $ funL ls ++ drop toCutLfromR (funR rs)
   where
     fitRight       = fitRightWith cms
     fitLeft        = fitLeftWith cms
