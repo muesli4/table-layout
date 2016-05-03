@@ -7,11 +7,14 @@ module Text.Layout.Table.Justify
     , justifyWordListsAsGrid
     , justifyText
     , justify
-    , dimorphicSummands
-    , dimorphicSummandsBy
+
       -- * Vertical alignment of whole columns
     , columnsAsGrid
     , vpadCols
+
+    -- * Helpers
+    , dimorphicSummands
+    , dimorphicSummandsBy
     ) where
 
 import Control.Arrow
@@ -32,6 +35,7 @@ justifyTextsAsGrid = justifyWordListsAsGrid . fmap (second words)
 justifyWordListsAsGrid :: [(Int, [String])] -> [Row String]
 justifyWordListsAsGrid = columnsAsGrid top . fmap (uncurry justify)
 
+-- TODO put in fitting module
 {- | Merges multiple columns together and merges them to a valid grid without
    holes. The following example clarifies this:
 
@@ -93,7 +97,7 @@ mapInit f g (x : xs) = go x xs
     go y (y' : ys) = f y : go y' ys
 
 dimorphicSpaces :: Int -> Int -> [String]
-dimorphicSpaces = dimorphicSummandsBy $ flip replicate ' '
+dimorphicSpaces = dimorphicSummandsBy spaces
 
 -- | Splits a given number into summands of 2 different values, where the
 -- first one is exactly one bigger than the second one. Splitting 40 spaces

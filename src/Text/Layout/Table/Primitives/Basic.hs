@@ -10,6 +10,7 @@ module Text.Layout.Table.Primitives.Basic
 
       -- * String-related tools
     , spaces
+    , concatLines
 
       -- ** Filling
     , fillLeft'
@@ -38,6 +39,7 @@ module Text.Layout.Table.Primitives.Basic
 -- TODO rename cut marks (they are too long)
 
 import Data.Default.Class
+import Data.List
 
 -- | Specifies how the place looks where a 'String' has been cut. Note that the
 -- cut mark may be cut itself, to fit into a column.
@@ -69,6 +71,9 @@ ellipsisCutMark = singleCutMark "…"
 
 spaces :: Int -> String
 spaces = flip replicate ' '
+
+concatLines :: [String] -> String
+concatLines = intercalate "\n"
 
 fillStart' :: a -> Int -> Int -> [a] -> [a]
 fillStart' x i lenL l = replicate (i - lenL) x ++ l

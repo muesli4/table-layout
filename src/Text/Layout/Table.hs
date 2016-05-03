@@ -183,7 +183,7 @@ numCol = column def right dotAlign def
 
 -- | Fixes the column length and positions according to the given 'Position'.
 fixedCol :: Int -> Position H -> ColSpec
-fixedCol l pS = column (Fixed l) pS def def
+fixedCol l pS = column (fixed l) pS def def
 
 -- | Fixes the column length and positions on the left.
 fixedLeftCol :: Int -> ColSpec
@@ -330,8 +330,12 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
                     toCutLfromR      = negate $ min 0 widthL
                     toCutRfromL      = max 0 $ negate widthR
                     (markL, funL)    = if lenL > widthL
-                                       then (applyMarkLeftWith cms, take (widthL - toCutRfromL) . drop (lenL - widthL))
-                                       else (id                   , fillLeft (widthL - toCutRfromL) . take (lenL - toCutRfromL))
+                                       then ( applyMarkLeft
+                                            , take (widthL - toCutRfromL) . drop (lenL - widthL)
+                                            )
+                                       else ( id
+                                            , fillLeft (widthL - toCutRfromL) . take (lenL - toCutRfromL)
+                                            )
                     (markR, funR)    = if lenR > widthR
                                        then (applyMarkRight, take widthR)
                                        else (id            , fillRight widthR)
@@ -340,6 +344,7 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
     fitRight       = fitRightWith cms
     fitLeft        = fitLeftWith cms
     applyMarkRight = applyMarkRightWith cms
+    applyMarkLeft  = applyMarkLeftWith cms
 
 -- | Specifies how a column should be modified.
 data ColModInfo = FillAligned OccSpec AlignInfo
@@ -468,7 +473,7 @@ layoutToLines tab specs = map unwords $ layoutToCells tab specs
 -- | Behaves like 'layoutToCells' but produces a 'String' by joining with the
 -- newline character.
 layoutToString :: [Row String] -> [ColSpec] -> String
-layoutToString tab specs = intercalate "\n" $ layoutToLines tab specs
+layoutToString tab specs = concatLines $ layoutToLines tab specs
 
 -------------------------------------------------------------------------------
 -- Grid modifier functions
@@ -488,17 +493,6 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 -------------------------------------------------------------------------------
 -- Advanced layout
 -------------------------------------------------------------------------------
-
--- | Construct a row group from a list of rows.
-rowGroup :: [Row String] -> RowGroup
-rowGroup = RowGroup
-
--- | Header columns are usually centered.
-instance Default HeaderColSpec where
-    def = headerColumn center Nothing
-
-headerColumn :: Position H -> Maybe CutMark -> HeaderColSpec
-headerColumn = HeaderColSpec
 
 -- | Layouts a good-looking table with a optional header. Note that specifying
 -- fewer layout specifications than columns or vice versa will result in not
@@ -568,7 +562,7 @@ layoutTableToString :: [RowGroup]
                     -> [ColSpec]
                     -> TableStyle
                     -> String
-layoutTableToString rGs optHeaderInfo specs = intercalate "\n" . layoutTableToLines rGs optHeaderInfo specs
+layoutTableToString rGs optHeaderInfo specs = concatLines . layoutTableToLines rGs optHeaderInfo specs
 
 
 -------------------------------------------------------------------------------

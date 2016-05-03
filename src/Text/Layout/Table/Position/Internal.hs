@@ -3,9 +3,9 @@ module Text.Layout.Table.Position.Internal where
 import Data.Default.Class
 
 -- | Specifies a position relative from a beginning.
-data Position orientation = Start | Center | End deriving Show
+data Position orientation = Start | Center | End deriving (Show, Eq)
 
-instance Default (Position o) where
+instance Default (Position orientation) where
     def = Start
 
 -- | Horizontal orientation.
