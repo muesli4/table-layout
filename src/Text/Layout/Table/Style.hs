@@ -35,7 +35,7 @@ asciiRoundS = TableStyle
             { headerSepH   = '='
             , headerSepLC  = ':'
             , headerSepRC  = ':'
-            , headerSepC   = '|'
+            , headerSepC   = ':'
             , headerTopL   = '.'
             , headerTopR   = '.'
             , headerTopC   = '.'
@@ -170,3 +170,30 @@ unicodeBoldS = TableStyle
 -- | Uses bold lines with exception of group seperators, which are striped slim.
 unicodeBoldStripedS :: TableStyle
 unicodeBoldStripedS = unicodeBoldS { groupSepH = '-', groupSepC = '┃', groupSepLC = '┃', groupSepRC = '┃' }
+
+-- | Draw every line with a double frame.
+unicodeDoubleFrameS :: TableStyle
+unicodeDoubleFrameS = TableStyle
+                    { headerSepH   = '═'
+                    , headerSepLC  = '╠'
+                    , headerSepRC  = '╣'
+                    , headerSepC   = '╬'
+                    , headerTopL   = '╔'
+                    , headerTopR   = '╗'
+                    , headerTopC   = '╦'
+                    , headerTopH   = '═'
+                    , headerV      = '║'
+                    , groupV       = '║'
+                    , groupSepH    = '═'
+                    , groupSepC    = '╬'
+                    , groupSepLC   = '╠'
+                    , groupSepRC   = '╣'
+                    , groupTopC    = '╦'
+                    , groupTopL    = '╔'
+                    , groupTopR    = '╗'
+                    , groupTopH    = '═'
+                    , groupBottomC = '╩'
+                    , groupBottomL = '╚'
+                    , groupBottomR = '╝'
+                    , groupBottomH = '═'
+                    }
