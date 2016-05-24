@@ -55,6 +55,8 @@ module Text.Layout.Table
       -- * Advanced table layout
     , RowGroup
     , rowGroup
+    , rowsG
+    , rowG
     , HeaderColSpec
     , headerColumn
     , layoutTableToLines

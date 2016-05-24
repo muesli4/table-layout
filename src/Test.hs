@@ -14,12 +14,12 @@ main = putStrLn $ layoutTableToString rowGroups
   where
     rowGroups    = flip concatMap styles $ \style ->
         flip map columTs $ \(cSpec, is) ->
-            rowGroup $ columnsAsGrid center [ is
-                                            , genTable cSpec style
-                                            ]
-    genTable c s = layoutTableToLines [ rowGroup [ [longText, smallNum, "foo"]
-                                                 , [shortText, bigNum, "bar"]
-                                                 ]
+            rowsG $ columnsAsGrid center [ is
+                                         , genTable cSpec style
+                                         ]
+    genTable c s = layoutTableToLines [ rowsG [ [longText, smallNum, "foo"]
+                                              , [shortText, bigNum, "bar"]
+                                              ]
                                       ]
                                       (Just (["Some text", "Some numbers", "X"], repeat def))
                                       (repeat c)

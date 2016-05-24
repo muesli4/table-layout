@@ -11,9 +11,18 @@ newtype RowGroup = RowGroup
                  { rows     :: [[String]] 
                  }
 
+{-# DEPRECATED rowGroup "Use rowG or rowsG instead." #-} 
 -- | Construct a row group from a list of rows.
 rowGroup :: [Row String] -> RowGroup
 rowGroup = RowGroup
+
+-- | Group the given rows together.
+rowsG :: [Row String] -> RowGroup
+rowsG = RowGroup
+
+-- | Make a group of a single row.
+rowG :: Row String -> RowGroup
+rowG = RowGroup . (: [])
 
 -- | Specifies how a header is layout, by omitting the cut mark it will use the
 -- one specified in the 'Text.Layout.Primitives.Column.ColSpec' like the other
