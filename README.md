@@ -49,9 +49,9 @@ Big grids are usually not that readable, so to improve their readability two fun
 - `altLines` will alternate functions applied to lines.
 - `checkeredCells` will checker cells with 2 different functions.
 
-A good way to use this would be the **ansi-terminal** package, provided you are using a terminal to output your text.
+A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text.
 
-### Table layout and styles
+### Table layout
 
 Grids are fine, but sometimes we want to explicitly display a table, e.g. in a database application. This is where ```layoutTableToString``` comes in handy:
 
@@ -71,6 +71,50 @@ A row group is a group of rows which form one cell, meaning that each line of a 
 ╰──────┴────────╯
 ```
 
+### Using headers
 
+The same is possible with headers:
 
+```
+putStrLn $ layoutTableToString [ rowGroup [["A very long text", "0.42000000"]]
+                               , rowGroup [["Short text", "100200.5"]]
+                               ]
+                               (Just (["Title", "Length"], repeat def))
+                               [fixedLeftCol 10, column (fixed 10) center dotAlign def]
+                               unicodeS
+```
+Some fixed length columns are used this time and the header is displayed with a different style (additionally the header column will be specified differently):
+```
+┌────────────┬────────────┐
+│   Title    │   Length   │
+╞════════════╪════════════╡
+│ A very lo… │   0.42000… │
+├────────────┼────────────┤
+│ Short text │ …00.5      │
+└────────────┴────────────┘
+```
+## Vertical positioning and justified text
+Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines will be there. Display a left-justified text alongside the length of the text:
+```
+let txt = "Lorem ipsum ..." 
+in putStrLn $ layoutTableToString [rowGroup $ columnsAsGrid center [justifyText 50 txt, [show $ length txt]]]
+                               (Just (["Text", "Length"], repeat def))
+                               [fixedLeftCol 50, numCol]
+                               asciiS
+```
+This will result in the follwing table:
+```
++----------------------------------------------------+--------+
+|                        Text                        | Length |
++----------------------------------------------------+--------+
+| Lorem  ipsum dolor sit amet, consetetur sadipscing |        |
+| elitr,  sed  diam nonumy eirmod tempor invidunt ut |        |
+| labore  et  dolore  magna  aliquyam erat, sed diam |        |
+| voluptua.  At  vero  eos  et  accusam et justo duo |    295 |
+| dolores et ea rebum. Stet clita kasd gubergren, no |        |
+| sea  takimata  sanctus  est  Lorem ipsum dolor sit |        |
+| amet.                                              |        |
++----------------------------------------------------+--------+
+```
 
+[ansi-terminal package]: http://hackage.haskell.org/package/ansi-terminal
