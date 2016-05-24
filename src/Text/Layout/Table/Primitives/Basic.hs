@@ -65,7 +65,7 @@ singleCutMark l = doubleCutMark l (reverse l)
 noCutMark :: CutMark
 noCutMark = singleCutMark ""
 
--- | A single unicode character showing three dots is used as cut mark.
+{-# DEPRECATED ellipsisCutMark "Use def instead." #-}
 ellipsisCutMark :: CutMark
 ellipsisCutMark = singleCutMark "…"
 

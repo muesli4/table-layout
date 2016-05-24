@@ -3,16 +3,11 @@
 -- is best suited.
 {-# LANGUAGE MultiWayIf #-}
 module Text.Layout.Table.Justify
-    ( justifyTextsAsGrid
-    , justifyWordListsAsGrid
+    ( -- * Justification of text.
+      justify
     , justifyText
-    , justify
 
-      -- * Vertical alignment of whole columns
-    , columnsAsGrid
-    , vpadCols
-
-    -- * Helpers
+      -- * Helpers
     , dimorphicSummands
     , dimorphicSummandsBy
     ) where
@@ -23,41 +18,7 @@ import Data.List
 import Text.Layout.Table.Internal
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Position.Internal
-
--- | Justifies texts and presents the resulting lines in a grid structure (each
--- text in one column).
-justifyTextsAsGrid :: [(Int, String)] -> [Row String]
-justifyTextsAsGrid = justifyWordListsAsGrid . fmap (second words)
-
--- | Justifies lists of words and presents the resulting lines in a grid
--- structure (each list of words in one column). This is useful if you don't
--- want to split just at whitespaces.
-justifyWordListsAsGrid :: [(Int, [String])] -> [Row String]
-justifyWordListsAsGrid = columnsAsGrid top . fmap (uncurry justify)
-
--- TODO put in fitting module
-{- | Merges multiple columns together and merges them to a valid grid without
-   holes. The following example clarifies this:
-
->>> columnsAsGrid top [justifyText 10 "This text will not fit on one line.", ["42", "23"]]
-[["This  text","42"],["will   not","23"],["fit on one",""],["line.",""]]
-
-The result is intended to be used with 'Text.Layout.Table.layoutToCells' or with
-'Text.Layout.Table.rowsG'.
--}
-columnsAsGrid :: Position V -> [Col [a]] -> [Row [a]]
-columnsAsGrid vPos = transpose . vpadCols vPos []
-
--- | Fill all columns to the same length by aligning at the given position.
-vpadCols :: Position V -> a -> [[a]] -> [[a]]
-vpadCols vPos x l = fmap fillToMax l
-  where
-    fillToMax = fillTo $ maximum $ 0 : fmap length l
-    fillTo    = let f = case vPos of
-                       Start  -> fillEnd
-                       Center -> fillBoth
-                       End    -> fillStart
-                in f x
+import Text.Layout.Table.Vertical
 
 -- | Uses 'words' to split the text into words and justifies it with 'justify'.
 --

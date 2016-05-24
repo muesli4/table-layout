@@ -6,15 +6,10 @@ import Data.Default.Instances.Base
 import Text.Layout.Table.Position
 import Text.Layout.Table.Primitives.Basic
 
--- | Groups rows together, which are not seperated from each other.
+-- | Groups rows together, which should not be visually seperated from each other.
 newtype RowGroup = RowGroup
                  { rows     :: [[String]] 
                  }
-
-{-# DEPRECATED rowGroup "Use rowG or rowsG instead." #-} 
--- | Construct a row group from a list of rows.
-rowGroup :: [Row String] -> RowGroup
-rowGroup = RowGroup
 
 -- | Group the given rows together.
 rowsG :: [Row String] -> RowGroup

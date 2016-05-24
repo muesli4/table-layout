@@ -54,9 +54,10 @@ module Text.Layout.Table
 
       -- * Advanced table layout
     , RowGroup
-    , rowGroup
     , rowsG
     , rowG
+    , colsG
+    , colsAllG
     , HeaderColSpec
     , headerColumn
     , layoutTableToLines
@@ -66,13 +67,14 @@ module Text.Layout.Table
       -- $justify
     , justify
     , justifyText
+
+      -- * Vertical column positioning
     , Col
-    , columnsAsGrid
+    , colsAsRows
+    , colsAsRowsAll
     , top
     , bottom
     , V
-    , justifyTextsAsGrid
-    , justifyWordListsAsGrid
 
       -- * Table styles
     , module Text.Layout.Table.Style
@@ -120,6 +122,7 @@ import           Text.Layout.Table.Primitives.Column
 import           Text.Layout.Table.Primitives.LenSpec.Internal
 import           Text.Layout.Table.Primitives.Occurence
 import           Text.Layout.Table.Internal
+import           Text.Layout.Table.Vertical
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
@@ -409,6 +412,14 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -------------------------------------------------------------------------------
 -- Basic layout
 -------------------------------------------------------------------------------
+
+-- | Group rows by merging columns using the given vertical positioning.
+colsG :: [Position V] -> [Col String] -> RowGroup
+colsG ps = rowsG . colsAsRows ps
+
+-- | Group rows by merging columns using the given vertical positionings on each column respectively.
+colsAllG :: Position V -> [Col String] -> RowGroup
+colsAllG p = rowsG . colsAsRowsAll p
 
 -- | Modifies cells according to the given 'ColSpec'.
 layoutToCells :: [Row String] -> [ColSpec] -> [Row String]

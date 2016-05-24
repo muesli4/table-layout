@@ -96,12 +96,15 @@ Some fixed length columns are used this time and the header is displayed with a 
 Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines will be there. Display a left-justified text alongside the length of the text:
 ``` hs
 let txt = "Lorem ipsum ..." 
-in putStrLn $ layoutTableToString [rowsG $ columnsAsGrid center [justifyText 50 txt, [show $ length txt]]]
+in putStrLn $ layoutTableToString [colsAllG center [ justifyText 50 txt
+                                                   , [show $ length txt]
+                                                   ]
+                                  ]
                                   (Just (["Text", "Length"], repeat def))
                                   [fixedLeftCol 50, numCol]
                                   asciiS
 ```
-`columnsAsGrid` will merge the given columns into a list of rows with the given positioning:
+`colsAllG` will merge the given columns into a row group with the given positioning:
 ```
 +----------------------------------------------------+--------+
 |                        Text                        | Length |
