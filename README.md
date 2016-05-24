@@ -40,7 +40,7 @@ We simply display the given numbers as a dot-aligned single column:
 5000.00001
 ```
 
-## Improving readability of grids
+### Improving readability of grids
 
 Big grids are usually not that readable, so to improve their readability two functions are provided:
 
@@ -49,7 +49,7 @@ Big grids are usually not that readable, so to improve their readability two fun
 
 A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text.
 
-## Table layout
+### Table layout
 
 Grids are fine, but sometimes we want to explicitly display a table, e.g. as output in a database application. This is where ```layoutTableToString``` comes in handy:
 
