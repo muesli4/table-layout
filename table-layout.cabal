@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.5.2.0
+version:             0.5.2.1
 
 synopsis:            Layout text as grid or table.
 
@@ -40,7 +40,7 @@ category:            Text
 build-type:          Simple
 -- Extra files to be distributed with the package, such as examples or a 
 -- README.
--- extra-source-files:  
+extra-source-files:  README.md
 
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
@@ -72,7 +72,7 @@ library
   other-extensions:    RecordWildCards
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9,
+  build-depends:       base >=4.8 && <4.10,
                        data-default-class ==0.0.*,
                        data-default-instances-base ==0.1.*
 
@@ -83,7 +83,7 @@ library
 
 executable table-layout-test-styles
   main-is:             Test.hs
-  build-depends:       base >=4.8 && <4.9,
+  build-depends:       base >=4.8 && <4.10,
                        data-default-class ==0.0.*,
                        data-default-instances-base ==0.1.*
   hs-source-dirs:      src
@@ -94,8 +94,7 @@ test-suite table-layout-tests
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test-suite, src
   main-is:             Spec.hs
-  build-depends:       base,
-                       --Cabal,
+  build-depends:       base >=4.8 && <4.10,
                        QuickCheck >=2.8 && < 2.9,
                        HUnit ==1.3.*,
                        data-default-class ==0.0.*,

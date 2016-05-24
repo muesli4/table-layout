@@ -8,7 +8,7 @@ The focus of this library lies on rendering cells with different styles per colu
 
 Typically cells are rendered as a grid, but it is also possible to render tables with simulated lines, including styling support. Such tables can use optional headers and multiple lines per cell. Multi-line content can be aligned vertically and text can be rendered justified.
 
-## Examples
+## Tutorial
 
 ### Basic grid layout
 
@@ -40,9 +40,7 @@ We simply display the given numbers as a dot-aligned single column:
 5000.00001
 ```
 
-### Readability and table layout
-
-#### Improving grid readability
+## Improving readability of grids
 
 Big grids are usually not that readable, so to improve their readability two functions are provided:
 
@@ -51,9 +49,9 @@ Big grids are usually not that readable, so to improve their readability two fun
 
 A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text.
 
-### Table layout
+## Table layout
 
-Grids are fine, but sometimes we want to explicitly display a table, e.g. in a database application. This is where ```layoutTableToString``` comes in handy:
+Grids are fine, but sometimes we want to explicitly display a table, e.g. as output in a database application. This is where ```layoutTableToString``` comes in handy:
 
 ``` hs
 putStrLn $ layoutTableToString [ rowGroup [["Jack", "184.74"]]
@@ -71,7 +69,7 @@ A row group is a group of rows which form one cell, meaning that each line of a 
 ╰──────┴────────╯
 ```
 
-### Using headers
+### Table headers
 
 The same is possible with headers:
 
@@ -102,7 +100,7 @@ in putStrLn $ layoutTableToString [rowGroup $ columnsAsGrid center [justifyText 
                                   [fixedLeftCol 50, numCol]
                                   asciiS
 ```
-This will result in the follwing table:
+`columnsAsGrid` will merge the given columns into a list of rows with the given positioning:
 ```
 +----------------------------------------------------+--------+
 |                        Text                        | Length |

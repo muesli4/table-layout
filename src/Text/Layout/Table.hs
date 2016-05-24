@@ -3,55 +3,6 @@
 -- and length restriction it also provides advanced features like justifying
 -- text and fancy tables with styling support.
 --
--- == Some examples
--- Layouting text as a plain grid (given a list of rows):
---
--- >>> putStrLn $ layoutToString [["a", "b"], ["c", "d"]] (repeat def)
--- a b
--- c d
---
--- Fancy table without header:
---
--- >>> putStrLn $ layoutTableToString [rowGroup [["Jack", "184.74"]], rowGroup [["Jane", "162.2"]]] def [def , numCol] unicodeRoundS
--- ╭──────┬────────╮
--- │ Jack │ 184.74 │
--- ├──────┼────────┤
--- │ Jane │ 162.2  │
--- ╰──────┴────────╯
---
--- Fancy table with header:
---
--- >>> putStrLn $ layoutTableToString [ rowGroup [["A very long text", "0.42000000"]]
---                                    , rowGroup [["Short text", "100200.5"]]
---                                    ]
---                                    (Just (["Title", "Length"], repeat def))
---                                    [fixedLeftCol 20, column (fixed 10) center dotAlign def]
---                                    unicodeRoundS
--- ╭──────────────────────┬────────────╮
--- │        Title         │   Length   │
--- ╞══════════════════════╪════════════╡
--- │ A very long text     │    0.4200… │
--- ├──────────────────────┼────────────┤
--- │ Short text           │ …200.5     │
--- ╰──────────────────────┴────────────╯
---
--- Using justified text and 'RowGroup's to group multiple rows together to form one cell:
---
--- >>> putStrLn $ layoutTableToString [rowGroup $ columnsAsGrid center [justifyText 50 txt, [show $ length txt]]]
---                                    (Just (["Text", "Length"], repeat def))
---                                    [fixedLeftCol 50, numCol]
---                                    asciiS
--- +----------------------------------------------------+--------+
--- |                        Text                        | Length |
--- +----------------------------------------------------+--------+
--- | Lorem  ipsum dolor sit amet, consetetur sadipscing |        |
--- | elitr,  sed  diam nonumy eirmod tempor invidunt ut |        |
--- | labore  et  dolore  magna  aliquyam erat, sed diam |        |
--- | voluptua.  At  vero  eos  et  accusam et justo duo |    295 |
--- | dolores et ea rebum. Stet clita kasd gubergren, no |        |
--- | sea  takimata  sanctus  est  Lorem ipsum dolor sit |        |
--- | amet.                                              |        |
--- +----------------------------------------------------+--------+
 {-# LANGUAGE RecordWildCards #-}
 module Text.Layout.Table
     ( -- * Layout combinators
@@ -230,7 +181,7 @@ align :: OccSpec -> AlignInfo -> String -> String
 align oS (AlignInfo l r) s = case splitAtOcc oS s of
     (ls, rs) -> fillLeft l ls ++ case rs of
         -- No alignment character found.
-        [] -> (if r == 0 then "" else spaces r)
+        [] -> spaces r
         _  -> fillRight r rs
 
 -- | Aligns a column using a fixed width, fitting it to the width by either
