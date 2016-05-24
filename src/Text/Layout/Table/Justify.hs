@@ -43,7 +43,7 @@ justifyWordListsAsGrid = columnsAsGrid top . fmap (uncurry justify)
 [["This  text","42"],["will   not","23"],["fit on one",""],["line.",""]]
 
 The result is intended to be used with 'Text.Layout.Table.layoutToCells' or with
-'Text.Layout.Table.rowGroup'.
+'Text.Layout.Table.rowsG'.
 -}
 columnsAsGrid :: Position V -> [Col [a]] -> [Row [a]]
 columnsAsGrid vPos = transpose . vpadCols vPos []
