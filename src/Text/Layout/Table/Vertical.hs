@@ -7,7 +7,6 @@ module Text.Layout.Table.Vertical
       colsAsRowsAll
     , colsAsRows
     ) where
--- TODO allow arbitrary vertical alginment for each column
 
 import Data.List
 
@@ -28,7 +27,8 @@ colsAsRowsAll :: Position V -> [Col [a]] -> [Row [a]]
 colsAsRowsAll ps = transpose . vPadAll [] ps
 
 {- | Works like 'columnsAsRowsAll', but every position can be specified on its
-   own.
+   own:
+
 >>> colsAsRows [top, center, bottom] [["a1"], ["b1", "b2", "b3"], ["d3"]]
 [["a1","b1",""],["","b2",""],["","b3","d3"]]
 -}

@@ -70,8 +70,8 @@ module Text.Layout.Table
 
       -- * Vertical column positioning
     , Col
-    , colsAsRows
     , colsAsRowsAll
+    , colsAsRows
     , top
     , bottom
     , V
@@ -413,14 +413,6 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -- Basic layout
 -------------------------------------------------------------------------------
 
--- | Group rows by merging columns using the given vertical positioning.
-colsG :: [Position V] -> [Col String] -> RowGroup
-colsG ps = rowsG . colsAsRows ps
-
--- | Group rows by merging columns using the given vertical positionings on each column respectively.
-colsAllG :: Position V -> [Col String] -> RowGroup
-colsAllG p = rowsG . colsAsRowsAll p
-
 -- | Modifies cells according to the given 'ColSpec'.
 layoutToCells :: [Row String] -> [ColSpec] -> [Row String]
 layoutToCells tab specs = zipWith apply tab
@@ -457,6 +449,16 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 -------------------------------------------------------------------------------
 -- Advanced layout
 -------------------------------------------------------------------------------
+
+-- | Uses the columns to create a row group, using the given vertical
+-- positionings.
+colsG :: [Position V] -> [Col String] -> RowGroup
+colsG ps = rowsG . colsAsRows ps
+
+-- | Uses the columns to create a row group, using the given vertical
+-- positioning.
+colsAllG :: Position V -> [Col String] -> RowGroup
+colsAllG p = rowsG . colsAsRowsAll p
 
 -- | Layouts a good-looking table with a optional header. Note that specifying
 -- fewer layout specifications than columns or vice versa will result in not
@@ -536,4 +538,3 @@ layoutTableToString rGs optHeaderInfo specs = concatLines . layoutTableToLines r
 -- $justify
 -- Text can easily be justified and distributed over multiple lines. Such
 -- columns can easily be combined with other columns.
---
