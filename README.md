@@ -75,7 +75,7 @@ A row group is a group of rows which form one cell, meaning that each line of a 
 
 The same is possible with headers:
 
-```
+``` hs
 putStrLn $ layoutTableToString [ rowGroup [["A very long text", "0.42000000"]]
                                , rowGroup [["Short text", "100200.5"]]
                                ]
@@ -95,12 +95,12 @@ Some fixed length columns are used this time and the header is displayed with a 
 ```
 ## Vertical positioning and justified text
 Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines will be there. Display a left-justified text alongside the length of the text:
-```
+``` hs
 let txt = "Lorem ipsum ..." 
 in putStrLn $ layoutTableToString [rowGroup $ columnsAsGrid center [justifyText 50 txt, [show $ length txt]]]
-                               (Just (["Text", "Length"], repeat def))
-                               [fixedLeftCol 50, numCol]
-                               asciiS
+                                  (Just (["Text", "Length"], repeat def))
+                                  [fixedLeftCol 50, numCol]
+                                  asciiS
 ```
 This will result in the follwing table:
 ```
