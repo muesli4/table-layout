@@ -29,8 +29,8 @@ colsAsRowsAll ps = transpose . vPadAll [] ps
 {- | Works like 'columnsAsRowsAll', but every position can be specified on its
    own:
 
->>> colsAsRows [top, center, bottom] [["a1"], ["b1", "b2", "b3"], ["d3"]]
-[["a1","b1",""],["","b2",""],["","b3","d3"]]
+>>> colsAsRows [top, center, bottom] [["a1"], ["b1", "b2", "b3"], ["c3"]]
+[["a1","b1",""],["","b2",""],["","b3","c3"]]
 -}
 colsAsRows :: [Position V] -> [Col [a]] -> [Row [a]]
 colsAsRows ps = transpose . vPad [] ps
