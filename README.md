@@ -92,8 +92,8 @@ Some fixed length columns are used this time and the header is displayed with a 
 │ Short text │ …00.5      │
 └────────────┴────────────┘
 ```
-## Vertical positioning and justified text
-Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines will be there. Display a left-justified text alongside the length of the text:
+### Vertical positioning and justified text
+Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines will be there. The following piece of code will display a left-justified text alongside the length of the text:
 ``` hs
 let txt = "Lorem ipsum ..." 
 in putStrLn $ layoutTableToString [colsAllG center [ justifyText 50 txt
@@ -118,5 +118,10 @@ in putStrLn $ layoutTableToString [colsAllG center [ justifyText 50 txt
 | amet.                                              |        |
 +----------------------------------------------------+--------+
 ```
+Additionally, the positioning can be specified for each column with `colsG`. For grids `colsAsRows` and `colsAsRowsAll` are provided.
+
+## Suggestions
+
+Feel free to contact me, I'm always happy about some feedback!
 
 [ansi-terminal package]: http://hackage.haskell.org/package/ansi-terminal
