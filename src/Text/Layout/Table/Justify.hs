@@ -1,9 +1,8 @@
--- | Produce justified text, which is spread over multiple rows, and join it
--- with other columns. For a simple cut, 'chunksOf' from the `split` package
--- is best suited.
+-- | Produce justified text, which is spread over multiple rows. For a simple
+-- cut, 'chunksOf' from the `split` package is best suited.
 {-# LANGUAGE MultiWayIf #-}
 module Text.Layout.Table.Justify
-    ( -- * Justification of text.
+    ( -- * Text justification
       justify
     , justifyText
 

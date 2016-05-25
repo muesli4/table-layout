@@ -105,7 +105,6 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColModInfo:  provide a special version of ensureWidthOfCMI to force header visibility
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
--- TODO              move functions not related to direct end-user into Primitives
 
 import qualified Control.Arrow                                   as A
 import           Data.List
@@ -404,7 +403,6 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                                FixedUntil i  -> expandUntil not i
                         in fun . foldMap (deriveAlignInfo oS)
 
-
 -- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo
 deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
@@ -432,17 +430,17 @@ layoutToString :: [Row String] -> [ColSpec] -> String
 layoutToString tab specs = concatLines $ layoutToLines tab specs
 
 -------------------------------------------------------------------------------
--- Grid modifier functions
+-- Grid modification functions
 -------------------------------------------------------------------------------
 
--- | Applies functions alternating to given lines. This makes it easy to color
--- lines to improve readability in a row.
+-- | Applies functions to given lines in a alternating fashion. This makes it
+-- easy to color lines to improve readability in a row.
 altLines :: [a -> b] -> [a] -> [b]
 altLines = zipWith ($) . cycle
 
--- | Applies functions alternating to cells for every line, every other line
--- gets shifted by one. This is useful for distinguishability of single cells in
--- a grid arrangement.
+-- | Applies functions to cells in a alternating fashion for every line, every
+-- other line gets shifted by one. This is useful for distinguishability of
+-- single cells in a grid arrangement.
 checkeredCells  :: (a -> b) -> (a -> b) -> [[a]] -> [[b]]
 checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 
@@ -471,26 +469,26 @@ layoutTableToLines :: [RowGroup]                        -- ^ Groups
 layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
-    -- Line helpers
-    vLine hs d                  = vLineDetail hs d d d
-    vLineDetail hS dL d dR cols = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
+    -- Helpers for horizontal lines
+    hLine hS d                  = hLineDetail hS d d d
+    hLineDetail hS dL d dR cols = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
 
     -- Spacers consisting of columns of seperator elements.
     genHSpacers c    = map (flip replicate c) colWidths
 
-    -- Vertical seperator lines
-    topLine       = vLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
-    bottomLine    = vLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
-    groupSepLine  = vLineDetail groupSepH groupSepLC groupSepC groupSepRC $ genHSpacers groupSepH
-    headerSepLine = vLineDetail headerSepH headerSepLC headerSepC headerSepRC $ genHSpacers headerSepH
+    -- Horizontal seperator lines
+    topLine       = hLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
+    bottomLine    = hLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
+    groupSepLine  = hLineDetail groupSepH groupSepLC groupSepC groupSepRC $ genHSpacers groupSepH
+    headerSepLine = hLineDetail headerSepH headerSepLC headerSepC headerSepRC $ genHSpacers headerSepH
 
     -- Vertical content lines
-    rowGroupLines = intercalate [groupSepLine] $ map (map (vLine ' ' groupV) . applyRowMods . rows) rGs
+    rowGroupLines = intercalate [groupSepLine] $ map (map (hLine ' ' groupV) . applyRowMods . rows) rGs
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
         Just (h, headerColSpecs) ->
-            let headerLine    = vLine ' ' headerV (zipApply h headerRowMods)
+            let headerLine    = hLine ' ' headerV (zipApply h headerRowMods)
                 headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMark) cutMark ->
                                               columnModifier pos $ fromMaybe cutMark optCutMark
                                          )
