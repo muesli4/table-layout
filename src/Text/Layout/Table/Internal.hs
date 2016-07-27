@@ -8,7 +8,7 @@ import Text.Layout.Table.Primitives.Basic
 
 -- | Groups rows together, which should not be visually seperated from each other.
 newtype RowGroup = RowGroup
-                 { rows     :: [[String]] 
+                 { rows :: [[String]]
                  }
 
 -- | Group the given rows together.
