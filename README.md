@@ -61,7 +61,7 @@ putStrLn $ tableString [def , numCol]
                        , rowG ["Jane", "162.2"]
                        ]
 ```
-A row group is a group of rows which form one cell, meaning that each line of a group is not visually seperated from the other ones. The second argument specifies an optional header, the third the column specifications and the style. This will yield the following result:
+A row group is a group of rows which form one cell, meaning that each line of a group is not visually seperated from the other ones. In addition we specify the style and an optional header (which is not used by default). This will yield the following result:
 
 ```
 ╭──────┬────────╮
@@ -83,7 +83,7 @@ putStrLn $ tableString [fixedLeftCol 10, column (fixed 10) center dotAlign def]
                        , rowG ["Short text", "100200.5"]
                        ]
 ```
-Some fixed length columns are used this time and the header is displayed with a different style (additionally the header column will be specified differently):
+Headers are always displayed with a different style, than the other columns (centered by default). A maximum column width is respected, otherwise a header may acquire additional space.
 ```
 ┌────────────┬────────────┐
 │    Text    │   Number   │
