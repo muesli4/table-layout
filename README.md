@@ -10,16 +10,16 @@ Typically cells are rendered as a grid, but it is also possible to render tables
 
 ## Tutorial
 
-### Basic grid layout
+### Grid layout
 
 Render some text rows as grid:
 ``` hs
-putStrLn $ layoutToString [ ["top left", "top right"]
-                          , ["bottom left", "bottom right"]
-                          ]
-                          [column expand left def def, column expand right def def]
+putStrLn $ gridString [column expand left def def, column expand right def def]
+                      [ ["top left", "top right"]
+                      , ["bottom left", "bottom right"]
+                      ]
 ```
-`layoutToString` will join cells with a whitespace and rows with a newline character. The result is not spectacular but does look as expected:
+`gridString` will join cells with a whitespace and rows with a newline character. The result is not spectacular but does look as expected:
 ```
 top left       top right
 bottom left bottom right
@@ -30,9 +30,9 @@ There are sensible default values for all column specification types, even for c
 
 Additionally some common types are provided. A particularly useful one is `numCol`:
 ``` hs
-mapM_ putStrLn $ layoutToLines (map ((: []) . show) [1.2, 100.5, 0.037, 5000.00001]) [numCol]
+mapM_ putStrLn $ gridLines [numCol] (map ((: []) . show) [1.2, 100.5, 0.037, 5000.00001])
 ```
-We simply display the given numbers as a dot-aligned single column:
+This will display the given numbers as a dot-aligned single column:
 ```
    1.2    
  100.5    
@@ -51,14 +51,15 @@ A good way to use this would be the [ansi-terminal package][], provided you are 
 
 ### Table layout
 
-Grids are fine, but sometimes we want to explicitly display a table, e.g. as output in a database application. This is where ```layoutTableToString``` comes in handy:
+Grids are fine, but sometimes we want to explicitly display a table, e.g. as output in a database application. This is where ```tableString``` comes in handy:
 
 ``` hs
-putStrLn $ layoutTableToString [ rowG ["Jack", "184.74"]
-                               , rowG ["Jane", "162.2"]
-                               ]
-                               def
-                               [def , numCol] unicodeRoundS
+putStrLn $ tableString [def , numCol]
+                       unicodeRoundS
+                       def
+                       [ rowG ["Jack", "184.74"]
+                       , rowG ["Jane", "162.2"]
+                       ]
 ```
 A row group is a group of rows which form one cell, meaning that each line of a group is not visually seperated from the other ones. The second argument specifies an optional header, the third the column specifications and the style. This will yield the following result:
 
@@ -72,20 +73,20 @@ A row group is a group of rows which form one cell, meaning that each line of a 
 
 ### Table headers
 
-The same is possible with headers:
+Optionally we can use table headers. `titlesH` will center titles, whereas `fullH` allows more control:
 
 ``` hs
-putStrLn $ layoutTableToString [ rowG ["A very long text", "0.42000000"]
-                               , rowG ["Short text", "100200.5"]
-                               ]
-                               (Just (["Title", "Length"], repeat def))
-                               [fixedLeftCol 10, column (fixed 10) center dotAlign def]
-                               unicodeS
+putStrLn $ tableString [fixedLeftCol 10, column (fixed 10) center dotAlign def]
+                       unicodeS
+                       (titlesH ["Text", "Number"])
+                       [ rowG ["A very long text", "0.42000000"]
+                       , rowG ["Short text", "100200.5"]
+                       ]
 ```
 Some fixed length columns are used this time and the header is displayed with a different style (additionally the header column will be specified differently):
 ```
 ┌────────────┬────────────┐
-│   Title    │   Length   │
+│    Text    │   Number   │
 ╞════════════╪════════════╡
 │ A very lo… │   0.42000… │
 ├────────────┼────────────┤
@@ -93,16 +94,16 @@ Some fixed length columns are used this time and the header is displayed with a 
 └────────────┴────────────┘
 ```
 ### Vertical positioning and justified text
-Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines will be there. The following piece of code will display a left-justified text alongside the length of the text:
+Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines there will be. The following piece of code will display a left-justified text alongside the length of the text:
 ``` hs
 let txt = "Lorem ipsum ..." 
-in putStrLn $ layoutTableToString [colsAllG center [ justifyText 50 txt
-                                                   , [show $ length txt]
-                                                   ]
-                                  ]
-                                  (Just (["Text", "Length"], repeat def))
-                                  [fixedLeftCol 50, numCol]
-                                  asciiS
+in putStrLn $ tableString [fixedLeftCol 50, numCol]
+                          asciiS
+                          (titlesH ["Text", "Length"])
+                          [colsAllG center [ justifyText 50 txt
+                                           , [show $ length txt]
+                                           ]
+                          ]
 ```
 `colsAllG` will merge the given columns into a row group with the given positioning:
 ```

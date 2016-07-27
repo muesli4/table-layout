@@ -42,26 +42,34 @@ module Text.Layout.Table
     , doubleCutMark
     , ellipsisCutMark
 
-      -- * Basic grid and table layout
+      -- * Basic grid layout
     , Row
-    , layoutToCells
-    , layoutToLines
-    , layoutToString
+    , grid
+    , gridLines
+    , gridString
 
       -- * Grid modification functions
     , altLines
     , checkeredCells
 
-      -- * Advanced table layout
+      -- * Table layout
+      -- ** Grouping rows
     , RowGroup
     , rowsG
     , rowG
     , colsG
     , colsAllG
+
+      -- ** Headers
     , HeaderColSpec
     , headerColumn
-    , layoutTableToLines
-    , layoutTableToString
+    , Header
+    , fullH
+    , titlesH
+
+      -- ** Layout
+    , tableLines
+    , tableString
 
       -- * Text justification
       -- $justify
@@ -75,6 +83,15 @@ module Text.Layout.Table
     , top
     , bottom
     , V
+
+      -- * Deprecated functions
+    , layoutToCells
+    , layoutToLines
+    , layoutToString
+    , layoutTableToLines
+    , layoutTableToString
+
+
 
       -- * Table styles
     , module Text.Layout.Table.Style
@@ -411,23 +428,35 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 -- Basic layout
 -------------------------------------------------------------------------------
 
--- | Modifies cells according to the given 'ColSpec'.
-layoutToCells :: [Row String] -> [ColSpec] -> [Row String]
-layoutToCells tab specs = zipWith apply tab
-                        . repeat
-                        . zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs)
-                        $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs) tab
+-- | Modifies cells according to the column specification.
+grid :: [ColSpec] -> [Row String] -> [Row String]
+grid specs tab = zipWith apply tab
+               . repeat
+               . zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs)
+               $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs) tab
   where
     apply = zipWith $ flip ($)
 
--- | Behaves like 'layoutToCells' but produces lines by joining with whitespace.
-layoutToLines :: [Row String] -> [ColSpec] -> [String]
-layoutToLines tab specs = map unwords $ layoutToCells tab specs
+-- | Behaves like 'grid' but produces lines by joining with whitespace.
+gridLines :: [ColSpec] -> [Row String] -> [String]
+gridLines specs = fmap unwords . grid specs
 
--- | Behaves like 'layoutToCells' but produces a 'String' by joining with the
--- newline character.
+-- | Behaves like 'gridLines' but produces a string by joining with the newline
+-- character.
+gridString :: [ColSpec] -> [Row String] -> String
+gridString specs = concatLines . gridLines specs
+
+{-# DEPRECATED layoutToCells "Use grid instead." #-}
+layoutToCells :: [Row String] -> [ColSpec] -> [Row String]
+layoutToCells = flip grid
+
+{-# DEPRECATED layoutToLines "Use gridLines instead." #-}
+layoutToLines :: [Row String] -> [ColSpec] -> [String]
+layoutToLines = flip gridLines
+
+{-# DEPRECATED layoutToString "Use gridString instead." #-}
 layoutToString :: [Row String] -> [ColSpec] -> String
-layoutToString tab specs = concatLines $ layoutToLines tab specs
+layoutToString = flip gridString
 
 -------------------------------------------------------------------------------
 -- Grid modification functions
@@ -458,15 +487,31 @@ colsG ps = rowsG . colsAsRows ps
 colsAllG :: Position V -> [Col String] -> RowGroup
 colsAllG p = rowsG . colsAsRowsAll p
 
+-- | Specifies a header.
+data Header = Header [HeaderColSpec] [String]
+            | NoHeader
+
+-- | No header is used by default.
+instance Default Header where
+    def = NoHeader
+
+-- | Specify a header column for every title.
+fullH :: [HeaderColSpec] -> [String] -> Header
+fullH = Header
+
+-- | Use titles with the default header column specification.
+titlesH :: [String] -> Header
+titlesH = fullH $ repeat def
+
 -- | Layouts a good-looking table with a optional header. Note that specifying
 -- fewer layout specifications than columns or vice versa will result in not
 -- showing them.
-layoutTableToLines :: [RowGroup]                        -- ^ Groups
-                   -> Maybe ([String], [HeaderColSpec]) -- ^ Optional header details
-                   -> [ColSpec]                         -- ^ Layout specification of columns
-                   -> TableStyle                        -- ^ Visual table style
-                   -> [String]
-layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
+tableLines :: [ColSpec]  -- ^ Layout specification of columns
+           -> TableStyle -- ^ Visual table style
+           -> Header     -- ^ Optional header details
+           -> [RowGroup] -- ^ Rows which form a cell together
+           -> [String]
+tableLines specs (TableStyle { .. }) header rGs =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
     -- Helpers for horizontal lines
@@ -486,9 +531,9 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     rowGroupLines = intercalate [groupSepLine] $ map (map (hLine ' ' groupV) . applyRowMods . rows) rGs
 
     -- Optional values for the header
-    (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case optHeaderInfo of
-        Just (h, headerColSpecs) ->
-            let headerLine    = hLine ' ' headerV (zipApply h headerRowMods)
+    (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case header of
+        Header headerColSpecs hTitles ->
+            let headerLine    = hLine ' ' headerV (zipApply hTitles headerRowMods)
                 headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMark) cutMark ->
                                               columnModifier pos $ fromMaybe cutMark optCutMark
                                          )
@@ -497,13 +542,13 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
                                          (map unalignedCMI cMIs)
             in
             ( (headerLine :) . (headerSepLine :)
-            , zipWith ($) $ zipWith ($) (map ensureWidthOfCMI h) posSpecs
+            , zipWith ($) $ zipWith ($) (map ensureWidthOfCMI hTitles) posSpecs
             , headerTopH
             , headerTopL
             , headerTopC
             , headerTopR
             )
-        Nothing ->
+        NoHeader                      ->
             ( id
             , id
             , groupTopH
@@ -521,13 +566,29 @@ layoutTableToLines rGs optHeaderInfo specs (TableStyle { .. }) =
     colWidths        = map widthCMI cMIs
     zipApply         = zipWith $ flip ($)
 
+-- | Does the same as 'tableLines', but concatenates lines.
+tableString :: [ColSpec]  -- ^ Layout specification of columns
+            -> TableStyle -- ^ Visual table style
+            -> Header     -- ^ Optional header details
+            -> [RowGroup] -- ^ Rows which form a cell together
+            -> String
+tableString specs style header rGs = concatLines $ tableLines specs style header rGs
+
+{-# DEPRECATED layoutTableToLines "Use tableLines instead." #-}
+layoutTableToLines :: [RowGroup]
+                   -> Header
+                   -> [ColSpec]
+                   -> TableStyle
+                   -> [String]
+layoutTableToLines rGs header specs style = tableLines specs style header rGs
+
+{-# DEPRECATED layoutTableToString "Use tableString instead." #-}
 layoutTableToString :: [RowGroup]
-                    -> Maybe ([String], [HeaderColSpec])
+                    -> Header
                     -> [ColSpec]
                     -> TableStyle
                     -> String
 layoutTableToString rGs optHeaderInfo specs = concatLines . layoutTableToLines rGs optHeaderInfo specs
-
 
 -------------------------------------------------------------------------------
 -- Text justification

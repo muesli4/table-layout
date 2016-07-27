@@ -5,25 +5,25 @@ import Control.Monad
 import Text.Layout.Table
 
 main :: IO ()
-main = putStrLn $ layoutTableToString rowGroups
-                                      (Just (["Layout", "Result"], repeat def))
-                                      [ column (expandUntil 30) left (charAlign ':') def
-                                      , column expand center noAlign noCutMark
-                                      ]
-                                      unicodeRoundS
+main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
+                              , column expand center noAlign noCutMark
+                              ]
+                              unicodeRoundS
+                              (titlesH ["Layout", "Result"])
+                              rowGroups
   where
     rowGroups    = flip concatMap styles $ \style ->
         flip map columTs $ \(cSpec, is) ->
             colsAllG center [ is
                             , genTable cSpec style
                             ]
-    genTable c s = layoutTableToLines [ rowsG [ [longText, smallNum, "foo"]
-                                              , [shortText, bigNum, "bar"]
-                                              ]
+    genTable c s = tableLines (repeat c)
+                              s
+                              (titlesH ["Some text", "Some numbers", "X"])
+                              [ rowsG [ [longText, smallNum, "foo"]
+                                      , [shortText, bigNum, "bar"]
                                       ]
-                                      (Just (["Some text", "Some numbers", "X"], repeat def))
-                                      (repeat c)
-                                      s
+                              ]
     longText  = "This is long text"
     shortText = "Short"
     bigNum    = "200300400500600.2"
