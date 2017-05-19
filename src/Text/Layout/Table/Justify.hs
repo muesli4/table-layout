@@ -9,6 +9,7 @@ module Text.Layout.Table.Justify
       -- * Helpers
     , dimorphicSummands
     , dimorphicSummandsBy
+    , mixedDimorphicSummandsBy
     ) where
 
 import Control.Arrow
@@ -34,7 +35,7 @@ justify :: Int -> [String] -> [String]
 justify width = mapInit pad (\(_, _, line) -> unwords line) . gather 0 0 []
   where
     pad (len, wCount, line) = unwords $ if len < width
-                                        then zipWith (++) line $ dimorphicSpaces (width - len) (pred wCount) ++ [""]
+                                        then zipWith (++) line $ mixedDimorphicSpaces (width - len) (pred wCount) ++ [""]
                                         else line
 
     gather lineLen wCount line ws = case ws of  
@@ -59,6 +60,11 @@ mapInit f g (x : xs) = go x xs
 dimorphicSpaces :: Int -> Int -> [String]
 dimorphicSpaces = dimorphicSummandsBy spaces
 
+-- | Spread out spaces with different widths more evenly (in comparison to
+-- 'dimorphicSpaces').
+mixedDimorphicSpaces :: Int -> Int -> [String]
+mixedDimorphicSpaces = mixedDimorphicSummandsBy spaces
+
 -- | Splits a given number into summands of 2 different values, where the
 -- first one is exactly one bigger than the second one. Splitting 40 spaces
 -- into 9 almost equal parts would result in:
@@ -73,6 +79,18 @@ dimorphicSummandsBy :: (Int -> a) -> Int -> Int -> [a]
 dimorphicSummandsBy _ _ 0      = []
 dimorphicSummandsBy f n splits = replicate r largeS ++ replicate (splits - r) smallS
   where
+    (q, r) = n `divMod` splits
+    largeS = f $ succ q
+    smallS = f q
+
+-- | Spread out summands evenly mixed as far as possible.
+mixedDimorphicSummandsBy :: (Int -> a) -> Int -> Int -> [a]
+mixedDimorphicSummandsBy f n splits = go r (splits - r)
+  where
+    go 0 s = replicate s smallS
+    go l 0 = replicate l largeS
+    go l s = largeS : smallS : go (pred l) (pred s)
+
     (q, r) = n `divMod` splits
     largeS = f $ succ q
     smallS = f q
