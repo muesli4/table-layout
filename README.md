@@ -1,6 +1,6 @@
 # table-layout
 
-This package can be used to render character-based table layouts, which should be displayed with monospace fonts.
+This package can be used to render character-based table layouts which should be displayed with monospace fonts.
 
 ## Purpose
 
@@ -51,7 +51,7 @@ A good way to use this would be the [ansi-terminal package][], provided you are 
 
 ### Table layout
 
-Grids are fine, but sometimes we want to explicitly display a table, e.g. as output in a database application. This is where ```tableString``` comes in handy:
+Grids are fine, but sometimes we want to explicitly display a table, e.g., as output in a database application. This is where ```tableString``` comes in handy:
 
 ``` hs
 putStrLn $ tableString [def , numCol]
@@ -61,7 +61,7 @@ putStrLn $ tableString [def , numCol]
                        , rowG ["Jane", "162.2"]
                        ]
 ```
-A row group is a group of rows which form one cell, meaning that each line of a group is not visually seperated from the other ones. In addition we specify the style and an optional header (which is not used by default). This will yield the following result:
+A row group is a group of rows which form one cell. This means that each line of a group is not visually seperated from the other ones. In addition we specify the style and an optional header (which is not used by default). This will yield the following result:
 
 ```
 ╭──────┬────────╮
@@ -83,7 +83,7 @@ putStrLn $ tableString [fixedLeftCol 10, column (fixed 10) center dotAlign def]
                        , rowG ["Short text", "100200.5"]
                        ]
 ```
-Headers are always displayed with a different style, than the other columns (centered by default). A maximum column width is respected, otherwise a header may acquire additional space.
+Headers are always displayed with a different style than the other columns (centered by default). A maximum column width is respected, otherwise a header may acquire additional space.
 ```
 ┌────────────┬────────────┐
 │    Text    │   Number   │
@@ -100,9 +100,9 @@ let txt = "Lorem ipsum ..."
 in putStrLn $ tableString [fixedLeftCol 50, numCol]
                           asciiS
                           (titlesH ["Text", "Length"])
-                          [colsAllG center [ justifyText 50 txt
-                                           , [show $ length txt]
-                                           ]
+                          [ colsAllG center [ justifyText 50 txt
+                                            , [show $ length txt]
+                                            ]
                           ]
 ```
 `colsAllG` will merge the given columns into a row group with the given positioning:
@@ -110,19 +110,21 @@ in putStrLn $ tableString [fixedLeftCol 50, numCol]
 +----------------------------------------------------+--------+
 |                        Text                        | Length |
 +----------------------------------------------------+--------+
-| Lorem  ipsum dolor sit amet, consetetur sadipscing |        |
-| elitr,  sed  diam nonumy eirmod tempor invidunt ut |        |
-| labore  et  dolore  magna  aliquyam erat, sed diam |        |
-| voluptua.  At  vero  eos  et  accusam et justo duo |    295 |
-| dolores et ea rebum. Stet clita kasd gubergren, no |        |
-| sea  takimata  sanctus  est  Lorem ipsum dolor sit |        |
-| amet.                                              |        |
+| Lorem  ipsum dolor sit amet, consectetur adipisici |        |
+| elit,  sed eiusmod  tempor incidunt  ut labore  et |        |
+| dolore magna aliqua. Ut enim ad minim veniam, quis |        |
+| nostrud   exercitation  ullamco  laboris  nisi  ut |        |
+| aliquid  ex ea  commodi consequat.  Quis aute iure |    429 |
+| reprehenderit   in  voluptate  velit  esse  cillum |        |
+| dolore  eu fugiat  nulla pariatur.  Excepteur sint |        |
+| obcaecat cupiditat non proident, sunt in culpa qui |        |
+| officia deserunt mollit anim id est laborum.       |        |
 +----------------------------------------------------+--------+
 ```
 Additionally, the positioning can be specified for each column with `colsG`. For grids `colsAsRows` and `colsAsRowsAll` are provided.
 
-## Suggestions
+## Get in contact
 
-Feel free to contact me, I'm always happy about some feedback!
+Please report issues and suggestions to the GitHub page. I'm always open for feedback (good and bad).
 
 [ansi-terminal package]: http://hackage.haskell.org/package/ansi-terminal
