@@ -84,15 +84,6 @@ module Text.Layout.Table
     , bottom
     , V
 
-      -- * Deprecated functions
-    , layoutToCells
-    , layoutToLines
-    , layoutToString
-    , layoutTableToLines
-    , layoutTableToString
-
-
-
       -- * Table styles
     , module Text.Layout.Table.Style
 
@@ -166,7 +157,7 @@ fixedLeftCol i = fixedCol i left
 -------------------------------------------------------------------------------
 
 -- | Assume the given length is greater or equal than the length of the 'String'
--- passed. Pads the given 'String' accordingly, using the position specification.
+-- passed. Pads the given 'String' accordingly using the position specification.
 --
 -- >>> pad left 10 "foo"
 -- "foo       "
@@ -178,8 +169,8 @@ pad p = case p of
     End    -> fillLeft
 
 -- | If the given text is too long, the 'String' will be shortened according to
--- the position specification, also adds some dots to indicate that the column
--- has been trimmed in length, otherwise behaves like 'pad'.
+-- the position specification. Adds cut marks to indicate that the column has
+-- been trimmed in length, otherwise it behaves like 'pad'.
 --
 -- >>> trimOrPad left (singleCutMark "..") 10 "A longer text."
 -- "A longer.."
@@ -190,11 +181,14 @@ trimOrPad p = case p of
     Center -> fitCenterWith
     End    -> fitLeftWith
 
--- | Align a column by first finding the position to pad with and then padding
--- the missing lengths to the maximum value. If no such position is found, it
--- will align it such that it gets aligned before that position.
+-- | Align a 'String' by first locating the position to align with and then
+-- padding on both sides. If no such position is found, it will align it such
+-- that it gets aligned before that position.
 --
--- This function assumes:
+-- >>> let { os = predOccSpec (== '.') ; ai = deriveAlignInfo os "iiii.fff" } in align os ai <$> ["1.5", "30", ".25"]
+-- ["   1.5  ","  30    ","    .25 "]
+--
+-- This function assumes that the given 'String' fits the 'AlignInfo'. Thus:
 --
 -- > ai <> deriveAlignInfo s = ai
 --
@@ -205,7 +199,7 @@ align oS (AlignInfo l r) s = case splitAtOcc oS s of
         [] -> spaces r
         _  -> fillRight r rs
 
--- | Aligns a column using a fixed width, fitting it to the width by either
+-- | Aligns a 'String' using a fixed width, fitting it to the width by either
 -- filling or cutting while respecting the alignment.
 alignFixed :: Position o -> CutMark -> Int -> OccSpec -> AlignInfo -> String -> String
 alignFixed _ cms 0 _  _                  _               = ""
@@ -318,7 +312,10 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
     applyMarkRight = applyMarkRightWith cms
     applyMarkLeft  = applyMarkLeftWith cms
 
--- | Specifies how a column should be modified.
+-- | Specifies how a column should be modified. Values of this type are derived
+-- in a traversal over the input columns by using 'deriveColModInfos'. Finally,
+-- 'columnModifier' will interpret them and apply the appropriate modification
+-- function to the cells of the column.
 data ColModInfo = FillAligned OccSpec AlignInfo
                 | FillTo Int
                 | FitTo Int (Maybe (OccSpec, AlignInfo))
@@ -330,7 +327,8 @@ showCMI cmi = case cmi of
     FillTo i          -> "FillTo " ++ show i
     FitTo i _         -> "FitTo " ++ show i ++ ".."
 
--- | Get the exact width after the modification.
+-- | Get the exact width of a 'ColModInfo' after applying it with
+-- 'columnModifier'.
 widthCMI :: ColModInfo -> Int
 widthCMI cmi = case cmi of
     FillAligned _ ai -> widthAI ai
@@ -338,14 +336,14 @@ widthCMI cmi = case cmi of
     FitTo lim _      -> lim
 
 -- | Remove alignment from a 'ColModInfo'. This is used to change alignment of
--- headers, while using the combined width information.
+-- headers while using the combined width information.
 unalignedCMI :: ColModInfo -> ColModInfo
 unalignedCMI cmi = case cmi of
     FillAligned _ ai -> FillTo $ widthAI ai
     FitTo i _        -> FitTo i Nothing
     _                -> cmi
 
--- | Ensures that the modification provides a minimum width, but only if it is
+-- | Ensures that the modification provides a minimum width but only if it is
 -- not limited.
 ensureWidthCMI :: Int -> Position H -> ColModInfo -> ColModInfo
 ensureWidthCMI w pos cmi = case cmi of
@@ -375,7 +373,8 @@ columnModifier pos cms lenInfo = case lenInfo of
         maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
 
 -- TODO factor out
--- | Specifies the length before and after a letter.
+-- | Specifies the length before and after an alignment position (including the
+-- alignment character).
 data AlignInfo = AlignInfo Int Int
 
 -- | Private show function.
@@ -386,14 +385,14 @@ showAI (AlignInfo l r) = "AlignInfo " ++ show l ++ " " ++ show r
 widthAI :: AlignInfo -> Int
 widthAI (AlignInfo l r) = l + r
 
--- | Since determining a maximum in two directions is not possible, a 'Monoid'
--- instance is provided.
+-- | Produce an 'AlignInfo' that is wide enough to hold inputs of both given
+-- 'AlignInfo's.
 instance Monoid AlignInfo where
     mempty = AlignInfo 0 0
     mappend (AlignInfo ll lr) (AlignInfo rl rr) = AlignInfo (max ll rl) (max lr rr)
 
--- | Derive the 'ColModInfo' by using layout specifications and looking at the
--- cells.
+-- | Derive the 'ColModInfo' by using layout specifications and the actual cells
+-- of a column.
 deriveColModInfos :: [(LenSpec, AlignSpec)] -> [Row String] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
@@ -420,9 +419,10 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                                FixedUntil i  -> expandUntil not i
                         in fun . foldMap (deriveAlignInfo oS)
 
--- | Generate the 'AlignInfo' of a cell using the 'OccSpec'.
+-- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo
-deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
+deriveAlignInfo occSpec s =
+    AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
 
 -------------------------------------------------------------------------------
 -- Basic layout
@@ -430,12 +430,11 @@ deriveAlignInfo occSpec s = AlignInfo <$> length . fst <*> length . snd $ splitA
 
 -- | Modifies cells according to the column specification.
 grid :: [ColSpec] -> [Row String] -> [Row String]
-grid specs tab = zipWith apply tab
-               . repeat
-               . zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs)
-               $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs) tab
+grid specs tab = zipWith ($) cmfs <$> tab
   where
-    apply = zipWith $ flip ($)
+    -- | The column modification function for each column.
+    cmfs  = zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs) cmis
+    cmis  = deriveColModInfos (map (lenSpec A.&&& alignSpec) specs) tab
 
 -- | Behaves like 'grid' but produces lines by joining with whitespace.
 gridLines :: [ColSpec] -> [Row String] -> [String]
@@ -445,18 +444,6 @@ gridLines specs = fmap unwords . grid specs
 -- character.
 gridString :: [ColSpec] -> [Row String] -> String
 gridString specs = concatLines . gridLines specs
-
-{-# DEPRECATED layoutToCells "Use grid instead." #-}
-layoutToCells :: [Row String] -> [ColSpec] -> [Row String]
-layoutToCells = flip grid
-
-{-# DEPRECATED layoutToLines "Use gridLines instead." #-}
-layoutToLines :: [Row String] -> [ColSpec] -> [String]
-layoutToLines = flip gridLines
-
-{-# DEPRECATED layoutToString "Use gridString instead." #-}
-layoutToString :: [Row String] -> [ColSpec] -> String
-layoutToString = flip gridString
 
 -------------------------------------------------------------------------------
 -- Grid modification functions
@@ -477,13 +464,13 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 -- Advanced layout
 -------------------------------------------------------------------------------
 
--- | Uses the columns to create a row group, using the given vertical
--- positionings.
+-- | Create a 'RowGroup' by aligning the columns vertically. The position is
+-- specified for each column.
 colsG :: [Position V] -> [Col String] -> RowGroup
 colsG ps = rowsG . colsAsRows ps
 
--- | Uses the columns to create a row group, using the given vertical
--- positioning.
+-- | Create a 'RowGroup' by aligning the columns vertically. Each column uses
+-- the same vertical positioning.
 colsAllG :: Position V -> [Col String] -> RowGroup
 colsAllG p = rowsG . colsAsRowsAll p
 
@@ -503,23 +490,24 @@ fullH = Header
 titlesH :: [String] -> Header
 titlesH = fullH $ repeat def
 
--- | Layouts a good-looking table with a optional header. Note that specifying
+-- | Layouts a good-looking table with an optional header. Note that specifying
 -- fewer layout specifications than columns or vice versa will result in not
--- showing them.
+-- showing the redundant ones.
 tableLines :: [ColSpec]  -- ^ Layout specification of columns
            -> TableStyle -- ^ Visual table style
            -> Header     -- ^ Optional header details
            -> [RowGroup] -- ^ Rows which form a cell together
            -> [String]
-tableLines specs (TableStyle { .. }) header rGs =
+tableLines specs TableStyle { .. } header rGs =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
     -- Helpers for horizontal lines
-    hLine hS d                  = hLineDetail hS d d d
-    hLineDetail hS dL d dR cols = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
+    hLine hS d    = hLineDetail hS d d d
+    hLineDetail hS dL d dR cols
+                  = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
 
     -- Spacers consisting of columns of seperator elements.
-    genHSpacers c    = map (flip replicate c) colWidths
+    genHSpacers c = map (`replicate` c) colWidths
 
     -- Horizontal seperator lines
     topLine       = hLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
@@ -531,9 +519,10 @@ tableLines specs (TableStyle { .. }) header rGs =
     rowGroupLines = intercalate [groupSepLine] $ map (map (hLine ' ' groupV) . applyRowMods . rows) rGs
 
     -- Optional values for the header
-    (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR) = case header of
+    (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
+                  = case header of
         Header headerColSpecs hTitles ->
-            let headerLine    = hLine ' ' headerV (zipApply hTitles headerRowMods)
+            let headerLine    = hLine ' ' headerV (zipWith ($) headerRowMods hTitles)
                 headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMark) cutMark ->
                                               columnModifier pos $ fromMaybe cutMark optCutMark
                                          )
@@ -557,14 +546,13 @@ tableLines specs (TableStyle { .. }) header rGs =
             , groupTopR
             )
 
-    cMSs             = map cutMark specs
-    posSpecs         = map position specs
-    applyRowMods xss = zipWith zipApply xss $ repeat rowMods
-    rowMods          = zipWith3 columnModifier posSpecs cMSs cMIs
-    cMIs             = fitHeaderIntoCMIs $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs)
+    cMSs          = map cutMark specs
+    posSpecs      = map position specs
+    applyRowMods  = map (zipWith ($) rowMods)
+    rowMods       = zipWith3 columnModifier posSpecs cMSs cMIs
+    cMIs          = fitHeaderIntoCMIs $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs)
                                          $ concatMap rows rGs
-    colWidths        = map widthCMI cMIs
-    zipApply         = zipWith $ flip ($)
+    colWidths     = map widthCMI cMIs
 
 -- | Does the same as 'tableLines', but concatenates lines.
 tableString :: [ColSpec]  -- ^ Layout specification of columns
@@ -573,22 +561,6 @@ tableString :: [ColSpec]  -- ^ Layout specification of columns
             -> [RowGroup] -- ^ Rows which form a cell together
             -> String
 tableString specs style header rGs = concatLines $ tableLines specs style header rGs
-
-{-# DEPRECATED layoutTableToLines "Use tableLines instead." #-}
-layoutTableToLines :: [RowGroup]
-                   -> Header
-                   -> [ColSpec]
-                   -> TableStyle
-                   -> [String]
-layoutTableToLines rGs header specs style = tableLines specs style header rGs
-
-{-# DEPRECATED layoutTableToString "Use tableString instead." #-}
-layoutTableToString :: [RowGroup]
-                    -> Header
-                    -> [ColSpec]
-                    -> TableStyle
-                    -> String
-layoutTableToString rGs optHeaderInfo specs = concatLines . layoutTableToLines rGs optHeaderInfo specs
 
 -------------------------------------------------------------------------------
 -- Text justification
