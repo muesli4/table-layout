@@ -7,7 +7,20 @@ import Data.Default.Class
 data Position orientation
     = Start
     | Center
-    | End deriving (Show, Eq)
+    | End
+    deriving Eq
+
+instance Show (Position H) where
+    show p = case p of
+        Start  -> "left"
+        Center -> "center"
+        End    -> "right"
+
+instance Show (Position V) where
+    show p = case p of
+        Start  -> "top"
+        Center -> "center"
+        End    -> "bottom"
 
 instance Default (Position orientation) where
     def = Start
