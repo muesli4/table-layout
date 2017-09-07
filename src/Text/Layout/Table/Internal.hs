@@ -7,9 +7,10 @@ import Text.Layout.Table.Position
 import Text.Layout.Table.Primitives.Basic
 
 -- | Groups rows together, which should not be visually seperated from each other.
-newtype RowGroup = RowGroup
-                 { rows :: [[String]]
-                 }
+newtype RowGroup
+    = RowGroup
+    { rows :: [[String]]
+    }
 
 -- | Group the given rows together.
 rowsG :: [Row String] -> RowGroup

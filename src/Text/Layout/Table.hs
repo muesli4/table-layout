@@ -315,9 +315,10 @@ alignFixed p cms i oS ai@(AlignInfo l r) s               =
 -- in a traversal over the input columns by using 'deriveColModInfos'. Finally,
 -- 'columnModifier' will interpret them and apply the appropriate modification
 -- function to the cells of the column.
-data ColModInfo = FillAligned OccSpec AlignInfo
-                | FillTo Int
-                | FitTo Int (Maybe (OccSpec, AlignInfo))
+data ColModInfo
+    = FillAligned OccSpec AlignInfo
+    | FillTo Int
+    | FitTo Int (Maybe (OccSpec, AlignInfo))
 
 -- | Private show function.
 showCMI :: ColModInfo -> String
@@ -474,8 +475,9 @@ colsAllG :: Position V -> [Col String] -> RowGroup
 colsAllG p = rowsG . colsAsRowsAll p
 
 -- | Specifies a header.
-data Header = Header [HeaderColSpec] [String]
-            | NoHeader
+data Header
+    = Header [HeaderColSpec] [String]
+    | NoHeader
 
 -- | No header is used by default.
 instance Default Header where

@@ -42,10 +42,11 @@ import Data.List
 
 -- | Specifies how the place looks where a 'String' has been cut. Note that the
 -- cut mark may be cut itself, to fit into a column.
-data CutMark = CutMark
-                 { leftMark  :: String
-                 , rightMark :: String
-                 }
+data CutMark
+    = CutMark
+    { leftMark  :: String
+    , rightMark :: String
+    }
 
 -- | A single ellipsis unicode character is used to show cut marks.
 instance Default CutMark where

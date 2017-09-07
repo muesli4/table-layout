@@ -9,7 +9,11 @@ module Text.Layout.Table.Primitives.LenSpec.Internal
 import Data.Default.Class
 
 -- | Determines how long a column will be.
-data LenSpec = Expand | Fixed Int | ExpandUntil Int | FixedUntil Int
+data LenSpec
+    = Expand
+    | Fixed Int
+    | ExpandUntil Int
+    | FixedUntil Int
 
 instance Default LenSpec where
     def = expand

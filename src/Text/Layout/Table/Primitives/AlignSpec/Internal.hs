@@ -11,7 +11,9 @@ import Data.Default.Class
 import Text.Layout.Table.Primitives.Occurence
 
 -- | Determines whether a column will align at a specific letter.
-data AlignSpec = AlignOcc OccSpec | NoAlign
+data AlignSpec
+    = AlignOcc OccSpec
+    | NoAlign
 
 -- | No alignment is the default.
 instance Default AlignSpec where
