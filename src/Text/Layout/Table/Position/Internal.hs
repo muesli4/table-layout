@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Text.Layout.Table.Position.Internal where
 
 import Data.Default.Class

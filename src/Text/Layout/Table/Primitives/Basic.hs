@@ -6,7 +6,6 @@ module Text.Layout.Table.Primitives.Basic
     , doubleCutMark
     , singleCutMark
     , noCutMark
-    , ellipsisCutMark
 
       -- * String-related tools
     , spaces
@@ -50,7 +49,7 @@ data CutMark = CutMark
 
 -- | A single ellipsis unicode character is used to show cut marks.
 instance Default CutMark where
-    def = ellipsisCutMark
+    def = singleCutMark "…"
 
 -- | Specify two different cut marks, one for cuts on the left and one for cuts
 -- on the right.
@@ -64,10 +63,6 @@ singleCutMark l = doubleCutMark l (reverse l)
 -- | Don't show any cut mark when text is cut.
 noCutMark :: CutMark
 noCutMark = singleCutMark ""
-
-{-# DEPRECATED ellipsisCutMark "Use def instead." #-}
-ellipsisCutMark :: CutMark
-ellipsisCutMark = singleCutMark "…"
 
 spaces :: Int -> String
 spaces = flip replicate ' '

@@ -40,7 +40,6 @@ module Text.Layout.Table
     , noCutMark
     , singleCutMark
     , doubleCutMark
-    , ellipsisCutMark
 
       -- * Basic grid layout
     , Row
