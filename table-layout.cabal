@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.8.0.0
+version:             0.8.0.1
 
 synopsis:            Layout text as grid or table.
 
@@ -30,23 +30,23 @@ description:
     A small tutorial is provided in the `README.md` file.
 
 -- URL for the project homepage or repository.
-homepage:            https://github.com/muesli4/table-layout
-license:             BSD3
-license-file:        LICENSE
-author:              Moritz Bruder
-maintainer:          muesli4@gmail.com
-category:            Text
-build-type:          Simple
+homepage:              https://github.com/muesli4/table-layout
+license:               BSD3
+license-file:          LICENSE
+author:                Moritz Bruder
+maintainer:            muesli4@gmail.com
+category:              Text
+build-type:            Simple
 -- Extra files to be distributed with the package, such as examples or a 
 -- README.
-extra-source-files:  README.md
+extra-source-files:    README.md
 
 -- Constraint on the version of Cabal needed to build this package.
-cabal-version:       >=1.10
+cabal-version:         >=1.10
 
 source-repository head
-    type:            git
-    location:        git://github.com/muesli4/table-layout.git
+    type:              git
+    location:          git://github.com/muesli4/table-layout.git
 
 
 library
@@ -69,7 +69,11 @@ library
 
   
   -- LANGUAGE extensions used by modules in this package.
-  other-extensions:    RecordWildCards
+  other-extensions:    RecordWildCards,
+                       EmptyDataDecls,
+                       FlexibleInstances,
+                       PatternSynonyms,
+                       MultiWayIf
   
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.8 && <4.11,
@@ -87,7 +91,20 @@ executable table-layout-test-styles
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*
   hs-source-dirs:      src
-  other-modules:       Text.Layout.Table
+  other-modules:       Text.Layout.Table,
+                       Text.Layout.Table.Internal,
+                       Text.Layout.Table.Justify,
+                       Text.Layout.Table.Position,
+                       Text.Layout.Table.Position.Internal,
+                       Text.Layout.Table.Primitives.AlignSpec,
+                       Text.Layout.Table.Primitives.AlignSpec.Internal,
+                       Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.Column,
+                       Text.Layout.Table.Primitives.LenSpec,
+                       Text.Layout.Table.Primitives.LenSpec.Internal,
+                       Text.Layout.Table.Primitives.Occurence,
+                       Text.Layout.Table.Style Text.Layout.Table.Vertical
+
   default-language:    Haskell2010
 
 test-suite table-layout-tests
@@ -101,6 +118,20 @@ test-suite table-layout-tests
                        data-default-instances-base ==0.1.*,
                        hspec
 
-  other-modules:       Text.Layout.Table, Text.Layout.Table.Primitives.Basic
+  other-modules:       TestSpec,
+                       Text.Layout.Table,
+                       Text.Layout.Table.Internal,
+                       Text.Layout.Table.Justify,
+                       Text.Layout.Table.Position,
+                       Text.Layout.Table.Position.Internal,
+                       Text.Layout.Table.Primitives.AlignSpec,
+                       Text.Layout.Table.Primitives.AlignSpec.Internal,
+                       Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.Column,
+                       Text.Layout.Table.Primitives.LenSpec,
+                       Text.Layout.Table.Primitives.LenSpec.Internal,
+                       Text.Layout.Table.Primitives.Occurence,
+                       Text.Layout.Table.Style,
+                       Text.Layout.Table.Vertical
 
   default-language:    Haskell2010
