@@ -387,9 +387,11 @@ widthAI (AlignInfo l r) = l + r
 
 -- | Produce an 'AlignInfo' that is wide enough to hold inputs of both given
 -- 'AlignInfo's.
+instance Semigroup AlignInfo where
+    AlignInfo ll lr <> AlignInfo rl rr = AlignInfo (max ll rl) (max lr rr)
+
 instance Monoid AlignInfo where
     mempty = AlignInfo 0 0
-    mappend (AlignInfo ll lr) (AlignInfo rl rr) = AlignInfo (max ll rl) (max lr rr)
 
 -- | Derive the 'ColModInfo' by using layout specifications and the actual cells
 -- of a column.

@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.8.0.1
+version:             0.8.0.2
 
 synopsis:            Layout text as grid or table.
 
@@ -76,7 +76,7 @@ library
                        MultiWayIf
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.11,
+  build-depends:       base >=4.8 && <4.12,
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*
 
@@ -87,7 +87,7 @@ library
 
 executable table-layout-test-styles
   main-is:             Test.hs
-  build-depends:       base >=4.8 && <4.11,
+  build-depends:       base >=4.8 && <4.12,
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*
   hs-source-dirs:      src
@@ -111,8 +111,8 @@ test-suite table-layout-tests
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test-suite, src
   main-is:             Spec.hs
-  build-depends:       base >=4.8 && <4.11,
-                       QuickCheck >=2.8 && < 2.11,
+  build-depends:       base >=4.8 && <4.12,
+                       QuickCheck >=2.8 && < 2.12,
                        HUnit >=1.3,
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*,
