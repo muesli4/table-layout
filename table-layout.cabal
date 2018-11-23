@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.8.0.2
+version:             0.8.0.3
 
 synopsis:            Layout text as grid or table.
 
@@ -111,7 +111,7 @@ test-suite table-layout-tests
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test-suite, src
   main-is:             Spec.hs
-  build-depends:       base >=4.8 && <4.12,
+  build-depends:       base >=4.8 && <4.13,
                        QuickCheck >=2.8 && < 2.12,
                        HUnit >=1.3,
                        data-default-class >=0.1.1 && < 0.2,
