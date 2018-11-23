@@ -116,6 +116,7 @@ module Text.Layout.Table
 import qualified Control.Arrow                                   as A
 import           Data.List
 import           Data.Maybe
+import           Data.Semigroup
 import           Data.Default.Class
 import           Data.Default.Instances.Base                          ()
 
