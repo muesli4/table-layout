@@ -93,7 +93,8 @@ module Text.Layout.Table
     , alignFixed
 
       -- * Column modifaction primitives
-      -- | Render your own kind of tables with the following functions.
+      -- | These functions are provided to be reused. For example if someone
+      -- wants to render their own kind of tables.
     , ColModInfo
     , widthCMI
     , unalignedCMI
@@ -364,8 +365,10 @@ ensureWidthCMI w pos cmi = case cmi of
 ensureWidthOfCMI :: String -> Position H -> ColModInfo -> ColModInfo
 ensureWidthOfCMI = ensureWidthCMI . length
 
--- | Generates a function which modifies a given 'String' according to
--- 'Text.Layout.Table.Position.Position', 'CutMark' and 'ColModInfo'.
+-- | Generates a function which modifies a given cell according to
+-- 'Text.Layout.Table.Position.Position', 'CutMark' and 'ColModInfo'. This is
+-- used to modify a single cell of column to bring all cells of column to the
+-- same width.
 columnModifier :: Position H -> CutMark -> ColModInfo -> (String -> String)
 columnModifier pos cms lenInfo = case lenInfo of
     FillAligned oS ai -> align oS ai
@@ -482,7 +485,7 @@ data Header
     = Header [HeaderColSpec] [String]
     | NoHeader
 
--- | No header is used by default.
+-- | By the default the header is not shown.
 instance Default Header where
     def = NoHeader
 
@@ -494,9 +497,9 @@ fullH = Header
 titlesH :: [String] -> Header
 titlesH = fullH $ repeat def
 
--- | Layouts a good-looking table with an optional header. Note that specifying
--- fewer layout specifications than columns or vice versa will result in not
--- showing the redundant ones.
+-- | Layouts a pretty table with an optional header. Note that providing fewer
+-- layout specifications than columns or vice versa will result in not showing
+-- the redundant ones.
 tableLines :: [ColSpec]  -- ^ Layout specification of columns
            -> TableStyle -- ^ Visual table style
            -> Header     -- ^ Optional header details
@@ -572,4 +575,4 @@ tableString specs style header rGs = concatLines $ tableLines specs style header
 
 -- $justify
 -- Text can easily be justified and distributed over multiple lines. Such
--- columns can easily be combined with other columns.
+-- columns can be combined with other columns.

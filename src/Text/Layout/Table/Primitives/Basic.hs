@@ -41,7 +41,7 @@ import Data.Default.Class
 import Data.List
 
 -- | Specifies how the place looks where a 'String' has been cut. Note that the
--- cut mark may be cut itself, to fit into a column.
+-- cut mark may be cut itself to fit into a column.
 data CutMark
     = CutMark
     { leftMark  :: String

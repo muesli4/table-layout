@@ -4,9 +4,15 @@ This package can be used to render character-based table layouts which should be
 
 ## Purpose
 
-The focus of this library lies on rendering cells with different styles per column. Columns can be fixed in size or expanding to make content fit. Whenever content has to be cut, it is possible to indicate this with special strings (these are called cut marks). Columns can be positionally aligned as left, right or center and additionally aligned at certain character occurences, e.g. to display floating point numbers. Those specifications are then applied to a list of rows (currently only `String` is supported).
+The focus of this library lies on rendering cells with different styles per column:
+* Columns can be fixed in size or expanding to make content fit.
+* Whenever content has to be cut, it is possible to indicate this with special strings, which are called cut marks.
+* Columns can be positionally aligned as `left`, `right` or `center`.
+* Columns may also be aligned at certain character occurence with respect to the other cells of that column. One such purpose is to display floating point numbers.
 
-Typically cells are rendered as a grid, but it is also possible to render tables with simulated lines, including styling support. Such tables can use optional headers and multiple lines per cell. Multi-line content can be aligned vertically and text can be rendered justified.
+Those specifications are then applied to a list of rows (currently only `String` is supported).
+
+Typically cells are rendered as a grid, but it is also possible to render tables with simulated lines, including styling support. Such tables can use optional headers and multiple lines per cell. Multi-line content can be aligned vertically, with respect to the other horizontally adjacent cells, and text can be rendered justified.
 
 ## Tutorial
 
@@ -14,10 +20,10 @@ Typically cells are rendered as a grid, but it is also possible to render tables
 
 Render some text rows as grid:
 ``` hs
-putStrLn $ gridString [column expand left def def, column expand right def def]
-                      [ ["top left", "top right"]
-                      , ["bottom left", "bottom right"]
-                      ]
+> putStrLn $ gridString [column expand left def def, column expand right def def]
+                        [ ["top left", "top right"]
+                        , ["bottom left", "bottom right"]
+                        ]
 ```
 `gridString` will join cells with a whitespace and rows with a newline character. The result is not spectacular but does look as expected:
 ```
@@ -30,28 +36,30 @@ There are sensible default values for all column specification types, even for c
 
 Additionally some common types are provided. A particularly useful one is `numCol`:
 ``` hs
-mapM_ putStrLn $ gridLines [numCol] (map ((: []) . show) [1.2, 100.5, 0.037, 5000.00001])
+> import Numeric
+> let toRow d = [showFFloat Nothing d ""]
+> mapM_ putStrLn $ gridLines [numCol] $ toRow <$> [1.2, 100.5, 0.037, 5000.00001]
 ```
 This will display the given numbers as a dot-aligned single column:
 ```
    1.2    
  100.5    
-   3.7e-2 
+   0.037
 5000.00001
 ```
 
 ### Improving readability of grids
 
-Big grids are usually not that readable, so to improve their readability two functions are provided:
+Big grids are usually not that readable. To improve their readability, two functions are provided:
 
-- `altLines` will alternate functions applied to lines.
-- `checkeredCells` will checker cells with 2 different functions.
+* `altLines` will apply the given function in an alternating pattern. E.g., color every second row grey.
+* `checkeredCells` will checker cells with 2 different functions.
 
 A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text.
 
 ### Table layout
 
-Grids are fine, but sometimes we want to explicitly display a table, e.g., as output in a database application. This is where ```tableString``` comes in handy:
+For more complex data grids do not offer as much visibility. Sometimes we want to explicitly display a table, e.g., as output in a database application. `tableLines` and `tableString` are used to create a table.
 
 ``` hs
 putStrLn $ tableString [def , numCol]
@@ -61,7 +69,7 @@ putStrLn $ tableString [def , numCol]
                        , rowG ["Jane", "162.2"]
                        ]
 ```
-A row group is a group of rows which form one cell. This means that each line of a group is not visually seperated from the other ones. In addition we specify the style and an optional header (which is not used by default). This will yield the following result:
+A row group is a group of rows which form one cell. This means that each line of a group is not visually seperated from the other ones. In addition we specify the style and an optional header. By default the header is not visible. This will yield the following result:
 
 ```
 ╭──────┬────────╮

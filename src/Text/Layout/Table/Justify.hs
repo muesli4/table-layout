@@ -28,9 +28,9 @@ import Text.Layout.Table.Vertical
 justifyText :: Int -> String -> [String]
 justifyText w = justify w . words
 
--- | Fits as many words on a line, depending on the given width. Every line, but
--- the last one, gets equally filled with spaces between the words, as far as
--- possible.
+-- | Fits as many words on a line as possible depending on the given width.
+-- Every line, except the last one, gets equally filled with spaces between the
+-- words as far as possible.
 justify :: Int -> [String] -> [String]
 justify width = mapInit pad (\(_, _, line) -> unwords line) . gather 0 0 []
   where
