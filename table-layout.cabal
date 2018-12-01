@@ -11,9 +11,10 @@ version:             0.8.0.4
 synopsis:            Layout text as grid or table.
 
 description:         
-    `table-layout` is a library for text-based table layout, it provides several
-    functions and types which help in this task from the ground up, although
-    using them is not necessary. It provides the following layout features:
+    `table-layout` is a library for text-based table layout. It provides several
+    functions and types which help in this task from the ground up. Although,
+    using all of them is not necessary. It provides the following layout
+    features:
     .
     * Fixed-size and arbitrarily sized columns and limiting versions of those
     .
@@ -25,7 +26,7 @@ description:
     .
     * Fancy tables with optional headers and user styles
     .
-    * Justified text layout over multiple rows
+    * Justified text and vertically aligned column layout over multiple rows
     .
     A small tutorial is provided in the `README.md` file.
 

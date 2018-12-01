@@ -29,7 +29,7 @@ instance Default (Position orientation) where
 -- | Horizontal orientation.
 data H
 
--- | Vertical orientation
+-- | Vertical orientation.
 data V
 
 left :: Position H
