@@ -1,4 +1,4 @@
-# table-layout
+# table-layout [![Hackage version](https://img.shields.io/hackage/v/table-layout.svg?label=Hackage)](https://hackage.haskell.org/package/table-layout)
 
 This package can be used to render character-based table layouts which should be displayed with monospace fonts.
 
