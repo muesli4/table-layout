@@ -505,30 +505,41 @@ tableLines :: [ColSpec]  -- ^ Layout specification of columns
            -> Header     -- ^ Optional header details
            -> [RowGroup] -- ^ Rows which form a cell together
            -> [String]
-tableLines specs TableStyle { .. } header rGs =
+tableLines specs TableStyle { .. } header rowGroups =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
   where
-    -- Helpers for horizontal lines
-    hLine hS d    = hLineDetail hS d d d
-    hLineDetail hS dL d dR cols
-                  = intercalate [hS] $ [dL] : intersperse [d] cols ++ [[dR]]
+    -- Helpers for horizontal lines that will put layout characters arround and
+    -- in between a row of the pre-formatted grid.
 
-    -- Spacers consisting of columns of seperator elements.
-    genHSpacers c = map (`replicate` c) colWidths
+    -- | Draw a horizontal line that will use the delimiters around 'cols'
+    -- appropriately and visually separate by 'hSpace'.
+    hLineDetail hSpace delimL delimM delimR cols
+                  = intercalate [hSpace] $ [delimL] : intersperse [delimM] cols ++ [[delimR]]
 
-    -- Horizontal seperator lines
-    topLine       = hLineDetail realTopH realTopL realTopC realTopR $ genHSpacers realTopH
-    bottomLine    = hLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ genHSpacers groupBottomH
-    groupSepLine  = hLineDetail groupSepH groupSepLC groupSepC groupSepRC $ genHSpacers groupSepH
-    headerSepLine = hLineDetail headerSepH headerSepLC headerSepC headerSepRC $ genHSpacers headerSepH
+    -- | A simplified version of 'hLineDetail' that will use the same delimiter
+    -- for everything.
+    hLine hSpace delim
+                  = hLineDetail hSpace delim delim delim
+
+    -- | Generate columns filled with 'sym'.
+    fakeColumns sym
+                  = map (`replicate` sym) colWidths
+
+
+    -- Horizontal seperator lines that occur in a table.
+    topLine       = hLineDetail realTopH realTopL realTopC realTopR $ fakeColumns realTopH
+    bottomLine    = hLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ fakeColumns groupBottomH
+    groupSepLine  = hLineDetail groupSepH groupSepLC groupSepC groupSepRC $ fakeColumns groupSepH
+    headerSepLine = hLineDetail headerSepH headerSepLC headerSepC headerSepRC $ fakeColumns headerSepH
 
     -- Vertical content lines
-    rowGroupLines = intercalate [groupSepLine] $ map (map (hLine ' ' groupV) . applyRowMods . rows) rGs
+    rowGroupLines = intercalate [groupSepLine] $ map (map (hLine ' ' groupV) . applyRowMods . rows) rowGroups
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case header of
-        Header headerColSpecs hTitles ->
+        Header headerColSpecs hTitles
+                 ->
             let headerLine    = hLine ' ' headerV (zipWith ($) headerRowMods hTitles)
                 headerRowMods = zipWith3 (\(HeaderColSpec pos optCutMark) cutMark ->
                                               columnModifier pos $ fromMaybe cutMark optCutMark
@@ -544,7 +555,7 @@ tableLines specs TableStyle { .. } header rGs =
             , headerTopC
             , headerTopR
             )
-        NoHeader                      ->
+        NoHeader ->
             ( id
             , id
             , groupTopH
@@ -558,7 +569,7 @@ tableLines specs TableStyle { .. } header rGs =
     applyRowMods  = map (zipWith ($) rowMods)
     rowMods       = zipWith3 columnModifier posSpecs cMSs cMIs
     cMIs          = fitHeaderIntoCMIs $ deriveColModInfos (map (lenSpec A.&&& alignSpec) specs)
-                                         $ concatMap rows rGs
+                                        $ concatMap rows rowGroups
     colWidths     = map widthCMI cMIs
 
 -- | Does the same as 'tableLines', but concatenates lines.
@@ -567,7 +578,7 @@ tableString :: [ColSpec]  -- ^ Layout specification of columns
             -> Header     -- ^ Optional header details
             -> [RowGroup] -- ^ Rows which form a cell together
             -> String
-tableString specs style header rGs = concatLines $ tableLines specs style header rGs
+tableString specs style header rowGroups = concatLines $ tableLines specs style header rowGroups
 
 -------------------------------------------------------------------------------
 -- Text justification
