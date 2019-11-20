@@ -51,6 +51,7 @@ spec = do
         it "left" $ trimOrPad left customCM 5 "1234567890" `shouldBe` "12..>"
         it "right" $ trimOrPad right customCM 5 "1234567890" `shouldBe` "<..90"
         it "center" $ trimOrPad center customCM 8 "1234567890" `shouldBe` "<..56..>"
+        it "center one sided" $ trimOrPad center customCM 9 "1234567890" `shouldBe` "<..567890"
 
     describe "align" $ do
         let ai = deriveAlignInfo occS "abc:42"
