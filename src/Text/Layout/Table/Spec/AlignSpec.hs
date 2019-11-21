@@ -1,4 +1,4 @@
-module Text.Layout.Table.Primitives.AlignSpec.Internal
+module Text.Layout.Table.Spec.AlignSpec
     ( AlignSpec(..)
     , noAlign
     , occSpecAlign
@@ -8,7 +8,7 @@ module Text.Layout.Table.Primitives.AlignSpec.Internal
 
 import Data.Default.Class
 
-import Text.Layout.Table.Primitives.Occurence
+import Text.Layout.Table.Spec.OccSpec
 
 -- | Determines whether a column will align at a specific letter.
 data AlignSpec

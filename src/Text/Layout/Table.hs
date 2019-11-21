@@ -122,15 +122,28 @@ import           Data.Default.Class
 import           Data.Default.Instances.Base                          ()
 
 import           Text.Layout.Table.Justify
+import           Text.Layout.Table.StringBuilder
 import           Text.Layout.Table.Style
-import           Text.Layout.Table.Position.Internal
-import           Text.Layout.Table.Primitives.AlignSpec.Internal
+import           Text.Layout.Table.Primitives.AlignInfo
 import           Text.Layout.Table.Primitives.Basic
-import           Text.Layout.Table.Primitives.Column
-import           Text.Layout.Table.Primitives.LenSpec.Internal
-import           Text.Layout.Table.Primitives.Occurence
-import           Text.Layout.Table.Internal
+import           Text.Layout.Table.Spec.AlignSpec
+import           Text.Layout.Table.Spec.ColSpec
+import           Text.Layout.Table.Spec.CutMark
+import           Text.Layout.Table.Spec.HeaderColSpec
+import           Text.Layout.Table.Spec.LenSpec ( LenSpec
+                                                , expand
+                                                , fixed
+                                                , expandUntil
+                                                , fixedUntil
+                                                )
+import           Text.Layout.Table.Spec.OccSpec
+import           Text.Layout.Table.Spec.Position
+import           Text.Layout.Table.Spec.RowGroup
+import           Text.Layout.Table.Spec.LenSpec
+import           Text.Layout.Table.Spec.Util
 import           Text.Layout.Table.Vertical
+
+import Text.Layout.Table.Cell
 
 -------------------------------------------------------------------------------
 -- Layout types and combinators
@@ -152,166 +165,6 @@ fixedCol l pS = column (fixed l) pS def def
 -- | Fixes the column length and positions on the left.
 fixedLeftCol :: Int -> ColSpec
 fixedLeftCol i = fixedCol i left
-
--------------------------------------------------------------------------------
--- Single-cell layout functions.
--------------------------------------------------------------------------------
-
--- | Assume the given length is greater or equal than the length of the 'String'
--- passed. Pads the given 'String' accordingly using the position specification.
---
--- >>> pad left 10 "foo"
--- "foo       "
---
-pad :: Position o -> Int -> String -> String
-pad p = case p of
-    Start  -> fillRight
-    Center -> fillCenter
-    End    -> fillLeft
-
--- | If the given text is too long, the 'String' will be shortened according to
--- the position specification. Adds cut marks to indicate that the column has
--- been trimmed in length, otherwise it behaves like 'pad'.
---
--- >>> trimOrPad left (singleCutMark "..") 10 "A longer text."
--- "A longer.."
---
-trimOrPad :: Position o -> CutMark -> Int -> String -> String
-trimOrPad p = case p of
-    Start  -> fitRightWith
-    Center -> fitCenterWith
-    End    -> fitLeftWith
-
--- | Align a 'String' by first locating the position to align with and then
--- padding on both sides. If no such position is found, it will align it such
--- that it gets aligned before that position.
---
--- >>> let { os = predOccSpec (== '.') ; ai = deriveAlignInfo os "iiii.fff" } in align os ai <$> ["1.5", "30", ".25"]
--- ["   1.5  ","  30    ","    .25 "]
---
--- This function assumes that the given 'String' fits the 'AlignInfo'. Thus:
---
--- > ai <> deriveAlignInfo s = ai
---
-align :: OccSpec -> AlignInfo -> String -> String
-align oS (AlignInfo l r) s = case splitAtOcc oS s of
-    (ls, rs) -> fillLeft l ls ++ case rs of
-        -- No alignment character found.
-        [] -> spaces r
-        _  -> fillRight r rs
-
--- | Aligns a 'String' using a fixed width, fitting it to the width by either
--- filling or cutting while respecting the alignment.
-alignFixed :: Position o -> CutMark -> Int -> OccSpec -> AlignInfo -> String -> String
-alignFixed _ cms 0 _  _                  _               = ""
-alignFixed _ cms 1 _  _                  s@(_ : (_ : _)) = applyMarkLeftWith cms " "
-alignFixed p cms i oS ai@(AlignInfo l r) s               =
-    let n = l + r - i
-    in case splitAtOcc oS s of
-        (ls, rs) -> case p of
-            Start  ->
-                let remRight = r - n
-                in if remRight < 0
-                   then fitRight (l + remRight) $ fillLeft l ls
-                   else fitRight (l + remRight) $ fillLeft l ls ++ rs
-            End    ->
-                let remLeft = l - n
-                in if remLeft < 0
-                   then fitLeft (r + remLeft) $ fillRight r rs
-                   else fitLeft (r + remLeft) $ ls ++ fillRight r rs
-            Center ->
-                {-
-                   This is really complicated, maybe there can be found
-                   something better.
-                  
-                   First case l > r:
-                  
-                         l
-                   |<----'----->|
-                   |<-----------x----->|
-                                |--.-->|
-                                    r
-                        c1 = (l + r) div 2
-                        |
-                   |<---'--->|<---.--->|
-                             .    |
-                             .    c2 = c1 + (l + r) mod 2
-                             .
-                             .  d2 = d1 + i mod 2
-                             .  |
-                       |<-.->|<-'-->|
-                          |
-                          d1 = i div 2
-                  
-                       |<----.----->|
-                             i
-                                 
-                   needed length on the left side:
-                       l - c1 + d1
-                  
-                   needed length on the right side:
-                       d2 - (l - c1)
-                  
-                   Second case l < r:
-                   
-                  
-                       l
-                   |<--'-->|
-                   |<------x---------->|
-                           |<----.---->|
-                                 r
-                        c1 = (l + r) div 2
-                        |
-                   |<---'--->|<---.--->|
-                             .    |
-                             .    c2 = c1 + (l + r) mod 2
-                             .
-                             .  d2 = d1 + i mod 2
-                             .  |
-                       |<-.->|<-'-->|
-                          |
-                          d1 = i div 2
-                  
-                       |<----.----->|
-                             i
-                                 
-                   needed length on the left side:
-                       d1 - (r - c2)
-                  
-                   needed length on the right side:
-                       (c1 - l) + d2
-                -}
-                let (c, remC)        = (l + r) `divMod` 2
-                    (d, remD)        = i `divMod` 2
-                    d2               = d + remD
-                    c2               = c + remC
-                    -- Note: widthL and widthR can be negative if there is no
-                    -- width left and we need to further trim into the other
-                    -- side.
-                    (widthL, widthR) = if l > c
-                                       then (l - c2 + d, d2 - (l - c2))
-                                       else (d - (r - c), (c2 - l) + d2)
-                    lenL             = length ls
-                    lenR             = length rs
-
-                    toCutLfromR      = negate $ min 0 widthL
-                    toCutRfromL      = max 0 $ negate widthR
-                    (markL, funL)    = if lenL > widthL
-                                       then ( applyMarkLeft
-                                            , take (widthL - toCutRfromL) . drop (lenL - widthL)
-                                            )
-                                       else ( id
-                                            , fillLeft (widthL - toCutRfromL) . take (lenL - toCutRfromL)
-                                            )
-                    (markR, funR)    = if lenR > widthR
-                                       then (applyMarkRight, take widthR)
-                                       else (id            , fillRight widthR)
-                in markL $ markR $ funL ls ++ drop toCutLfromR (funR rs)
-  where
-    fitRight       = fitRightWith cms
-    fitLeft        = fitLeftWith cms
-    applyMarkRight = applyMarkRightWith cms
-    applyMarkLeft  = applyMarkLeftWith cms
 
 -- | Specifies how a column should be modified. Values of this type are derived
 -- in a traversal over the input columns by using 'deriveColModInfos'. Finally,
@@ -349,15 +202,20 @@ unalignedCMI cmi = case cmi of
 -- not limited.
 ensureWidthCMI :: Int -> Position H -> ColModInfo -> ColModInfo
 ensureWidthCMI w pos cmi = case cmi of
-    FillAligned oS ai@(AlignInfo lw rw) ->
+    FillAligned oS ai@(AlignInfo lw optRW) ->
         let neededW = w - widthAI ai
         in if neededW <= 0
            then cmi
            else FillAligned oS $ case pos of
-               Start  -> AlignInfo lw (rw + neededW)
-               End    -> AlignInfo (lw + neededW) rw
-               Center -> let (q, r) = neededW `divMod` 2 
-                            in AlignInfo (q + lw) (q + rw + r)
+               Start  -> case optRW of
+                   Just rw -> AlignInfo lw $ Just (rw + neededW)
+                   Nothing -> AlignInfo (lw + neededW) optRW
+               End    -> AlignInfo (lw + neededW) optRW
+               Center -> case optRW of
+                   Just _  -> let (q, r) = w `divMod` 2 
+                              -- Calculate a new distribution.
+                              in AlignInfo q $ Just (q + r)
+                   Nothing -> AlignInfo (lw + neededW) optRW
     FillTo maxLen                     -> FillTo (max maxLen w)
     _                                 -> cmi
 
@@ -367,35 +225,19 @@ ensureWidthOfCMI = ensureWidthCMI . length
 
 -- | Generates a function which modifies a given cell according to
 -- 'Text.Layout.Table.Position.Position', 'CutMark' and 'ColModInfo'. This is
--- used to modify a single cell of column to bring all cells of column to the
--- same width.
-columnModifier :: Position H -> CutMark -> ColModInfo -> (String -> String)
-columnModifier pos cms lenInfo = case lenInfo of
+-- used to modify a single cell of a column to bring all cells of a column to
+-- the same width.
+columnModifier
+    :: (Cell a, StringBuilder b)
+    => Position H
+    -> CutMark
+    -> ColModInfo
+    -> (a -> b)
+columnModifier pos cms colModInfo = case colModInfo of
     FillAligned oS ai -> align oS ai
     FillTo maxLen     -> pad pos maxLen
     FitTo lim mT      ->
         maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
-
--- TODO factor out
--- | Specifies the length before and after an alignment position (including the
--- alignment character).
-data AlignInfo = AlignInfo Int Int
-
--- | Private show function.
-showAI :: AlignInfo -> String
-showAI (AlignInfo l r) = "AlignInfo " ++ show l ++ " " ++ show r
-
--- | The column width when using the 'AlignInfo'.
-widthAI :: AlignInfo -> Int
-widthAI (AlignInfo l r) = l + r
-
--- | Produce an 'AlignInfo' that is wide enough to hold inputs of both given
--- 'AlignInfo's.
-instance Semigroup AlignInfo where
-    AlignInfo ll lr <> AlignInfo rl rr = AlignInfo (max ll rl) (max lr rr)
-
-instance Monoid AlignInfo where
-    mempty = AlignInfo 0 0
 
 -- | Derive the 'ColModInfo' by using layout specifications and the actual cells
 -- of a column.
@@ -427,8 +269,7 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
 
 -- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo
-deriveAlignInfo occSpec s =
-    AlignInfo <$> length . fst <*> length . snd $ splitAtOcc occSpec s
+deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 
 -------------------------------------------------------------------------------
 -- Basic layout

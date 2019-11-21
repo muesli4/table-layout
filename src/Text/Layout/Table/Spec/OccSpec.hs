@@ -1,13 +1,17 @@
-module Text.Layout.Table.Primitives.Occurence
+module Text.Layout.Table.Spec.OccSpec
     ( OccSpec
     , predOccSpec
     , splitAtOcc
+    , predicate
     ) where
 
 import Control.Arrow
 
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec (Char -> Bool) Int
+
+predicate :: OccSpec -> (Char -> Bool)
+predicate (OccSpec p _) = p
 
 -- | Construct an occurence specification by using a predicate.
 predOccSpec :: (Char -> Bool) -> OccSpec

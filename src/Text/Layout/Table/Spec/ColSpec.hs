@@ -1,4 +1,4 @@
-module Text.Layout.Table.Primitives.Column
+module Text.Layout.Table.Spec.ColSpec
     ( ColSpec
     , lenSpec
     , position
@@ -9,10 +9,11 @@ module Text.Layout.Table.Primitives.Column
 
 import Data.Default.Class
 
-import Text.Layout.Table.Position
-import Text.Layout.Table.Primitives.AlignSpec
 import Text.Layout.Table.Primitives.Basic
-import Text.Layout.Table.Primitives.LenSpec
+import Text.Layout.Table.Spec.CutMark
+import Text.Layout.Table.Spec.AlignSpec
+import Text.Layout.Table.Spec.LenSpec
+import Text.Layout.Table.Spec.Position
 
 
 -- | Specifies the layout of a column.

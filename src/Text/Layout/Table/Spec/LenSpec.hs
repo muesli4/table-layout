@@ -1,4 +1,4 @@
-module Text.Layout.Table.Primitives.LenSpec.Internal
+module Text.Layout.Table.Spec.LenSpec
     ( LenSpec (..)
     , expand
     , fixed

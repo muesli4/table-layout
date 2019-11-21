@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE EmptyDataDecls #-}
-module Text.Layout.Table.Position.Internal where
+module Text.Layout.Table.Spec.Position where
 
 import Data.Default.Class
 

@@ -1,14 +1,8 @@
 -- | This module contains primitive modifiers for lists and 'String's to be
 -- filled or fitted to a specific length.
 module Text.Layout.Table.Primitives.Basic
-    ( -- * Cut marks
-      CutMark
-    , doubleCutMark
-    , singleCutMark
-    , noCutMark
-
-      -- * String-related tools
-    , spaces
+    ( -- * String-related tools
+      spaces
     , concatLines
 
       -- ** Filling
@@ -32,38 +26,12 @@ module Text.Layout.Table.Primitives.Basic
     , fillEnd
     , fillBoth'
     , fillBoth
-    )
-    where
+    ) where
 
--- TODO rename cut marks (they are too long)
+import Text.Layout.Table.Spec.CutMark
 
 import Data.Default.Class
 import Data.List
-
--- | Specifies how the place looks where a 'String' has been cut. Note that the
--- cut mark may be cut itself to fit into a column.
-data CutMark
-    = CutMark
-    { leftMark  :: String
-    , rightMark :: String
-    }
-
--- | A single ellipsis unicode character is used to show cut marks.
-instance Default CutMark where
-    def = singleCutMark "…"
-
--- | Specify two different cut marks, one for cuts on the left and one for cuts
--- on the right.
-doubleCutMark :: String -> String -> CutMark
-doubleCutMark l r = CutMark l (reverse r)
-
--- | Use the cut mark on both sides by reversing it on the other.
-singleCutMark :: String -> CutMark
-singleCutMark l = doubleCutMark l (reverse l)
-
--- | Don't show any cut mark when text is cut.
-noCutMark :: CutMark
-noCutMark = singleCutMark ""
 
 spaces :: Int -> String
 spaces = flip replicate ' '
@@ -144,11 +112,11 @@ fitCenterWith cms i s             =
 
 -- | Applies a 'CutMark' to the left of a 'String', while preserving the length.
 applyMarkLeftWith :: CutMark -> String -> String
-applyMarkLeftWith cms = applyMarkLeftBy leftMark cms
+applyMarkLeftWith = applyMarkLeftBy leftMark
 
 -- | Applies a 'CutMark' to the right of a 'String', while preserving the length.
 applyMarkRightWith :: CutMark -> String -> String
-applyMarkRightWith cms = reverse . applyMarkLeftBy rightMark cms . reverse
+applyMarkRightWith cms = reverse . applyMarkLeftBy (reverse . rightMark) cms . reverse
 
 applyMarkLeftBy :: (a -> String) -> a -> String -> String
 applyMarkLeftBy f v = zipWith ($) $ map const (f v) ++ repeat id

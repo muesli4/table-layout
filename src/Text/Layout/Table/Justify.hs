@@ -15,9 +15,8 @@ module Text.Layout.Table.Justify
 import Control.Arrow
 import Data.List
 
-import Text.Layout.Table.Internal
 import Text.Layout.Table.Primitives.Basic
-import Text.Layout.Table.Position.Internal
+import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Vertical
 
 -- | Uses 'words' to split the text into words and justifies it with 'justify'.

@@ -10,8 +10,8 @@ module Text.Layout.Table.Vertical
 
 import Data.List
 
-import Text.Layout.Table.Internal
-import Text.Layout.Table.Position.Internal
+import Text.Layout.Table.Spec.Position
+import Text.Layout.Table.Spec.Util
 import Text.Layout.Table.Primitives.Basic
 
 {- | Merges multiple columns together to a valid grid without holes. For example:

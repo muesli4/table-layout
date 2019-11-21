@@ -52,21 +52,25 @@ source-repository head
 
 library
   exposed-modules:     Text.Layout.Table,
+                       Text.Layout.Table.Cell,
                        Text.Layout.Table.Justify,
                        Text.Layout.Table.Style,
-                       Text.Layout.Table.Position, 
-                       Text.Layout.Table.Primitives.Basic, 
-                       Text.Layout.Table.Primitives.AlignSpec, 
-                       Text.Layout.Table.Primitives.Column,
-                       Text.Layout.Table.Primitives.LenSpec,
-                       Text.Layout.Table.Primitives.Occurence,
-                       Text.Layout.Table.Internal,
-                       Text.Layout.Table.Vertical
+                       Text.Layout.Table.Vertical,
+                       Text.Layout.Table.StringBuilder 
   
   other-modules:       
-                       Text.Layout.Table.Primitives.AlignSpec.Internal,
-                       Text.Layout.Table.Primitives.LenSpec.Internal,
-                       Text.Layout.Table.Position.Internal
+                       Text.Layout.Table.Primitives.Basic, 
+                       Text.Layout.Table.Primitives.AlignInfo, 
+
+                       Text.Layout.Table.Spec.AlignSpec, 
+                       Text.Layout.Table.Spec.ColSpec,
+                       Text.Layout.Table.Spec.CutMark,
+                       Text.Layout.Table.Spec.HeaderColSpec,
+                       Text.Layout.Table.Spec.LenSpec,
+                       Text.Layout.Table.Spec.OccSpec,
+                       Text.Layout.Table.Spec.Position,
+                       Text.Layout.Table.Spec.RowGroup,
+                       Text.Layout.Table.Spec.Util
 
   
   -- LANGUAGE extensions used by modules in this package.
@@ -93,18 +97,24 @@ executable table-layout-test-styles
                        data-default-instances-base ==0.1.*
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table,
-                       Text.Layout.Table.Internal,
+                       Text.Layout.Table.Cell,
                        Text.Layout.Table.Justify,
-                       Text.Layout.Table.Position,
-                       Text.Layout.Table.Position.Internal,
-                       Text.Layout.Table.Primitives.AlignSpec,
-                       Text.Layout.Table.Primitives.AlignSpec.Internal,
-                       Text.Layout.Table.Primitives.Basic,
-                       Text.Layout.Table.Primitives.Column,
-                       Text.Layout.Table.Primitives.LenSpec,
-                       Text.Layout.Table.Primitives.LenSpec.Internal,
-                       Text.Layout.Table.Primitives.Occurence,
-                       Text.Layout.Table.Style Text.Layout.Table.Vertical
+                       Text.Layout.Table.Style,
+                       Text.Layout.Table.Vertical
+
+                       Text.Layout.Table.Primitives.Basic, 
+                       Text.Layout.Table.Primitives.AlignInfo, 
+                       Text.Layout.Table.StringBuilder, 
+
+                       Text.Layout.Table.Spec.AlignSpec, 
+                       Text.Layout.Table.Spec.ColSpec,
+                       Text.Layout.Table.Spec.CutMark,
+                       Text.Layout.Table.Spec.HeaderColSpec,
+                       Text.Layout.Table.Spec.LenSpec,
+                       Text.Layout.Table.Spec.OccSpec,
+                       Text.Layout.Table.Spec.Position,
+                       Text.Layout.Table.Spec.RowGroup,
+                       Text.Layout.Table.Spec.Util
 
   default-language:    Haskell2010
 
@@ -120,19 +130,26 @@ test-suite table-layout-tests
                        hspec
 
   other-modules:       TestSpec,
-                       Text.Layout.Table,
-                       Text.Layout.Table.Internal,
+
+                       Text.Layout.Table
+
+                       Text.Layout.Table.Cell,
                        Text.Layout.Table.Justify,
-                       Text.Layout.Table.Position,
-                       Text.Layout.Table.Position.Internal,
-                       Text.Layout.Table.Primitives.AlignSpec,
-                       Text.Layout.Table.Primitives.AlignSpec.Internal,
-                       Text.Layout.Table.Primitives.Basic,
-                       Text.Layout.Table.Primitives.Column,
-                       Text.Layout.Table.Primitives.LenSpec,
-                       Text.Layout.Table.Primitives.LenSpec.Internal,
-                       Text.Layout.Table.Primitives.Occurence,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
+
+                       Text.Layout.Table.Primitives.Basic, 
+                       Text.Layout.Table.Primitives.AlignInfo, 
+                       Text.Layout.Table.StringBuilder, 
+
+                       Text.Layout.Table.Spec.AlignSpec, 
+                       Text.Layout.Table.Spec.ColSpec,
+                       Text.Layout.Table.Spec.CutMark,
+                       Text.Layout.Table.Spec.HeaderColSpec,
+                       Text.Layout.Table.Spec.LenSpec,
+                       Text.Layout.Table.Spec.OccSpec,
+                       Text.Layout.Table.Spec.Position,
+                       Text.Layout.Table.Spec.RowGroup,
+                       Text.Layout.Table.Spec.Util
 
   default-language:    Haskell2010
