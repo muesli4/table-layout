@@ -107,19 +107,20 @@ trimOrPad p cm n c = case compare (visibleLength c) n of
     EQ -> buildCell c
     GT -> trim p cm n c
 
--- | Trim a cell based on the position. Precondition:
+-- | Trim a cell based on the position. Preconditions that require to be met
+-- (otherwise the function will produce garbage):
 -- prop> visibleLength c > n
 trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
 trim p cm n c = case p of
     Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (rightMark cm)
     Center -> case cutLen `divMod` 2 of
         (0, 1) -> buildCell (leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
-        (q, r) -> if leftLen + rightLen <= n
+        (q, r) -> if n > leftLen + rightLen
                   then buildCell (leftMark cm) <> buildCell (dropBoth (leftLen + q + r) (rightLen + q) c)
                        <> buildCell (rightMark cm)
                   else case n `divMod` 2 of
                       (qn, rn) -> buildCell (take qn $ leftMark cm)
-                                  <> buildCell (drop (qn + rn) $ rightMark cm)
+                                  <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
     End    -> buildCell (leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
   where
     leftLen = length $ leftMark cm
