@@ -5,6 +5,8 @@ module Text.Layout.Table.Justify
     ( -- * Text justification
       justify
     , justifyText
+    , fitWords
+    , concatPadLine
 
       -- * Helpers
     , dimorphicSummands
@@ -31,12 +33,36 @@ justifyText w = justify w . words
 -- Every line, except the last one, gets equally filled with spaces between the
 -- words as far as possible.
 justify :: Int -> [String] -> [String]
-justify width = mapInit pad (\(_, _, line) -> unwords line) . gather 0 0 []
+justify width = mapInit pad (\(_, _, line) -> unwords line) . fitWords width
   where
-    pad (len, wCount, line) = unwords $ if len < width
-                                        then zipWith (++) line $ mixedDimorphicSpaces (width - len) (pred wCount) ++ [""]
-                                        else line
+    pad (len, wCount, line) = concatPadLine width len wCount line
 
+-- | Join the words on a line together by filling it with spaces in between.
+concatPadLine
+    :: Int -- ^ The maximum length for lines.
+    -> Int -- ^ The length of the line.
+    -> Int -- ^ The number of words.
+    -> [String] -- ^ The words.
+    -> String -- The padded and concatenated line.
+concatPadLine width len wCount line = case wCount of
+    1 -> head line
+    _ -> unwords $ if len < width
+                      then let fillAmount = width - len
+                               gapCount   = pred wCount
+                               spaces     = mixedDimorphicSpaces fillAmount gapCount ++ [""]
+                           in zipWith (++) line spaces
+                      else line
+
+-- | Fit as much words on a line as possible. Produce a list of the length of
+-- the line with one space between the words, the word count and the words.
+--
+-- Cutting below word boundaries is not yet supported.
+fitWords
+    :: Int -- ^ The number of characters available per line.
+    -> [String] -- ^ The words to join with whitespaces.
+    -> [(Int, Int, [String])] -- ^ The list of line information.
+fitWords width = gather 0 0 []
+  where
     gather lineLen wCount line ws = case ws of  
         []      | null line -> []
                 | otherwise -> [(lineLen, wCount, reverse line)]
