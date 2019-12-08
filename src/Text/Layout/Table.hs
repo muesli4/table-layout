@@ -113,7 +113,6 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
 
-import qualified Control.Arrow                               as A
 import           Data.List
 import           Data.Semigroup
 import           Data.Default.Class
@@ -166,11 +165,7 @@ fixedLeftCol i = fixedCol i left
 
 -- | Modifies cells according to the column specification.
 grid :: [ColSpec] -> [Row String] -> [Row String]
-grid specs tab = zipWith ($) cmfs <$> tab
-  where
-    -- | The column modification function for each column.
-    cmfs = zipWith (uncurry columnModifier) (map (position A.&&& cutMark) specs) cmis
-    cmis = deriveColModInfos' specs tab
+grid specs tab = zipWith ($) (deriveColMods specs tab) <$> tab
 
 -- | Behaves like 'grid' but produces lines by joining with whitespace.
 gridLines :: [ColSpec] -> [Row String] -> [String]

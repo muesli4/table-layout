@@ -1,18 +1,18 @@
 module Text.Layout.Table.Primitives.ColumnModifier where
 
-import qualified Control.Arrow                          as A
-import           Data.List
+import Control.Arrow ((&&&))
+import Data.List
 
-import           Text.Layout.Table.Cell
-import           Text.Layout.Table.Primitives.AlignInfo
-import           Text.Layout.Table.Spec.AlignSpec
-import           Text.Layout.Table.Spec.ColSpec
-import           Text.Layout.Table.Spec.CutMark
-import           Text.Layout.Table.Spec.LenSpec
-import           Text.Layout.Table.Spec.OccSpec
-import           Text.Layout.Table.Spec.Position
-import           Text.Layout.Table.Spec.Util
-import           Text.Layout.Table.StringBuilder
+import Text.Layout.Table.Cell
+import Text.Layout.Table.Primitives.AlignInfo
+import Text.Layout.Table.Spec.AlignSpec
+import Text.Layout.Table.Spec.ColSpec
+import Text.Layout.Table.Spec.CutMark
+import Text.Layout.Table.Spec.LenSpec
+import Text.Layout.Table.Spec.OccSpec
+import Text.Layout.Table.Spec.Position
+import Text.Layout.Table.Spec.Util
+import Text.Layout.Table.StringBuilder
 
 -- | Specifies how a column should be modified. Values of this type are derived
 -- in a traversal over the input columns by using 'deriveColModInfos'. Finally,
@@ -121,7 +121,19 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                         in fun . foldMap (deriveAlignInfo oS)
 
 deriveColModInfos' :: [ColSpec] -> [Row String] -> [ColModInfo]
-deriveColModInfos' = deriveColModInfos . fmap (lenSpec A.&&& alignSpec)
+deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
+
+-- | Derive the 'ColModInfo' and generate functions without any intermediate
+-- steps.
+deriveColMods
+    :: (Cell a, StringBuilder b)
+    => [ColSpec]
+    -> [Row String]
+    -> [a -> b]
+deriveColMods specs tab =
+    zipWith (uncurry columnModifier) (map (position &&& cutMark) specs) cmis
+  where
+    cmis = deriveColModInfos' specs tab
 
 -- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
 deriveAlignInfo :: OccSpec -> String -> AlignInfo

@@ -56,21 +56,25 @@ library
                        Text.Layout.Table.Justify,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical,
-                       Text.Layout.Table.StringBuilder 
-  
-  other-modules:       
-                       Text.Layout.Table.Primitives.Basic, 
-                       Text.Layout.Table.Primitives.AlignInfo, 
+                       Text.Layout.Table.StringBuilder,
 
-                       Text.Layout.Table.Spec.AlignSpec, 
+
+                       -- Will be moved into another package in the future.
+                       Text.Layout.Table.Primitives.AlignInfo,
+                       Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.ColumnModifier,
+                       Text.Layout.Table.Primitives.Header,
+                       Text.Layout.Table.Spec.AlignSpec,
                        Text.Layout.Table.Spec.ColSpec,
                        Text.Layout.Table.Spec.CutMark,
                        Text.Layout.Table.Spec.HeaderColSpec,
+                       Text.Layout.Table.Spec.HeaderSpec,
                        Text.Layout.Table.Spec.LenSpec,
                        Text.Layout.Table.Spec.OccSpec,
                        Text.Layout.Table.Spec.Position,
                        Text.Layout.Table.Spec.RowGroup,
                        Text.Layout.Table.Spec.Util
+  other-modules:
 
   
   -- LANGUAGE extensions used by modules in this package.
@@ -102,14 +106,17 @@ executable table-layout-test-styles
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
 
-                       Text.Layout.Table.Primitives.Basic, 
-                       Text.Layout.Table.Primitives.AlignInfo, 
-                       Text.Layout.Table.StringBuilder, 
+                       Text.Layout.Table.Primitives.AlignInfo,
+                       Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.ColumnModifier,
+                       Text.Layout.Table.Primitives.Header,
+                       Text.Layout.Table.StringBuilder,
 
-                       Text.Layout.Table.Spec.AlignSpec, 
+                       Text.Layout.Table.Spec.AlignSpec,
                        Text.Layout.Table.Spec.ColSpec,
                        Text.Layout.Table.Spec.CutMark,
                        Text.Layout.Table.Spec.HeaderColSpec,
+                       Text.Layout.Table.Spec.HeaderSpec,
                        Text.Layout.Table.Spec.LenSpec,
                        Text.Layout.Table.Spec.OccSpec,
                        Text.Layout.Table.Spec.Position,
@@ -138,14 +145,17 @@ test-suite table-layout-tests
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
 
-                       Text.Layout.Table.Primitives.Basic, 
-                       Text.Layout.Table.Primitives.AlignInfo, 
-                       Text.Layout.Table.StringBuilder, 
+                       Text.Layout.Table.Primitives.AlignInfo,
+                       Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.ColumnModifier,
+                       Text.Layout.Table.Primitives.Header,
+                       Text.Layout.Table.StringBuilder,
 
-                       Text.Layout.Table.Spec.AlignSpec, 
+                       Text.Layout.Table.Spec.AlignSpec,
                        Text.Layout.Table.Spec.ColSpec,
                        Text.Layout.Table.Spec.CutMark,
                        Text.Layout.Table.Spec.HeaderColSpec,
+                       Text.Layout.Table.Spec.HeaderSpec,
                        Text.Layout.Table.Spec.LenSpec,
                        Text.Layout.Table.Spec.OccSpec,
                        Text.Layout.Table.Spec.Position,
