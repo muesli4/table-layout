@@ -2,6 +2,8 @@ module TestSpec
     ( spec
     ) where
 
+-- TODO idempotency of fitting CMIs
+
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
