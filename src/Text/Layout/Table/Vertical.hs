@@ -21,8 +21,8 @@ import Text.Layout.Table.Primitives.Basic
 
 The result is intended to be used with a grid layout function like 'Text.Layout.Table.grid'.
 -}
-colsAsRowsAll :: Position V -> [Col [a]] -> [Row [a]]
-colsAsRowsAll ps = transpose . vPadAll [] ps
+colsAsRowsAll :: Monoid a => Position V -> [Col a] -> [Row a]
+colsAsRowsAll ps = transpose . vPadAll mempty ps
 
 {- | Works like 'colsAsRowsAll' but every position can be specified on its
    own:
@@ -30,8 +30,8 @@ colsAsRowsAll ps = transpose . vPadAll [] ps
 >>> colsAsRows [top, center, bottom] [["a1"], ["b1", "b2", "b3"], ["c3"]]
 [["a1","b1",""],["","b2",""],["","b3","c3"]]
 -}
-colsAsRows :: [Position V] -> [Col [a]] -> [Row [a]]
-colsAsRows ps = transpose . vPad [] ps
+colsAsRows :: Monoid a => [Position V] -> [Col a] -> [Row a]
+colsAsRows ps = transpose . vPad mempty ps
 
 -- | Fill all columns to the same length by aligning at the given position.
 vPadAll :: a -> Position V -> [Col a] -> [Col a]

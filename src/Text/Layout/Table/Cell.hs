@@ -61,6 +61,7 @@ instance Cell T.Text where
     measureAlignment p t = case T.break p t of
         (lt, rt) | T.length rt == 0 -> AlignInfo (T.length lt) Nothing
                  | otherwise        -> AlignInfo (T.length lt) $ Just $ T.length $ T.tail rt
+    buildCell = stringB . T.unpack
 -}
 
 remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b

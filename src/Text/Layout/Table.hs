@@ -165,16 +165,16 @@ fixedLeftCol i = fixedCol i left
 -------------------------------------------------------------------------------
 
 -- | Modifies cells according to the column specification.
-grid :: [ColSpec] -> [Row String] -> [Row String]
+grid :: Cell a => [ColSpec] -> [Row a] -> [Row String]
 grid specs tab = zipWith ($) (deriveColMods specs tab) <$> tab
 
 -- | Behaves like 'grid' but produces lines by joining with whitespace.
-gridLines :: [ColSpec] -> [Row String] -> [String]
+gridLines :: Cell a => [ColSpec] -> [Row a] -> [String]
 gridLines specs = fmap unwords . grid specs
 
 -- | Behaves like 'gridLines' but produces a string by joining with the newline
 -- character.
-gridString :: [ColSpec] -> [Row String] -> String
+gridString :: Cell a => [ColSpec] -> [Row a] -> String
 gridString specs = concatLines . gridLines specs
 
 -------------------------------------------------------------------------------
@@ -198,21 +198,22 @@ checkeredCells f g = zipWith altLines $ cycle [[f, g], [g, f]]
 
 -- | Create a 'RowGroup' by aligning the columns vertically. The position is
 -- specified for each column.
-colsG :: [Position V] -> [Col String] -> RowGroup
+colsG :: Monoid a => [Position V] -> [Col a] -> RowGroup a
 colsG ps = rowsG . colsAsRows ps
 
 -- | Create a 'RowGroup' by aligning the columns vertically. Each column uses
 -- the same vertical positioning.
-colsAllG :: Position V -> [Col String] -> RowGroup
+colsAllG :: Monoid a => Position V -> [Col a] -> RowGroup a
 colsAllG p = rowsG . colsAsRowsAll p
 
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLines :: [ColSpec]  -- ^ Layout specification of columns
+tableLines :: Cell a
+           => [ColSpec]  -- ^ Layout specification of columns
            -> TableStyle -- ^ Visual table style
            -> HeaderSpec -- ^ Optional header details
-           -> [RowGroup] -- ^ Rows which form a cell together
+           -> [RowGroup a] -- ^ Rows which form a cell together
            -> [String]
 tableLines specs TableStyle { .. } header rowGroups =
     topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
@@ -269,10 +270,11 @@ tableLines specs TableStyle { .. } header rowGroups =
     colWidths     = map widthCMI cMIs
 
 -- | Does the same as 'tableLines', but concatenates lines.
-tableString :: [ColSpec]  -- ^ Layout specification of columns
+tableString :: Cell a
+            => [ColSpec]  -- ^ Layout specification of columns
             -> TableStyle -- ^ Visual table style
             -> HeaderSpec -- ^ Optional header details
-            -> [RowGroup] -- ^ Rows which form a cell together
+            -> [RowGroup a] -- ^ Rows which form a cell together
             -> String
 tableString specs style header rowGroups = concatLines $ tableLines specs style header rowGroups
 

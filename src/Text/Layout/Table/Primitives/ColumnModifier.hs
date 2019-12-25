@@ -94,7 +94,7 @@ columnModifier pos cms colModInfo = case colModInfo of
 
 -- | Derive the 'ColModInfo' by using layout specifications and the actual cells
 -- of a column. This function only needs to know about 'LenSpec' and 'AlignInfo'.
-deriveColModInfos :: [(LenSpec, AlignSpec)] -> [Row String] -> [ColModInfo]
+deriveColModInfos :: Cell a => [(LenSpec, AlignSpec)] -> [Row a] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
     fSel (lenSpec, alignSpec) = case alignSpec of
@@ -107,7 +107,7 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                                Fixed i       -> fitTo i
                                ExpandUntil i -> expandUntil id i
                                FixedUntil i  -> expandUntil not i
-                       in fun . maximum . map length
+                       in fun . maximum . map visibleLength
         AlignOcc oS -> let fitToAligned i     = FitTo i . Just . (,) oS
                            fillAligned        = FillAligned oS
                            expandUntil f i ai = if f (widthAI ai <= i)
@@ -120,7 +120,7 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                                FixedUntil i  -> expandUntil not i
                         in fun . foldMap (deriveAlignInfo oS)
 
-deriveColModInfos' :: [ColSpec] -> [Row String] -> [ColModInfo]
+deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
 deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
 
 -- | Derive the 'ColModInfo' and generate functions without any intermediate
@@ -128,7 +128,7 @@ deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
 deriveColMods
     :: (Cell a, StringBuilder b)
     => [ColSpec]
-    -> [Row String]
+    -> [Row a]
     -> [a -> b]
 deriveColMods specs tab =
     zipWith (uncurry columnModifier) (map (position &&& cutMark) specs) cmis
@@ -136,6 +136,6 @@ deriveColMods specs tab =
     cmis = deriveColModInfos' specs tab
 
 -- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
-deriveAlignInfo :: OccSpec -> String -> AlignInfo
+deriveAlignInfo :: Cell a => OccSpec -> a -> AlignInfo
 deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 
