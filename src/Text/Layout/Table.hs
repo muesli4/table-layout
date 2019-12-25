@@ -124,6 +124,7 @@ import           Text.Layout.Table.Primitives.AlignInfo
 import           Text.Layout.Table.Primitives.Basic
 import           Text.Layout.Table.Primitives.ColumnModifier
 import           Text.Layout.Table.Primitives.Header
+import           Text.Layout.Table.Primitives.Table
 import           Text.Layout.Table.Spec.AlignSpec
 import           Text.Layout.Table.Spec.ColSpec
 import           Text.Layout.Table.Spec.CutMark
@@ -219,20 +220,9 @@ tableLines specs TableStyle { .. } header rowGroups =
     -- Helpers for horizontal lines that will put layout characters arround and
     -- in between a row of the pre-formatted grid.
 
-    -- | Draw a horizontal line that will use the delimiters around 'cols'
-    -- appropriately and visually separate by 'hSpace'.
-    hLineDetail hSpace delimL delimM delimR cols
-                  = intercalate [hSpace] $ [delimL] : intersperse [delimM] cols ++ [[delimR]]
-
-    -- | A simplified version of 'hLineDetail' that will use the same delimiter
-    -- for everything.
-    hLine hSpace delim
-                  = hLineDetail hSpace delim delim delim
-
     -- | Generate columns filled with 'sym'.
     fakeColumns sym
-                  = map (`replicate` sym) colWidths
-
+                  = map (`replicateCharB` sym) colWidths
 
     -- Horizontal seperator lines that occur in a table.
     topLine       = hLineDetail realTopH realTopL realTopC realTopR $ fakeColumns realTopH
@@ -241,14 +231,15 @@ tableLines specs TableStyle { .. } header rowGroups =
     headerSepLine = hLineDetail headerSepH headerSepLC headerSepC headerSepRC $ fakeColumns headerSepH
 
     -- Vertical content lines
-    rowGroupLines = intercalate [groupSepLine] $ map (map (hLine ' ' groupV) . applyRowMods . rows) rowGroups
+    rowGroupLines =
+        intercalate [groupSepLine] $ map (map (hLineContent groupV) . applyRowMods . rows) rowGroups
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case header of
         HeaderHS headerColSpecs hTitles
                ->
-            let headerLine    = hLine ' ' headerV (zipWith ($) headerRowMods hTitles)
+            let headerLine    = hLineContent headerV (zipWith ($) headerRowMods hTitles)
                 headerRowMods = zipWith3 headerCellModifier
                                          headerColSpecs
                                          cMSs

@@ -65,6 +65,7 @@ library
                        Text.Layout.Table.Primitives.Basic,
                        Text.Layout.Table.Primitives.ColumnModifier,
                        Text.Layout.Table.Primitives.Header,
+                       Text.Layout.Table.Primitives.Table,
                        Text.Layout.Table.Spec.AlignSpec,
                        Text.Layout.Table.Spec.ColSpec,
                        Text.Layout.Table.Spec.CutMark,
@@ -111,6 +112,7 @@ executable table-layout-test-styles
                        Text.Layout.Table.Primitives.Basic,
                        Text.Layout.Table.Primitives.ColumnModifier,
                        Text.Layout.Table.Primitives.Header,
+                       Text.Layout.Table.Primitives.Table,
                        Text.Layout.Table.StringBuilder,
 
                        Text.Layout.Table.Spec.AlignSpec,
@@ -150,6 +152,7 @@ test-suite table-layout-tests
                        Text.Layout.Table.Primitives.Basic,
                        Text.Layout.Table.Primitives.ColumnModifier,
                        Text.Layout.Table.Primitives.Header,
+                       Text.Layout.Table.Primitives.Table,
                        Text.Layout.Table.StringBuilder,
 
                        Text.Layout.Table.Spec.AlignSpec,

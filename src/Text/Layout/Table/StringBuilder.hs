@@ -4,7 +4,7 @@ module Text.Layout.Table.StringBuilder where
 import Data.Semigroup
 
 -- | A type that is used to construct parts of a table.
-class Semigroup a => StringBuilder a where
+class Monoid a => StringBuilder a where
     -- | Create a builder with a 'String'.
     stringB :: String -> a
 
