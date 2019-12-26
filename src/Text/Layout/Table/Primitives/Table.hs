@@ -3,9 +3,7 @@
 module Text.Layout.Table.Primitives.Table where
 
 import           Data.List
-import qualified Data.List.NonEmpty              as NE
 
-import           Text.Layout.Table.Cell
 import           Text.Layout.Table.StringBuilder
 import           Text.Layout.Table.Spec.Util
 

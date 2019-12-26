@@ -1,6 +1,5 @@
 module Text.Layout.Table.Primitives.AlignInfo where
 
-import Data.Maybe
 import Data.Foldable (asum)
 
 -- | Specifies the length before and after an alignment position (excluding the

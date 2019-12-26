@@ -7,7 +7,6 @@ module TestSpec
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
-import Test.HUnit
 
 import Text.Layout.Table
 import Text.Layout.Table.Cell (determineCuts, CutInfo(..), determineCutAction, CutAction(..), applyCutInfo, viewRange)
@@ -158,7 +157,6 @@ spec = do
     occS     = predOccSpec (== ':')
 
     hposG    = elements [left, center, right]
-    noWS     = (/= ' ')
 
     propPadLeft :: String -> Positive (Small Int) -> Bool
     propPadLeft s (Positive (Small n)) =

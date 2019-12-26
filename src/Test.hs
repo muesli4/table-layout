@@ -1,7 +1,5 @@
 module Main where
 
-import Control.Monad
-
 import Text.Layout.Table
 
 main :: IO ()

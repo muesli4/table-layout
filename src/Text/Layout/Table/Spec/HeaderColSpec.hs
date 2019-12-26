@@ -1,7 +1,7 @@
 module Text.Layout.Table.Spec.HeaderColSpec where
 
 import Data.Default.Class
-import Data.Default.Instances.Base
+import Data.Default.Instances.Base ()
 
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Spec.CutMark

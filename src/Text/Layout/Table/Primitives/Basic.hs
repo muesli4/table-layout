@@ -30,7 +30,6 @@ module Text.Layout.Table.Primitives.Basic
 
 import Text.Layout.Table.Spec.CutMark
 
-import Data.Default.Class
 import Data.List
 
 spaces :: Int -> String

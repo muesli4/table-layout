@@ -1,6 +1,5 @@
 module Text.Layout.Table.Spec.RowGroup where
 
-import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Spec.Util
 
 -- | Groups rows together which should not be visually seperated from each other.

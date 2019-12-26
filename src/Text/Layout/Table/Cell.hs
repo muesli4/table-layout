@@ -1,11 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Text.Layout.Table.Cell where
 
-import Data.List
-import Data.Maybe
-import Data.Monoid (Endo)
-import Data.Semigroup
-
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
@@ -51,35 +46,24 @@ instance Cell String where
 
     buildCell = stringB
 
-{-
-import qualified Data.Text as T
-
-instance Cell T.Text where
-    dropLeft = T.drop
-    dropRight = T.dropEnd
-    visibleLength = T.length
-    measureAlignment p t = case T.break p t of
-        (lt, rt) | T.length rt == 0 -> AlignInfo (T.length lt) Nothing
-                 | otherwise        -> AlignInfo (T.length lt) $ Just $ T.length $ T.tail rt
-    buildCell = stringB . T.unpack
--}
-
 remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c
 
 remSpacesB' :: StringBuilder b => Int -> Int -> b
 remSpacesB' n k = spacesB $ n - k
 
+-- | Fill the right side with spaces if necessary.
 fillRight :: (Cell a, StringBuilder b) => Int -> a -> b
 fillRight n c = buildCell c <> remSpacesB n c
 
+-- | Fill both sides with spaces if necessary.
 fillCenter :: (Cell a, StringBuilder b) => Int -> a -> b
-fillCenter n c = filler q <> buildCell c <> filler (q + r)
+fillCenter n c = spacesB q <> buildCell c <> spacesB (q + r)
   where
-    filler  = buildCell . flip replicate ' '
     missing = n - visibleLength c
     (q, r)  = missing `divMod` 2
 
+-- | Fill the left side with spaces if necessary.
 fillLeft :: (Cell a, StringBuilder b) => Int -> a -> b
 fillLeft n c = remSpacesB n c <> buildCell c
 
@@ -162,8 +146,6 @@ determineCutAction requiredW actualW = case compare requiredW actualW of
     LT -> CutCA $ actualW - requiredW
     EQ -> NoneCA
     GT -> FillCA $ requiredW - actualW
-  where
-    diff = requiredW - actualW
 
 data CutInfo
     -- | Apply a cut action to each side.
@@ -263,7 +245,7 @@ alignFixed
     -> AlignInfo
     -> a
     -> b
-alignFixed p cm n oS aI@(AlignInfo lMax optRMax) c = case optRMax of
+alignFixed p cm n oS (AlignInfo lMax optRMax) c = case optRMax of
     Nothing   -> trimOrPad p cm n c
     Just rMax -> let (vl, vr)            = viewRange p n lMax rMax
                      (cl, cr)            = cellRange lMax $ measureAlignment (predicate oS) c

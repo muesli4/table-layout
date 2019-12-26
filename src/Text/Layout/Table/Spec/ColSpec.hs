@@ -9,7 +9,7 @@ module Text.Layout.Table.Spec.ColSpec
 
 import Data.Default.Class
 
-import Text.Layout.Table.Primitives.Basic
+import Text.Layout.Table.Primitives.Basic ()
 import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.AlignSpec
 import Text.Layout.Table.Spec.LenSpec

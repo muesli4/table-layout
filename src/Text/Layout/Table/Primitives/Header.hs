@@ -1,7 +1,6 @@
 module Text.Layout.Table.Primitives.Header where
 
 import Data.Maybe
-import Data.Default.Class
 
 import Text.Layout.Table.Primitives.ColumnModifier
 import Text.Layout.Table.Spec.CutMark

@@ -26,9 +26,9 @@ data ColModInfo
 -- | Private show function.
 showCMI :: ColModInfo -> String
 showCMI cmi = case cmi of
-    FillAligned oS ai -> "FillAligned .. " ++ showAI ai
-    FillTo i          -> "FillTo " ++ show i
-    FitTo i _         -> "FitTo " ++ show i ++ ".."
+    FillAligned _ ai -> "FillAligned .. " ++ showAI ai
+    FillTo i         -> "FillTo " ++ show i
+    FitTo i _        -> "FitTo " ++ show i ++ ".."
 
 -- | Get the exact width of a 'ColModInfo' after applying it with
 -- 'columnModifier'.
@@ -97,27 +97,27 @@ columnModifier pos cms colModInfo = case colModInfo of
 deriveColModInfos :: Cell a => [(LenSpec, AlignSpec)] -> [Row a] -> [ColModInfo]
 deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
   where
-    fSel (lenSpec, alignSpec) = case alignSpec of
-        NoAlign     -> let fitTo i             = const $ FitTo i Nothing
-                           expandUntil f i max = if f (max <= i)
-                                                 then FillTo max
-                                                 else fitTo i max
-                           fun                 = case lenSpec of
+    fSel (lenS, alignS) = case alignS of
+        NoAlign     -> let fitTo i              = const $ FitTo i Nothing
+                           expandUntil' f i max' = if f (max' <= i)
+                                                   then FillTo max'
+                                                   else fitTo i max'
+                           fun                  = case lenS of
                                Expand        -> FillTo
                                Fixed i       -> fitTo i
-                               ExpandUntil i -> expandUntil id i
-                               FixedUntil i  -> expandUntil not i
+                               ExpandUntil i -> expandUntil' id i
+                               FixedUntil i  -> expandUntil' not i
                        in fun . maximum . map visibleLength
-        AlignOcc oS -> let fitToAligned i     = FitTo i . Just . (,) oS
-                           fillAligned        = FillAligned oS
-                           expandUntil f i ai = if f (widthAI ai <= i)
+        AlignOcc oS -> let fitToAligned i      = FitTo i . Just . (,) oS
+                           fillAligned         = FillAligned oS
+                           expandUntil' f i ai = if f (widthAI ai <= i)
                                                 then fillAligned ai
                                                 else fitToAligned i ai
-                           fun                = case lenSpec of
+                           fun                = case lenS of
                                Expand        -> fillAligned
                                Fixed i       -> fitToAligned i
-                               ExpandUntil i -> expandUntil id i
-                               FixedUntil i  -> expandUntil not i
+                               ExpandUntil i -> expandUntil' id i
+                               FixedUntil i  -> expandUntil' not i
                         in fun . foldMap (deriveAlignInfo oS)
 
 deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]

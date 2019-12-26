@@ -14,12 +14,7 @@ module Text.Layout.Table.Justify
     , mixedDimorphicSummandsBy
     ) where
 
-import Control.Arrow
-import Data.List
-
 import Text.Layout.Table.Primitives.Basic
-import Text.Layout.Table.Spec.Position
-import Text.Layout.Table.Vertical
 
 -- | Uses 'words' to split the text into words and justifies it with 'justify'.
 --
@@ -49,8 +44,8 @@ concatPadLine width len wCount line = case wCount of
     _ -> unwords $ if len < width
                       then let fillAmount = width - len
                                gapCount   = pred wCount
-                               spaces     = mixedDimorphicSpaces fillAmount gapCount ++ [""]
-                           in zipWith (++) line spaces
+                               spaces'    = mixedDimorphicSpaces fillAmount gapCount ++ [""]
+                           in zipWith (++) line spaces'
                       else line
 
 -- | Fit as much words on a line as possible. Produce a list of the length of
@@ -81,9 +76,6 @@ mapInit f g (x : xs) = go x xs
   where
     go y []        = [g y]
     go y (y' : ys) = f y : go y' ys
-
-dimorphicSpaces :: Int -> Int -> [String]
-dimorphicSpaces = dimorphicSummandsBy spaces
 
 -- | Spread out spaces with different widths more evenly (in comparison to
 -- 'dimorphicSpaces').
