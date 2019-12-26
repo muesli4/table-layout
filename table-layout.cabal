@@ -53,6 +53,7 @@ source-repository head
 library
   exposed-modules:     Text.Layout.Table,
                        Text.Layout.Table.Cell,
+                       Text.Layout.Table.Cell.Formatted,
                        Text.Layout.Table.Justify,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical,
@@ -104,6 +105,7 @@ executable table-layout-test-styles
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table,
                        Text.Layout.Table.Cell,
+                       Text.Layout.Table.Cell.Formatted,
                        Text.Layout.Table.Justify,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
@@ -144,6 +146,7 @@ test-suite table-layout-tests
                        Text.Layout.Table
 
                        Text.Layout.Table.Cell,
+                       Text.Layout.Table.Cell.Formatted,
                        Text.Layout.Table.Justify,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
