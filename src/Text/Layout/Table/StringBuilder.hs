@@ -13,9 +13,9 @@ class Monoid a => StringBuilder a where
 
     -- | Create a builder with several 'Char's.
     replicateCharB :: Int -> Char -> a
-    replicateCharB i c = case i of
-        0 -> stringB ""
-        _ -> stimes i $ charB c
+    replicateCharB i c = stimesMonoid i (charB c)
+
+    {-# MINIMAL stringB, charB #-}
 
 -- | Create a builder that contains /k/ spaces. Negative numbers are treated as
 -- zero.
@@ -28,7 +28,7 @@ instance StringBuilder String where
     replicateCharB = replicate
 
 instance StringBuilder (Endo String) where
-    stringB s = Endo (s ++)
+    stringB = diff
     charB = Endo . (:)
     replicateCharB i c = Endo $ \s -> foldr ($) s $ replicate i (c :) 
 

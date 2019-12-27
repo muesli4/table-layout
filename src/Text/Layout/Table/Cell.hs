@@ -15,10 +15,12 @@ class Cell a where
     -- | Drop a number of characters from the left side. Treats negative numbers
     -- as zero.
     dropLeft :: Int -> a -> a
+    dropLeft n = dropBoth n 0
 
     -- | Drop a number of characters from the right side. Treats negative
     -- numbers as zero.
     dropRight :: Int -> a -> a
+    dropRight = dropBoth 0
 
     -- | Drop characters from both sides. Treats negative numbers as zero.
     dropBoth :: Int -> Int -> a -> a
@@ -34,6 +36,8 @@ class Cell a where
 
     -- | Insert the contents into a 'StringBuilder'.
     buildCell :: StringBuilder b => a -> b
+
+    {-# MINIMAL visibleLength, measureAlignment, buildCell, (dropBoth | (dropLeft, dropRight))  #-}
 
 instance Cell String where
     dropLeft = drop
