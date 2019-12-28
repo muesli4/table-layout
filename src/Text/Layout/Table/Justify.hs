@@ -1,6 +1,7 @@
 -- | Produce justified text, which is spread over multiple rows. For a simple
 -- cut, 'chunksOf' from the `split` package is best suited.
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE RecordWildCards #-}
 module Text.Layout.Table.Justify
     ( -- * Text justification
       justify
@@ -28,25 +29,29 @@ justifyText w = justify w . words
 -- Every line, except the last one, gets equally filled with spaces between the
 -- words as far as possible.
 justify :: Int -> [String] -> [String]
-justify width = mapInit pad (\(_, _, line) -> unwords line) . fitWords width
-  where
-    pad (len, wCount, line) = concatPadLine width len wCount line
+justify width = mapInit (concatPadLine width) (unwords . lineWords) . fitWords width
+
+-- | Intermediate representation for a line of words.
+data Line
+    = Line
+    { lineLength :: Int -- ^ The length of the current line with a single space as separator between the words.
+    , lineWordCount :: Int -- ^ The number of words on the current line.
+    , lineWords :: [String] -- ^ The actual words of the line.
+    } deriving Show
 
 -- | Join the words on a line together by filling it with spaces in between.
 concatPadLine
     :: Int -- ^ The maximum length for lines.
-    -> Int -- ^ The length of the line.
-    -> Int -- ^ The number of words.
-    -> [String] -- ^ The words.
+    -> Line -- ^ The 'Line'.
     -> String -- The padded and concatenated line.
-concatPadLine width len wCount line = case wCount of
-    1 -> head line
-    _ -> unwords $ if len < width
-                      then let fillAmount = width - len
-                               gapCount   = pred wCount
-                               spaces'    = mixedDimorphicSpaces fillAmount gapCount ++ [""]
-                           in zipWith (++) line spaces'
-                      else line
+concatPadLine width Line {..} = case lineWords of
+    [word] -> word
+    _      -> unwords $ if lineLength < width
+                        then let fillAmount = width - lineLength
+                                 gapCount   = pred lineWordCount
+                                 spaceSeps  = mixedDimorphicSpaces fillAmount gapCount ++ [""]
+                             in zipWith (++) lineWords spaceSeps
+                        else lineWords
 
 -- | Fit as much words on a line as possible. Produce a list of the length of
 -- the line with one space between the words, the word count and the words.
@@ -55,19 +60,37 @@ concatPadLine width len wCount line = case wCount of
 fitWords
     :: Int -- ^ The number of characters available per line.
     -> [String] -- ^ The words to join with whitespaces.
-    -> [(Int, Int, [String])] -- ^ The list of line information.
-fitWords width = gather 0 0 []
+    -> [Line] -- ^ The list of line information.
+fitWords width = --gather 0 0 []
+    finishFitState . foldr fitStep (FitState 0 0 [] [])
   where
-    gather lineLen wCount line ws = case ws of  
-        []      | null line -> []
-                | otherwise -> [(lineLen, wCount, reverse line)]
-        w : ws'             ->
-            let wLen   = length w
-                newLineLen = lineLen + 1 + wLen
-                reinit = gather wLen 1 [w] ws'
-            in if | null line           -> reinit
-                  | newLineLen <= width -> gather newLineLen (succ wCount) (w : line) ws'
-                  | otherwise           -> (lineLen, wCount, reverse line) : reinit
+    fitStep word s@FitState {..} =
+        let wLen       = length word
+            newLineLen = fitStateLineLen + 1 + wLen
+            reinit f   = FitState wLen 1 [word] $ f fitStateLines
+        in if | null fitStateWords  -> reinit id
+              | newLineLen <= width -> FitState newLineLen (succ fitStateWordCount) (word : fitStateWords) fitStateLines
+              | otherwise           -> reinit (finishLine s :)
+
+-- | State used while fitting words on a line.
+data FitState
+    = FitState
+    { fitStateLineLen :: Int
+    , fitStateWordCount :: Int
+    , fitStateWords :: [String]
+    , fitStateLines :: [Line]
+    }
+
+-- | Completes the current line.
+finishLine :: FitState -> Line
+finishLine FitState {..} = Line fitStateLineLen fitStateWordCount $ reverse fitStateWords
+
+finishFitState :: FitState -> [Line]
+finishFitState s@FitState {..} = finishLines fitStateLines
+  where
+    finishLines = case fitStateWordCount of
+        0 -> id
+        _ -> (finishLine s :)
 
 -- | Map inits with the first function and the last one with the last function.
 mapInit :: (a -> b) -> (a -> b) -> [a] -> [b]
