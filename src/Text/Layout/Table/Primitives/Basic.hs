@@ -3,7 +3,6 @@
 module Text.Layout.Table.Primitives.Basic
     ( -- * String-related tools
       spaces
-    , concatLines
 
       -- ** Filling
     , fillLeft'
@@ -34,9 +33,6 @@ import Data.List
 
 spaces :: Int -> String
 spaces = flip replicate ' '
-
-concatLines :: [String] -> String
-concatLines = intercalate "\n"
 
 fillStart' :: a -> Int -> Int -> [a] -> [a]
 fillStart' x i lenL l = replicate (i - lenL) x ++ l

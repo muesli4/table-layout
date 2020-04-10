@@ -46,6 +46,9 @@ module Text.Layout.Table
     , grid
     , gridLines
     , gridString
+    , concatRow
+    , concatLines
+    , concatGrid
 
       -- * Grid modification functions
     , altLines
@@ -175,6 +178,20 @@ gridLines specs = fmap unwords . grid specs
 -- character.
 gridString :: Cell a => [ColSpec] -> [Row a] -> String
 gridString specs = concatLines . gridLines specs
+
+concatLines :: StringBuilder b => [b] -> b
+concatLines = mconcat . intersperse (charB '\n')
+
+-- | Concatenates a row with a given amount of spaces.
+concatRow
+    :: StringBuilder b
+    => Int
+    -> Row b
+    -> b
+concatRow n bs = mconcat $ intersperse (replicateCharB n ' ') bs
+
+concatGrid :: StringBuilder b => Int -> [Row b] -> b
+concatGrid n = concatLines . fmap (concatRow n)
 
 -------------------------------------------------------------------------------
 -- Grid modification functions
