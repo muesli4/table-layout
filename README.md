@@ -10,7 +10,7 @@ The focus of this library lies on rendering cells with different styles per colu
 * Columns can be positionally aligned as `left`, `right` or `center`.
 * Columns may also be aligned at certain character occurence with respect to the other cells of that column. One such purpose is to display floating point numbers.
 
-Those specifications are then applied to a list of rows (currently only `String` is supported).
+Those specifications are then applied to a list of rows. A row is simply a list of a cell. A cell is a type that implements the `Cell` type class.
 
 Typically cells are rendered as a grid, but it is also possible to render tables with simulated lines, including styling support. Such tables can use optional headers and multiple lines per cell. Multi-line content can be aligned vertically, with respect to the other horizontally adjacent cells, and text can be rendered justified.
 
@@ -55,11 +55,17 @@ Big grids are usually not that readable. To improve their readability, two funct
 * `altLines` will apply the given function in an alternating pattern. E.g., color every second row grey.
 * `checkeredCells` will checker cells with 2 different functions.
 
-A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text.
+A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text. Another way to introduce color into cells is the `Formatted` type:
+```
+> :set -XOverloadedStrings
+> let red s = formatted "\ESC[31m" s "\ESC[0m"
+> gridString [def, numCol] [["Jim", "1203"], ["Jane", "523"], ["Jack", red "-959000"]]
+```
+This way the color can depend on the cell content.
 
 ### Table layout
 
-For more complex data grids do not offer as much visibility. Sometimes we want to explicitly display a table, e.g., as output in a database application. `tableLines` and `tableString` are used to create a table.
+For more complex data, grids do not offer as much visibility. Sometimes we want to explicitly display a table, for example, as output in a database application. `tableLines` and `tableString` are used to create a table.
 
 ``` hs
 putStrLn $ tableString [def , numCol]
@@ -69,8 +75,9 @@ putStrLn $ tableString [def , numCol]
                        , rowG ["Jane", "162.2"]
                        ]
 ```
-A row group is a group of rows which form one cell. This means that each line of a group is not visually seperated from the other ones. In addition we specify the style and an optional header. By default the header is not visible. This will yield the following result:
+A row group is a group of rows which are not visually separated from each other. Thus multiple rows form one cell.
 
+In addition we specify the style and an optional header. By default the header is not visible. This will yield the following result:
 ```
 ╭──────┬────────╮
 │ Jack │ 184.74 │
@@ -133,6 +140,8 @@ Additionally, the positioning can be specified for each column with `colsG`. For
 
 ## Get in contact
 
-Please report issues and suggestions to the GitHub page. I'm always open for feedback (good and bad).
+* Report issues and suggestions to the GitHub page.
+* Any kind of feedback is welcome.
+* Contributions are much appreciated. Contact me first for bigger changes.
 
 [ansi-terminal package]: http://hackage.haskell.org/package/ansi-terminal
