@@ -1,5 +1,6 @@
 -- | This module provides primitives for generating tables. Tables are generated
--- line by line thus the functions in this module produce
+-- line by line thus the functions in this module produce 'StringBuilder's that
+-- contain a line.
 module Text.Layout.Table.Primitives.Table where
 
 import           Data.List
