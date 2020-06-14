@@ -99,6 +99,9 @@ spec = do
         it "mark left 2" $ apply3 MarkLeftCI 2 "" `shouldBe` "<."
         it "mark left 3" $ apply3 MarkLeftCI 4 "a" `shouldBe` "<.. "
 
+        it "uneven mark left" $ applyCutInfo MarkLeftCI unevenCM 5 5 "12345" `shouldBe` "<    "
+        it "uneven mark right" $ applyCutInfo MarkRightCI unevenCM 5 5 "12345" `shouldBe` "  -->"
+
     describe "viewRange" $ do
         -- "     :     "
         -- "    "
@@ -154,6 +157,7 @@ spec = do
         it "justify" $ justify 3 ["not", "now"] `shouldBe` ["not", "now"]
   where
     customCM = doubleCutMark "<.." "..>"
+    unevenCM = doubleCutMark "<" "-->"
     occS     = predOccSpec (== ':')
 
     hposG    = elements [left, center, right]
