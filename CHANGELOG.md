@@ -2,10 +2,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.9.0.1] - 2020-06-14
+
 ### Added
 
 - Provide functions for concatenation `concatRow`, `concatLines`, and
   `concatGrid`. (#10)
+
+### Fixed
+
+- Fix an error with `applyCutInfo` that created a string of wrong length in
+  case the cut mark was of unequal length and the view was outside of the cell.
 
 
 ## [0.9.0.0] - 2020-04-10
