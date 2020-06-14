@@ -208,9 +208,9 @@ applyCutInfo ci cm availSpace cellLen c = case ci of
         let spacesB' = spacesB . surplusSpace
         in spacesB' lCA <> buildCell c <> spacesB' rCA
     MarkRightCI                       ->
-        spacesB (max 0 $ availSpace - leftLen) <> applyRightMark availSpace
+        spacesB (max 0 $ availSpace - rightLen) <> applyRightMark availSpace
     MarkLeftCI                        ->
-        applyLeftMark availSpace <> spacesB (max 0 $ availSpace - rightLen)
+        applyLeftMark availSpace <> spacesB (max 0 $ availSpace - leftLen)
   where
     leftLen = length $ leftMark cm
     rightLen = length $ rightMark cm
