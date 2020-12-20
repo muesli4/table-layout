@@ -2,6 +2,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- Fix error in `fitWords` that was reversing the word order.  This also affects
+  `justify` and `justifyWords`. (#14)
+
 ## [0.9.0.1] - 2020-06-14
 
 ### Added

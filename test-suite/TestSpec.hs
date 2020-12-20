@@ -153,8 +153,10 @@ spec = do
         prop "alignFixed length" $ forAll hposG $ \p s (Positive (Small n)) ->
             length (alignFixed' p n (s :: String) :: String) `shouldBe` n
 
-    describe "text justification" $
-        it "justify" $ justify 3 ["not", "now"] `shouldBe` ["not", "now"]
+    describe "text justification" $ do
+        describe "justify" $ do
+            it "break lines" $ justify 3 ["not", "now"] `shouldBe` ["not", "now"]
+            it "words in right order" $ justify 10 ["not", "now"] `shouldBe` ["not now"]
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"

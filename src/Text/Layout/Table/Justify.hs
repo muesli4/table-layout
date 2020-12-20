@@ -83,7 +83,7 @@ data FitState
 
 -- | Completes the current line.
 finishLine :: FitState -> Line
-finishLine FitState {..} = Line fitStateLineLen fitStateWordCount $ reverse fitStateWords
+finishLine FitState {..} = Line fitStateLineLen fitStateWordCount fitStateWords
 
 finishFitState :: FitState -> [Line]
 finishFitState s@FitState {..} = finishLines fitStateLines
