@@ -12,6 +12,7 @@ import Text.Layout.Table
 import Text.Layout.Table.Cell (determineCuts, CutInfo(..), determineCutAction, CutAction(..), applyCutInfo, viewRange)
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Primitives.Basic
+import Text.Layout.Table.Justify
 
 spec :: Spec
 spec = do
@@ -154,9 +155,22 @@ spec = do
             length (alignFixed' p n (s :: String) :: String) `shouldBe` n
 
     describe "text justification" $ do
+        describe "fitWords" $ do
+            it "single word" $ fitWords 5 ["test"] `shouldBe` [Line 4 1 ["test"]]
+            it "two words" $ fitWords 3 ["a", "b"] `shouldBe` [Line 3 2 ["a", "b"]]
+            it "breaking words" $
+                fitWords 2 ["a", "b"] `shouldBe` [Line 1 1 ["a"], Line 1 1 ["b"]]
+            it "breaking words, multiple words per line" $
+                fitWords 3 ["a", "b", "c", "d"] `shouldBe` [Line 3 2 ["a", "b"], Line 3 2 ["c", "d"]]
+
         describe "justify" $ do
             it "break lines" $ justify 3 ["not", "now"] `shouldBe` ["not", "now"]
             it "words in right order" $ justify 10 ["not", "now"] `shouldBe` ["not now"]
+            it "" $ justify 3 ["a", "b", "c", "d", "e"] `shouldBe` ["a b", "c d", "e"]
+
+        describe "concatPadLine" $ do
+            it "even" $ concatPadLine 9 (Line 9 3 ["It", "is", "on"]) `shouldBe` "It is on"
+            it "odd" $ concatPadLine 13 (Line 11 4 ["It", "is", "on", "us"]) `shouldBe` "It  is on  us"
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"

@@ -6,6 +6,7 @@ module Text.Layout.Table.Justify
     ( -- * Text justification
       justify
     , justifyText
+    , Line(..)
     , fitWords
     , concatPadLine
 
@@ -14,6 +15,8 @@ module Text.Layout.Table.Justify
     , dimorphicSummandsBy
     , mixedDimorphicSummandsBy
     ) where
+
+import Data.List (foldl')
 
 import Text.Layout.Table.Primitives.Basic
 
@@ -37,7 +40,7 @@ data Line
     { lineLength :: Int -- ^ The length of the current line with a single space as separator between the words.
     , lineWordCount :: Int -- ^ The number of words on the current line.
     , lineWords :: [String] -- ^ The actual words of the line.
-    } deriving Show
+    } deriving (Eq, Show)
 
 -- | Join the words on a line together by filling it with spaces in between.
 concatPadLine
@@ -62,9 +65,9 @@ fitWords
     -> [String] -- ^ The words to join with whitespaces.
     -> [Line] -- ^ The list of line information.
 fitWords width = --gather 0 0 []
-    finishFitState . foldr fitStep (FitState 0 0 [] [])
+    finishFitState . foldl' fitStep (FitState 0 0 [] [])
   where
-    fitStep word s@FitState {..} =
+    fitStep s@FitState {..} word =
         let wLen       = length word
             newLineLen = fitStateLineLen + 1 + wLen
             reinit f   = FitState wLen 1 [word] $ f fitStateLines
@@ -83,10 +86,10 @@ data FitState
 
 -- | Completes the current line.
 finishLine :: FitState -> Line
-finishLine FitState {..} = Line fitStateLineLen fitStateWordCount fitStateWords
+finishLine FitState {..} = Line fitStateLineLen fitStateWordCount $ reverse fitStateWords
 
 finishFitState :: FitState -> [Line]
-finishFitState s@FitState {..} = finishLines fitStateLines
+finishFitState s@FitState {..} = reverse $ finishLines fitStateLines
   where
     finishLines = case fitStateWordCount of
         0 -> id

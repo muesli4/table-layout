@@ -2,6 +2,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix recently introduced errors which made text justification completely
+  unusable.  Add test coverage for relevant functions. (#15)
+
 ## [0.9.0.2] - 2020-12-20
 
 ### Fixed
