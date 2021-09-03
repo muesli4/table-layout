@@ -13,21 +13,21 @@ import           Text.Layout.Table.Spec.Util
 -- appropriately and visually separate by 'hSpace'.
 hLineDetail
     :: StringBuilder b
-    => Char -- ^ The space character that is used as padding.
-    -> Char -- ^ The delimiter that is used on the left side.
-    -> Char -- ^ The delimiter that is used in between cells.
-    -> Char -- ^ The delimiter that is sued on the right side.
+    => String -- ^ The space characters that are used as padding.
+    -> String -- ^ The delimiter that is used on the left side.
+    -> String -- ^ The delimiter that is used in between cells.
+    -> String -- ^ The delimiter that is sued on the right side.
     -> Row b -- ^ A row of builders.
     -> b -- ^ The formatted line as a 'StringBuilder'.
 hLineDetail hSpace delimL delimM delimR cells =
-    mconcat $ intersperse (charB hSpace) $ charB delimL : intersperse (charB delimM) cells ++ [charB delimR]
+    mconcat $ intersperse (stringB hSpace) $ stringB delimL : intersperse (stringB delimM) cells ++ [stringB delimR]
 
 -- | A simplified version of 'hLineDetail' that will use the same delimiter
 -- for everything.
 hLine
     :: StringBuilder b
-    => Char -- ^ The space character that is used as padding.
-    -> Char -- ^ The delimiter that is used for everything.
+    => String -- ^ The space characters that are used as padding.
+    -> String -- ^ The delimiter that is used for everything.
     -> Row b -- ^ A row of builders.
     -> b -- ^ The formatted line as a 'StringBuilder'.
 hLine hSpace delim = hLineDetail hSpace delim delim delim
@@ -35,7 +35,7 @@ hLine hSpace delim = hLineDetail hSpace delim delim delim
 -- | Render a line with actual content.
 hLineContent
     :: StringBuilder b
-    => Char -- ^ The delimiter that is used for everything.
+    => String -- ^ The delimiter that is used for everything.
     -> Row b -- ^ A row of builders.
     -> b
-hLineContent = hLine ' '
+hLineContent = hLine " "
