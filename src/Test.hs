@@ -27,6 +27,7 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
     bigNum    = "200300400500600.2"
     smallNum  = "4.20000000"
     styles    = [ asciiS
+                , asciiDoubleS
                 , asciiRoundS
                 , unicodeS
                 , unicodeRoundS
