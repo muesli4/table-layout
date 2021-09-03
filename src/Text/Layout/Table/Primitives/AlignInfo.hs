@@ -5,6 +5,7 @@ import Data.Foldable (asum)
 -- | Specifies the length before and after an alignment position (excluding the
 -- alignment character).
 data AlignInfo = AlignInfo Int (Maybe Int)
+  deriving (Eq, Show)
 
 -- | Private show function.
 showAI :: AlignInfo -> String

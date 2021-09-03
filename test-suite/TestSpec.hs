@@ -9,10 +9,12 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Text.Layout.Table
-import Text.Layout.Table.Cell (determineCuts, CutInfo(..), determineCutAction, CutAction(..), applyCutInfo, viewRange)
+import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Primitives.Basic
+import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
+import Text.Layout.Table.Cell.Formatted
 
 spec :: Spec
 spec = do
@@ -171,6 +173,30 @@ spec = do
         describe "concatPadLine" $ do
             it "even" $ concatPadLine 9 (Line 9 3 ["It", "is", "on"]) `shouldBe` "It is on"
             it "odd" $ concatPadLine 13 (Line 11 4 ["It", "is", "on", "us"]) `shouldBe` "It  is on  us"
+
+    describe "formatted text" $ do
+        let exampleF = formatted "XXX" (plain "Hello" <> formatted "Z" (plain "there") "W") "YYY"
+        describe "rendering" $ do
+            it "plain" $ buildCell (plain "Hello") `shouldBe` "Hello"
+            it "formatted" $ buildCell (formatted "XXX" (plain "Hello") "YYY") `shouldBe` "XXXHelloYYY"
+            it "concatenation of formatted" $ buildCell exampleF `shouldBe` "XXXHelloZthereWYYY"
+        describe "dropLeft" $ do
+            it "drops 0" $ buildCell (dropLeft 0 exampleF) `shouldBe` "XXXHelloZthereWYYY"
+            it "drops 3" $ buildCell (dropLeft 3 exampleF) `shouldBe` "XXXloZthereWYYY"
+            it "drops 8" $ buildCell (dropLeft 8 exampleF) `shouldBe` "XXXZreWYYY"
+            it "drops 20" $ buildCell (dropLeft 20 exampleF) `shouldBe` "XXXZWYYY"
+        describe "dropRight" $ do
+            it "drops 0" $ buildCell (dropRight 0 exampleF) `shouldBe` "XXXHelloZthereWYYY"
+            it "drops 3" $ buildCell (dropRight 3 exampleF) `shouldBe` "XXXHelloZthWYYY"
+            it "drops 8" $ buildCell (dropRight 8 exampleF) `shouldBe` "XXXHeZWYYY"
+            it "drops 20" $ buildCell (dropRight 20 exampleF) `shouldBe` "XXXZWYYY"
+        describe "visibleLength" $ do
+            it "plain" $ visibleLength (plain "Hello") `shouldBe` 5
+            it "formatted" $ visibleLength exampleF `shouldBe` 10
+        describe "measureAlignment" $ do
+            it "finds e" $ measureAlignment (=='e') exampleF `shouldBe` AlignInfo 1 (Just 8)
+            it "finds h" $ measureAlignment (=='h') exampleF `shouldBe` AlignInfo 6 (Just 3)
+            it "doesn't find q" $ measureAlignment (=='q') exampleF `shouldBe` AlignInfo 10 Nothing
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"
