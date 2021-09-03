@@ -83,6 +83,33 @@ asciiS = TableStyle
        , groupBottomH = "-"
        }
 
+-- | Like 'asciiS', but uses double lines and double pluses for the header joints.
+asciiDoubleS :: TableStyle
+asciiDoubleS = TableStyle
+             { headerSepH   = "-"
+             , headerSepLC  = "++"
+             , headerSepRC  = "++"
+             , headerSepC   = "++"
+             , headerTopL   = "++"
+             , headerTopR   = "++"
+             , headerTopC   = "++"
+             , headerTopH   = "-"
+             , headerV      = "||"
+             , groupV       = "||"
+             , groupSepH    = "-"
+             , groupSepC    = "++"
+             , groupSepLC   = "++"
+             , groupSepRC   = "++"
+             , groupTopC    = "++"
+             , groupTopL    = "++"
+             , groupTopR    = "++"
+             , groupTopH    = "-"
+             , groupBottomC = "++"
+             , groupBottomL = "++"
+             , groupBottomR = "++"
+             , groupBottomH = "-"
+             }
+
 -- | Uses special unicode characters to draw clean thin boxes.
 unicodeS :: TableStyle
 unicodeS = TableStyle
