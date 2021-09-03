@@ -237,9 +237,13 @@ tableLines specs TableStyle { .. } header rowGroups =
     -- Helpers for horizontal lines that will put layout characters arround and
     -- in between a row of the pre-formatted grid.
 
-    -- | Generate columns filled with 'sym'.
-    fakeColumns sym
-                  = map (`replicateCharB` sym) colWidths
+    -- | Generate columns filled with 'sym', or blank spaces if 'sym' is of width 0.
+    fakeColumns sym = map replicateSym colWidths
+      where
+        replicateSym w = concat $ replicate q sym' ++ [take r sym']
+          where
+            (q, r) = w `quotRem` l
+        (sym', l) = let l' = length sym in if l' == 0 then (" ", 1) else (sym, l')
 
     -- Horizontal seperator lines that occur in a table.
     topLine       = hLineDetail realTopH realTopL realTopC realTopR $ fakeColumns realTopH
