@@ -232,7 +232,7 @@ tableLines :: Cell a
            -> [RowGroup a] -- ^ Rows which form a cell together
            -> [String]
 tableLines specs TableStyle { .. } header rowGroups =
-    topLine : addHeaderLines (rowGroupLines ++ [bottomLine])
+    maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
   where
     -- Helpers for horizontal lines that will put layout characters arround and
     -- in between a row of the pre-formatted grid.
@@ -246,27 +246,28 @@ tableLines specs TableStyle { .. } header rowGroups =
         (sym', l) = let l' = length sym in if l' == 0 then (" ", 1) else (sym, l')
 
     -- Horizontal seperator lines that occur in a table.
-    topLine       = hLineDetail realTopH realTopL realTopC realTopR $ fakeColumns realTopH
-    bottomLine    = hLineDetail groupBottomH groupBottomL groupBottomC groupBottomR $ fakeColumns groupBottomH
-    groupSepLine  = hLineDetail groupSepH groupSepLC groupSepC groupSepRC $ fakeColumns groupSepH
-    headerSepLine = hLineDetail headerSepH headerSepLC headerSepC headerSepRC $ fakeColumns headerSepH
+    optTopLine       = optHorizontalDetailLine realTopH realTopL realTopC realTopR $ fakeColumns realTopH
+    optBottomLine    = optHorizontalDetailLine groupBottomH groupBottomL groupBottomC groupBottomR $ fakeColumns groupBottomH
+    optGroupSepLine  = optHorizontalDetailLine groupSepH groupSepLC groupSepC groupSepRC $ fakeColumns groupSepH
+    optHeaderSepLine = optHorizontalDetailLine headerSepH headerSepLC headerSepC headerSepRC $ fakeColumns headerSepH
 
     -- Vertical content lines
-    rowGroupLines =
-        intercalate [groupSepLine] $ map (map (hLineContent groupV) . applyRowMods . rows) rowGroups
+    rowGroupLines = maybe concat (\seps -> intercalate [seps]) optGroupSepLine linesPerRowGroup
+    linesPerRowGroup = map rowGroupToLines rowGroups
+    rowGroupToLines = map (horizontalContentLine groupV) . applyRowMods . rows
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case header of
         HeaderHS headerColSpecs hTitles
                ->
-            let headerLine    = hLineContent headerV (zipWith ($) headerRowMods hTitles)
+            let headerLine    = horizontalContentLine headerV (zipWith ($) headerRowMods hTitles)
                 headerRowMods = zipWith3 headerCellModifier
                                          headerColSpecs
                                          cMSs
                                          cMIs
             in
-            ( (headerLine :) . (headerSepLine :)
+            ( (headerLine :) . maybe id (:) optHeaderSepLine
             , fitTitlesCMI hTitles posSpecs
             , headerTopH
             , headerTopL
