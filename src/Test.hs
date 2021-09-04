@@ -30,6 +30,7 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                 , asciiDoubleS
                 , asciiRoundS
                 , unicodeS
+                , withoutBorders unicodeS
                 , unicodeRoundS
                 , unicodeBoldS
                 , unicodeBoldStripedS

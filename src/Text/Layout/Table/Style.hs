@@ -13,8 +13,12 @@ data TableStyle = TableStyle
                 , headerTopR   :: String
                 , headerTopC   :: String
                 , headerTopH   :: String
-                , headerV      :: String
-                , groupV       :: String
+                , headerL      :: String
+                , headerR      :: String
+                , headerC      :: String
+                , groupL       :: String
+                , groupR       :: String
+                , groupC       :: String
                 , groupSepH    :: String
                 , groupSepC    :: String
                 , groupSepLC   :: String
@@ -29,6 +33,32 @@ data TableStyle = TableStyle
                 , groupBottomH :: String
                 }
 
+-- | Remove the top, bottom, left, and right borders from a 'TableStyle'.
+withoutBorders :: TableStyle -> TableStyle
+withoutBorders = withoutTopBorder . withoutBottomBorder . withoutLeftBorder . withoutRightBorder
+
+-- | Remove the top border from a 'TableStyle'.
+withoutTopBorder :: TableStyle -> TableStyle
+withoutTopBorder ts = ts { headerTopL = "", headerTopR = "", headerTopC = "", headerTopH = ""
+                         , groupTopL = "", groupTopR = "", groupTopC = "", groupTopH = ""
+                         }
+
+-- | Remove the bottom border from a 'TableStyle'.
+withoutBottomBorder :: TableStyle -> TableStyle
+withoutBottomBorder ts = ts { groupBottomC = "", groupBottomL = "", groupBottomR = "", groupBottomH = "" }
+
+-- | Remove the left border from a 'TableStyle'.
+withoutLeftBorder :: TableStyle -> TableStyle
+withoutLeftBorder ts = ts { headerTopL = "", headerSepLC = "", headerL = ""
+                          , groupL = "", groupSepLC = "", groupTopL = "", groupBottomL = ""
+                          }
+
+-- | Remove the right border from a 'TableStyle'.
+withoutRightBorder :: TableStyle -> TableStyle
+withoutRightBorder ts = ts { headerTopR = "", headerSepRC = "", headerR = ""
+                           , groupR = "", groupSepRC = "", groupTopR = "", groupBottomR = ""
+                           }
+
 -- | My usual ASCII table style.
 asciiRoundS :: TableStyle
 asciiRoundS = TableStyle
@@ -40,8 +70,12 @@ asciiRoundS = TableStyle
             , headerTopR   = "."
             , headerTopC   = "."
             , headerTopH   = "-"
-            , headerV      = "|"
-            , groupV       = "|"
+            , headerL      = "|"
+            , headerR      = "|"
+            , headerC      = "|"
+            , groupL       = "|"
+            , groupR       = "|"
+            , groupC       = "|"
             , groupSepH    = "-"
             , groupSepC    = "+"
             , groupSepLC   = ":"
@@ -67,8 +101,12 @@ asciiS = TableStyle
        , headerTopR   = "+"
        , headerTopC   = "+"
        , headerTopH   = "-"
-       , headerV      = "|"
-       , groupV       = "|"
+       , headerL      = "|"
+       , headerR      = "|"
+       , headerC      = "|"
+       , groupL       = "|"
+       , groupR       = "|"
+       , groupC       = "|"
        , groupSepH    = "-"
        , groupSepC    = "+"
        , groupSepLC   = "+"
@@ -94,8 +132,12 @@ asciiDoubleS = TableStyle
              , headerTopR   = "++"
              , headerTopC   = "++"
              , headerTopH   = "-"
-             , headerV      = "||"
-             , groupV       = "||"
+             , headerL      = "||"
+             , headerR      = "||"
+             , headerC      = "||"
+             , groupL       = "||"
+             , groupR       = "||"
+             , groupC       = "||"
              , groupSepH    = "-"
              , groupSepC    = "++"
              , groupSepLC   = "++"
@@ -121,8 +163,12 @@ unicodeS = TableStyle
          , headerTopR   = "┐"
          , headerTopC   = "┬"
          , headerTopH   = "─"
-         , headerV      = "│"
-         , groupV       = "│"
+         , headerL      = "│"
+         , headerR      = "│"
+         , headerC      = "│"
+         , groupL       = "│"
+         , groupR       = "│"
+         , groupC       = "│"
          , groupSepH    = "─"
          , groupSepC    = "┼"
          , groupSepLC   = "├"
@@ -148,7 +194,9 @@ unicodeBoldHeaderS = unicodeS
                    , headerTopR  = "┓"
                    , headerTopC  = "┳"
                    , headerTopH  = "━"
-                   , headerV     = "┃"
+                   , headerL     = "┃"
+                   , headerR     = "┃"
+                   , headerC     = "┃"
                    }
 
 -- | Same as 'unicodeS' but uses round edges.
@@ -178,8 +226,12 @@ unicodeBoldS = TableStyle
              , headerTopR   = "┓"
              , headerTopC   = "┳"
              , headerTopH   = "━"
-             , headerV      = "┃"
-             , groupV       = "┃"
+             , headerL      = "┃"
+             , headerR      = "┃"
+             , headerC      = "┃"
+             , groupL       = "┃"
+             , groupR       = "┃"
+             , groupC       = "┃"
              , groupSepH    = "━"
              , groupSepC    = "╋"
              , groupSepLC   = "┣"
@@ -209,8 +261,12 @@ unicodeDoubleFrameS = TableStyle
                     , headerTopR   = "╗"
                     , headerTopC   = "╦"
                     , headerTopH   = "═"
-                    , headerV      = "║"
-                    , groupV       = "║"
+                    , headerL      = "║"
+                    , headerR      = "║"
+                    , headerC      = "║"
+                    , groupL       = "║"
+                    , groupR       = "║"
+                    , groupC       = "║"
                     , groupSepH    = "═"
                     , groupSepC    = "╬"
                     , groupSepLC   = "╠"

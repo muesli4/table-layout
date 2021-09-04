@@ -254,14 +254,14 @@ tableLines specs TableStyle { .. } header rowGroups =
     -- Vertical content lines
     rowGroupLines = maybe concat (\seps -> intercalate [seps]) optGroupSepLine linesPerRowGroup
     linesPerRowGroup = map rowGroupToLines rowGroups
-    rowGroupToLines = map (horizontalContentLine groupV) . applyRowMods . rows
+    rowGroupToLines = map (horizontalContentLine groupL groupC groupR) . applyRowMods . rows
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case header of
         HeaderHS headerColSpecs hTitles
                ->
-            let headerLine    = horizontalContentLine headerV (zipWith ($) headerRowMods hTitles)
+            let headerLine    = horizontalContentLine headerL headerC headerR (zipWith ($) headerRowMods hTitles)
                 headerRowMods = zipWith3 headerCellModifier
                                          headerColSpecs
                                          cMSs
