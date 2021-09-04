@@ -41,7 +41,7 @@ class Cell a where
 
 instance Cell String where
     dropLeft = drop
-    dropRight n = reverse . drop n . reverse
+    dropRight n s = zipWith const s (drop n s)
     visibleLength = length
     measureAlignment p xs = case break p xs of
         (ls, rs) -> AlignInfo (length ls) $ case rs of
