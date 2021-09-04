@@ -41,20 +41,12 @@ horizontalDetailLine
 horizontalDetailLine hSpace delimL delimM delimR cells = mconcat . intersperse (stringB hSpace) $
     stringB delimL : intersperse (stringB delimM) cells ++ [stringB delimR]
 
--- | A simplified version of 'hLineDetail' that will use the same delimiter
--- for everything.
-hLine
-    :: StringBuilder b
-    => String -- ^ The space characters that are used as padding.
-    -> String -- ^ The delimiter that is used for everything.
-    -> Row b -- ^ A row of builders.
-    -> b -- ^ The formatted line as a 'StringBuilder'.
-hLine hSpace delim = horizontalDetailLine hSpace delim delim delim
-
 -- | Render a line with actual content.
 horizontalContentLine
     :: StringBuilder b
-    => String -- ^ The delimiter that is used for everything.
+    => String -- ^ The delimiter that is used on the left side.
+    -> String -- ^ The delimeter that is used in between cells.
+    -> String -- ^ The delimeter that is used on the right side.
     -> Row b -- ^ A row of builders.
     -> b
-horizontalContentLine = hLine " "
+horizontalContentLine = horizontalDetailLine " "
