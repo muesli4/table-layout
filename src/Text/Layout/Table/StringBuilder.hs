@@ -30,5 +30,4 @@ instance StringBuilder String where
 instance StringBuilder (Endo String) where
     stringB = diff
     charB = Endo . (:)
-    replicateCharB i c = Endo $ \s -> foldr ($) s $ replicate i (c :) 
-
+    replicateCharB i c = stimesMonoid i (Endo (c :))
