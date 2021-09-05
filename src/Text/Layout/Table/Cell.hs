@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Text.Layout.Table.Cell where
 
+import qualified Data.Text as T
+
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
@@ -49,6 +51,17 @@ instance Cell String where
             _ : rs' -> Just $ length rs'
 
     buildCell = stringB
+
+instance Cell T.Text where
+    dropLeft = T.drop
+    dropRight = T.dropEnd
+    visibleLength = T.length
+    measureAlignment p xs = case T.break p xs of
+        (ls, rs) -> AlignInfo (T.length ls) $ if T.null rs
+            then Nothing
+            else Just $ T.length rs - 1
+
+    buildCell = textB
 
 remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c

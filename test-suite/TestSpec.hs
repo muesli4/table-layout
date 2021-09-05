@@ -4,13 +4,15 @@ module TestSpec
 
 -- TODO idempotency of fitting CMIs
 
+import qualified Data.Text as T
+
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Text.Layout.Table
 import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
-import Text.Layout.Table.Cell.WideString (WideString(..))
+import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
@@ -232,6 +234,18 @@ spec = do
             describe "on narrow characters" $ do
                 it "drops a combining character for free" $ dropRight 3 narrow `shouldBe` WideString "Bien s"
                 it "does not drop a combining character without their previous" $ dropRight 2 narrow `shouldBe` WideString "Bien sû"
+
+    describe "wide text" $ do
+        describe "buildCell" $ do
+            prop "gives the same result as wide string" $ \x -> buildCell (WideText $ T.pack x) `shouldBe` x
+        describe "visibleLength" $ do
+            prop "gives the same result as wide string" $ \x -> visibleLength (WideText $ T.pack x) `shouldBe` visibleLength (WideString x)
+        describe "measureAlignment" $ do
+            prop "gives the same result as wide string" $ \x -> measureAlignment (=='e') (WideText $ T.pack x) `shouldBe` measureAlignment (=='e') (WideString x)
+        describe "dropLeft" $ do
+            prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropLeft n . WideText $ T.pack x) `shouldBe` (buildCell . dropLeft n $ WideString x :: String)
+        describe "dropRight" $ do
+            prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropRight n . WideText $ T.pack x) `shouldBe` (buildCell . dropRight n $ WideString x :: String)
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"

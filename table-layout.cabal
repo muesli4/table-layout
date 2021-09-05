@@ -93,7 +93,8 @@ library
   build-depends:       base >=4.9 && <4.15,
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*,
-                       doclayout >=0.3 && <0.4
+                       doclayout >=0.3 && <0.4,
+                       text
 
   hs-source-dirs:      src
   
@@ -105,7 +106,8 @@ executable table-layout-test-styles
   build-depends:       base >=4.9 && <4.15,
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*,
-                       doclayout >=0.3 && <0.4
+                       doclayout >=0.3 && <0.4,
+                       text
   hs-source-dirs:      src
   other-modules:       Text.Layout.Table,
                        Text.Layout.Table.Cell,
@@ -145,6 +147,7 @@ test-suite table-layout-tests
                        data-default-class >=0.1.1 && < 0.2,
                        data-default-instances-base ==0.1.*,
                        doclayout >=0.3 && <0.4,
+                       text,
                        hspec
 
   other-modules:       TestSpec,
