@@ -10,6 +10,7 @@ import Test.QuickCheck
 
 import Text.Layout.Table
 import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
+import Text.Layout.Table.Cell.WideString (WideString(..))
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
@@ -194,9 +195,43 @@ spec = do
             it "plain" $ visibleLength (plain "Hello") `shouldBe` 5
             it "formatted" $ visibleLength exampleF `shouldBe` 10
         describe "measureAlignment" $ do
-            it "finds e" $ measureAlignment (=='e') exampleF `shouldBe` AlignInfo 1 (Just 8)
-            it "finds h" $ measureAlignment (=='h') exampleF `shouldBe` AlignInfo 6 (Just 3)
-            it "doesn't find q" $ measureAlignment (=='q') exampleF `shouldBe` AlignInfo 10 Nothing
+            it "finds e" $ measureAlignmentAt 'e' exampleF `shouldBe` AlignInfo 1 (Just 8)
+            it "finds h" $ measureAlignmentAt 'h' exampleF `shouldBe` AlignInfo 6 (Just 3)
+            it "doesn't find q" $ measureAlignmentAt 'q' exampleF `shouldBe` AlignInfo 10 Nothing
+
+    describe "wide string" $ do
+        let wide = WideString "㐀㐁㐂"
+            narrow = WideString "Bien sûr!"
+        describe "buildCell" $ do
+            prop "agrees for ascii strings" $ \(ASCIIString x) -> buildCell (WideString x) `shouldBe` x
+            it "renders double width" $ buildCell wide `shouldBe` "㐀㐁㐂"
+            it "renders zero width" $ buildCell narrow `shouldBe` "Bien sûr!"
+        describe "visibleLength" $ do
+            prop "agrees for ascii strings" $ \(ASCIIString x) -> visibleLength (WideString x) `shouldBe` visibleLength x
+            it "detects double width" $ visibleLength wide `shouldBe` 6
+            it "detects zero width" $ visibleLength narrow `shouldBe` 9
+        describe "measureAlignment" $ do
+            prop "agrees for ascii strings" $ \(ASCIIString x) -> measureAlignmentAt 'e' (WideString x) `shouldBe` measureAlignment (=='e') x
+            it "detects double width" $ measureAlignmentAt '㐁' wide `shouldBe` AlignInfo 2 (Just 2)
+            it "fails to detect" $ measureAlignmentAt 'a' wide `shouldBe` AlignInfo 6 Nothing
+            it "detects zero width after" $ measureAlignmentAt 'n' narrow `shouldBe` AlignInfo 3 (Just 5)
+            it "detects zero width before" $ measureAlignmentAt 'r' narrow `shouldBe` AlignInfo 7 (Just 1)
+        describe "dropLeft" $ do
+            prop "agrees for ascii strings" $ \(Small n) (ASCIIString x) -> buildCell (dropLeft n (WideString x)) `shouldBe` dropLeft n x
+            describe "on wide characters" $ do
+                it "drops 1 character of double width" $ dropLeft 2 wide `shouldBe` WideString "㐁㐂"
+                it "drops 2 characters of double width and adds a space" $ dropLeft 3 wide `shouldBe` WideString " 㐂"
+            describe "on narrow characters" $ do
+                it "drops combining characters with their previous" $ dropLeft 7 narrow `shouldBe` WideString "r!"
+                it "drops combining characters after a dropped wide character which overshoots" $ dropLeft 1 (WideString "㐀̈㐁") `shouldBe` WideString " 㐁"
+        describe "dropRight" $ do
+            prop "agrees for ascii strings" $ \(Small n) (ASCIIString x) -> buildCell (dropRight n (WideString x)) `shouldBe` dropRight n x
+            describe "on wide characters" $ do
+                it "drops 1 character of double width" $ dropRight 2 wide `shouldBe` WideString "㐀㐁"
+                it "drops 2 characters of double width and adds a space" $ dropRight 3 wide `shouldBe` WideString "㐀 "
+            describe "on narrow characters" $ do
+                it "drops a combining character for free" $ dropRight 3 narrow `shouldBe` WideString "Bien s"
+                it "does not drop a combining character without their previous" $ dropRight 2 narrow `shouldBe` WideString "Bien sû"
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"
@@ -225,3 +260,6 @@ spec = do
             trimLeft = drop q padded
         in len >= n || (all (== ' ') (take q padded) && take len trimLeft == s
                         && drop len trimLeft == replicate (q + r) ' ')
+
+    measureAlignmentAt :: Cell a => Char -> a -> AlignInfo
+    measureAlignmentAt c = measureAlignment (== c)
