@@ -119,6 +119,7 @@ module Text.Layout.Table
 import           Data.List
 import           Data.Default.Class
 import           Data.Default.Instances.Base                 ()
+import           Data.Semigroup
 
 import           Text.Layout.Table.Cell
 import           Text.Layout.Table.Justify
@@ -167,16 +168,16 @@ fixedLeftCol i = fixedCol i left
 -------------------------------------------------------------------------------
 
 -- | Modifies cells according to the column specification.
-grid :: Cell a => [ColSpec] -> [Row a] -> [Row String]
+grid :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [Row b]
 grid specs tab = zipWith ($) (deriveColMods specs tab) <$> tab
 
 -- | Behaves like 'grid' but produces lines by joining with whitespace.
-gridLines :: Cell a => [ColSpec] -> [Row a] -> [String]
-gridLines specs = fmap unwords . grid specs
+gridLines :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [b]
+gridLines specs = fmap (mconcat . intersperse (charB ' ')). grid specs
 
 -- | Behaves like 'gridLines' but produces a string by joining with the newline
 -- character.
-gridString :: Cell a => [ColSpec] -> [Row a] -> String
+gridString :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> b
 gridString specs = concatLines . gridLines specs
 
 concatLines :: StringBuilder b => [b] -> b
@@ -225,12 +226,12 @@ colsAllG p = rowsG . colsAsRowsAll p
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLines :: Cell a
+tableLines :: (Cell a, StringBuilder b)
            => [ColSpec]  -- ^ Layout specification of columns
            -> TableStyle -- ^ Visual table style
            -> HeaderSpec -- ^ Optional header details
            -> [RowGroup a] -- ^ Rows which form a cell together
-           -> [String]
+           -> [b]
 tableLines specs TableStyle { .. } header rowGroups =
     maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
   where
@@ -238,9 +239,10 @@ tableLines specs TableStyle { .. } header rowGroups =
     -- in between a row of the pre-formatted grid.
 
     -- | Generate columns filled with 'sym', or blank spaces if 'sym' is of width 0.
+    fakeColumns :: StringBuilder b => String -> Row b
     fakeColumns sym = map replicateSym colWidths
       where
-        replicateSym w = concat $ replicate q sym' ++ [take r sym']
+        replicateSym w = stimesMonoid q (stringB sym') <> stringB (take r sym')
           where
             (q, r) = w `quotRem` l
         (sym', l) = let l' = length sym in if l' == 0 then (" ", 1) else (sym, l')
@@ -291,12 +293,12 @@ tableLines specs TableStyle { .. } header rowGroups =
     colWidths     = map widthCMI cMIs
 
 -- | Does the same as 'tableLines', but concatenates lines.
-tableString :: Cell a
+tableString :: (Cell a, StringBuilder b)
             => [ColSpec]  -- ^ Layout specification of columns
             -> TableStyle -- ^ Visual table style
             -> HeaderSpec -- ^ Optional header details
             -> [RowGroup a] -- ^ Rows which form a cell together
-            -> String
+            -> b
 tableString specs style header rowGroups = concatLines $ tableLines specs style header rowGroups
 
 -------------------------------------------------------------------------------
