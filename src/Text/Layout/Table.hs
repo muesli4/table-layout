@@ -44,8 +44,11 @@ module Text.Layout.Table
       -- * Basic grid layout
     , Row
     , grid
+    , gridB
     , gridLines
+    , gridLinesB
     , gridString
+    , gridStringB
     , concatRow
     , concatLines
     , concatGrid
@@ -71,7 +74,9 @@ module Text.Layout.Table
 
       -- ** Layout
     , tableLines
+    , tableLinesB
     , tableString
+    , tableStringB
 
       -- * Text justification
       -- $justify
@@ -168,17 +173,29 @@ fixedLeftCol i = fixedCol i left
 -------------------------------------------------------------------------------
 
 -- | Modifies cells according to the column specification.
-grid :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [Row b]
-grid specs tab = zipWith ($) (deriveColMods specs tab) <$> tab
+gridB :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [Row b]
+gridB specs tab = zipWith ($) (deriveColMods specs tab) <$> tab
+
+-- | A version of 'gridB' specialised to produce 'String's.
+grid :: Cell a => [ColSpec] -> [Row a] -> [Row String]
+grid = gridB
 
 -- | Behaves like 'grid' but produces lines by joining with whitespace.
-gridLines :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [b]
-gridLines specs = fmap (mconcat . intersperse (charB ' ')). grid specs
+gridLinesB :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [b]
+gridLinesB specs = fmap (mconcat . intersperse (charB ' ')). gridB specs
+
+-- | A version of 'gridLinesB' specialised to produce 'String's.
+gridLines :: Cell a => [ColSpec] -> [Row a] -> [String]
+gridLines = gridLinesB
 
 -- | Behaves like 'gridLines' but produces a string by joining with the newline
 -- character.
-gridString :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> b
-gridString specs = concatLines . gridLines specs
+gridStringB :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> b
+gridStringB specs = concatLines . gridLinesB specs
+
+-- | A version of 'gridStringB' specialised to produce 'String's.
+gridString :: Cell a => [ColSpec] -> [Row a] -> String
+gridString = gridStringB
 
 concatLines :: StringBuilder b => [b] -> b
 concatLines = mconcat . intersperse (charB '\n')
@@ -226,13 +243,13 @@ colsAllG p = rowsG . colsAsRowsAll p
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLines :: (Cell a, StringBuilder b)
-           => [ColSpec]  -- ^ Layout specification of columns
-           -> TableStyle -- ^ Visual table style
-           -> HeaderSpec -- ^ Optional header details
-           -> [RowGroup a] -- ^ Rows which form a cell together
-           -> [b]
-tableLines specs TableStyle { .. } header rowGroups =
+tableLinesB :: (Cell a, StringBuilder b)
+            => [ColSpec]  -- ^ Layout specification of columns
+            -> TableStyle -- ^ Visual table style
+            -> HeaderSpec -- ^ Optional header details
+            -> [RowGroup a] -- ^ Rows which form a cell together
+            -> [b]
+tableLinesB specs TableStyle { .. } header rowGroups =
     maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
   where
     -- Helpers for horizontal lines that will put layout characters arround and
@@ -292,14 +309,22 @@ tableLines specs TableStyle { .. } header rowGroups =
     cMIs          = fitHeaderIntoCMIs $ deriveColModInfos' specs $ concatMap rows rowGroups
     colWidths     = map widthCMI cMIs
 
+-- | A version of 'tableLinesB' specialised to produce 'String's.
+tableLines :: Cell a => [ColSpec] -> TableStyle -> HeaderSpec -> [RowGroup a] -> [String]
+tableLines = tableLinesB
+
 -- | Does the same as 'tableLines', but concatenates lines.
-tableString :: (Cell a, StringBuilder b)
-            => [ColSpec]  -- ^ Layout specification of columns
-            -> TableStyle -- ^ Visual table style
-            -> HeaderSpec -- ^ Optional header details
-            -> [RowGroup a] -- ^ Rows which form a cell together
-            -> b
-tableString specs style header rowGroups = concatLines $ tableLines specs style header rowGroups
+tableStringB :: (Cell a, StringBuilder b)
+             => [ColSpec]  -- ^ Layout specification of columns
+             -> TableStyle -- ^ Visual table style
+             -> HeaderSpec -- ^ Optional header details
+             -> [RowGroup a] -- ^ Rows which form a cell together
+             -> b
+tableStringB specs style header rowGroups = concatLines $ tableLinesB specs style header rowGroups
+
+-- | A version of 'tableStringB' specialised to produce 'String's.
+tableString :: Cell a => [ColSpec] -> TableStyle -> HeaderSpec -> [RowGroup a] -> String
+tableString = tableStringB
 
 -------------------------------------------------------------------------------
 -- Text justification
