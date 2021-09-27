@@ -118,7 +118,6 @@ module Text.Layout.Table
 
 import           Data.List
 import           Data.Default.Class
-import           Data.Default.Instances.Base                 ()
 
 import           Text.Layout.Table.Cell
 import           Text.Layout.Table.Justify
