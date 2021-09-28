@@ -5,18 +5,36 @@ import Data.Default.Class
 import Text.Layout.Table.Spec.HeaderColSpec
 
 -- | Specifies a header.
-data HeaderSpec a
-    = HeaderHS [HeaderColSpec] [a]
-    | NoneHS
+-- This includes a separator label to indicate the delimiter use between
+-- columns, a '[HeaderColSpec]' specifying how to render each header column,
+-- and the list of content for the header column.
+-- The constructor NoneHS means that the header is not displayed, but that the
+-- shape of the header is determined by the data within the body, and the
+-- separator label sep is used.
+data HeaderSpec sep a
+    = HeaderHS sep [HeaderColSpec] [a]
+    | NoneHS sep
 
 -- | By the default the header is not shown.
-instance Default (HeaderSpec a) where
-    def = NoneHS
+instance Default sep => Default (HeaderSpec sep a) where
+    def = NoneHS def
 
--- | Specify a header column for every title.
-fullH :: [HeaderColSpec] -> [a] -> HeaderSpec a
-fullH = HeaderHS
+-- | Specify no header, with columns separated by a given separator.
+noneSepH :: sep -> HeaderSpec sep String
+noneSepH = NoneHS
 
--- | Use titles with the default header column specification.
-titlesH :: [a] -> HeaderSpec a
-titlesH = fullH (repeat def)
+-- | Specify no header, with columns separated by a default separator.
+noneH :: HeaderSpec () String
+noneH = noneSepH ()
+
+-- | Specify a header column for every title, with a given separator.
+fullSepH :: sep -> [HeaderColSpec] -> [a] -> HeaderSpec sep a
+fullSepH = HeaderHS
+
+-- | Specify a header column for every title, with a default separator.
+fullH :: [HeaderColSpec] -> [a] -> HeaderSpec () a
+fullH = fullSepH ()
+
+-- | Use titles with the default header column specification and separator.
+titlesH :: [a] -> HeaderSpec () a
+titlesH = fullSepH () (repeat def)
