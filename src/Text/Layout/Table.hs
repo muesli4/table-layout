@@ -263,14 +263,6 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- Helpers for horizontal lines that will put layout characters arround and
     -- in between a row of the pre-formatted grid.
 
-    -- | The shape of the column header, ignoring any titles, with 'NoneHS' replaced
-    -- by the shape of the first data row.
-    colHeaderShape = case colHeader of
-        NoneHS sep   -> fmap fst . zipHeader (repeat ()) . fullSepH sep (repeat def) $ () <$ columns
-        h@HeaderHS{} -> () <$ h
-      where
-        columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
-
     -- | Generate columns filled with 'sym', or blank spaces if 'sym' is of width 0.
     fakeColumns :: StringBuilder b => String -> Row b
     fakeColumns sym = map replicateSym colWidths
@@ -280,26 +272,35 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             (q, r) = w `quotRem` l
         (sym', l) = let l' = length sym in if l' == 0 then (" ", 1) else (sym, l')
 
-    -- | Intersperse a row with its separators
-    intersperseSeparators sep r = map (first $ const sep) . flattenHeader . fmap fst $ zipHeader r colHeaderShape
+    -- | Get the shape of a header, ignoring any titles. Replace 'NoneHS' with the shape of the data.
+    headerShape h@HeaderHS{} _  = () <$ h
+    headerShape (NoneHS sep) xs = fmap fst . zipHeader (repeat ()) . fullSepH sep (repeat def) $ () <$ xs
+
+    -- | Intersperse a row or column with its separators
+    withSeparators sep r = map (first $ const sep) . flattenHeader . fmap fst . zipHeader r
+    withRowSeparators sep r = withSeparators sep r $ headerShape rowHeader rowGroups
+    withColSeparators sep r = withSeparators sep r $ headerShape colHeader columns
+      where
+        columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
+
 
     -- Horizontal seperator lines that occur in a table.
-    optTopLine       = optHorizontalDetailLine realTopH realTopL realTopR . intersperseSeparators realTopC $ fakeColumns realTopH
-    optBottomLine    = optHorizontalDetailLine groupBottomH groupBottomL groupBottomR . intersperseSeparators groupBottomC $ fakeColumns groupBottomH
-    optGroupSepLine  = optHorizontalDetailLine groupSepH groupSepLC groupSepRC . intersperseSeparators groupSepC $ fakeColumns groupSepH
-    optHeaderSepLine = optHorizontalDetailLine headerSepH headerSepLC headerSepRC . intersperseSeparators headerSepC $ fakeColumns headerSepH
+    optTopLine       = optHorizontalDetailLine realTopH realTopL realTopR . withColSeparators realTopC $ fakeColumns realTopH
+    optBottomLine    = optHorizontalDetailLine groupBottomH groupBottomL groupBottomR . withColSeparators groupBottomC $ fakeColumns groupBottomH
+    optGroupSepLine  = optHorizontalDetailLine groupSepH groupSepLC groupSepRC . withColSeparators groupSepC $ fakeColumns groupSepH
+    optHeaderSepLine = optHorizontalDetailLine headerSepH headerSepLC headerSepRC . withColSeparators headerSepC $ fakeColumns headerSepH
 
     -- Vertical content lines
-    rowGroupLines = maybe concat (\seps -> intercalate [seps]) optGroupSepLine linesPerRowGroup
+    rowGroupLines = maybe concat (\seps -> concatMap (either pure id) . withRowSeparators seps) optGroupSepLine linesPerRowGroup
     linesPerRowGroup = map rowGroupToLines rowGroups
-    rowGroupToLines = map (horizontalContentLine groupL groupR . intersperseSeparators groupC) . applyRowMods . rows
+    rowGroupToLines = map (horizontalContentLine groupL groupR . withColSeparators groupC) . applyRowMods . rows
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case colHeader of
         HeaderHS _ headerColSpecs hTitles
                ->
-            let headerLine    = horizontalContentLine headerL headerR . intersperseSeparators headerC $ zipWith ($) headerRowMods hTitles
+            let headerLine    = horizontalContentLine headerL headerR . withColSeparators headerC $ zipWith ($) headerRowMods hTitles
                 headerRowMods = zipWith3 headerCellModifier
                                          headerColSpecs
                                          cMSs
