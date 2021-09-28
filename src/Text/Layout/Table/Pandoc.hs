@@ -5,6 +5,7 @@ module Text.Layout.Table.Pandoc where
 
 import Data.List
 
+import Text.Layout.Table.Cell
 import Text.Layout.Table.Primitives.ColumnModifier
 import Text.Layout.Table.Primitives.Header
 import Text.Layout.Table.Spec.ColSpec
@@ -20,8 +21,9 @@ import Text.Layout.Table.Spec.Util
 -- |a   |       1.5    |
 -- |b   |       6.60000|
 pandocPipeTableLines
-    :: [ColSpec]
-    -> HeaderSpec
+    :: Cell c
+    => [ColSpec]
+    -> HeaderSpec c
     -> [Row String]
     -> [String]
 pandocPipeTableLines specs h tab =
