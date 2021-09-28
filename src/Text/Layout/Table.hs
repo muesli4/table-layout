@@ -74,6 +74,8 @@ module Text.Layout.Table
     , fullSepH
     , fullH
     , titlesH
+    , zipHeader
+    , flattenHeader
 
       -- ** Layout
     , tableLines
