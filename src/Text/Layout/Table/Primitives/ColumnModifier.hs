@@ -69,11 +69,11 @@ ensureWidthCMI w pos cmi = case cmi of
     _             -> cmi
 
 -- | Ensures that the given 'String' will fit into the modified columns.
-ensureWidthOfCMI :: String -> Position H -> ColModInfo -> ColModInfo
+ensureWidthOfCMI :: Cell a => a -> Position H -> ColModInfo -> ColModInfo
 ensureWidthOfCMI = ensureWidthCMI . visibleLength
 
 -- | Fit titles of a header column into the derived 'ColModInfo'.
-fitTitlesCMI :: [String] -> [Position H] -> [ColModInfo] -> [ColModInfo]
+fitTitlesCMI :: Cell a => [a] -> [Position H] -> [ColModInfo] -> [ColModInfo]
 fitTitlesCMI = zipWith3 ensureWidthOfCMI
 
 -- | Generates a function which modifies a given cell according to

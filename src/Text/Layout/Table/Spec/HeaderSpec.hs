@@ -5,18 +5,18 @@ import Data.Default.Class
 import Text.Layout.Table.Spec.HeaderColSpec
 
 -- | Specifies a header.
-data HeaderSpec
-    = HeaderHS [HeaderColSpec] [String]
+data HeaderSpec a
+    = HeaderHS [HeaderColSpec] [a]
     | NoneHS
 
 -- | By the default the header is not shown.
-instance Default HeaderSpec where
+instance Default (HeaderSpec a) where
     def = NoneHS
 
 -- | Specify a header column for every title.
-fullH :: [HeaderColSpec] -> [String] -> HeaderSpec
+fullH :: [HeaderColSpec] -> [a] -> HeaderSpec a
 fullH = HeaderHS
 
 -- | Use titles with the default header column specification.
-titlesH :: [String] -> HeaderSpec
-titlesH = fullH $ repeat def
+titlesH :: [a] -> HeaderSpec a
+titlesH = fullH (repeat def)
