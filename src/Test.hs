@@ -7,6 +7,7 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                               , column expand center noAlign noCutMark
                               ]
                               unicodeRoundS
+                              noneH
                               (titlesH ["Layout", "Result"])
                               rowGroups
   where
@@ -17,6 +18,7 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                             ]
     genTable c s = tableLines (repeat c)
                               s
+                              noneH
                               (titlesH ["Some text", "Some numbers", "X"])
                               [ rowsG [ [longText, smallNum, "foo"]
                                       , [shortText, bigNum, "bar"]

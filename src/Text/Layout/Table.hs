@@ -245,13 +245,14 @@ colsAllG p = rowsG . colsAsRowsAll p
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLinesB :: (Cell a, Cell c, StringBuilder b)
-            => [ColSpec]          -- ^ Layout specification of columns
-            -> TableStyle         -- ^ Visual table style
-            -> HeaderSpec vSep c  -- ^ Optional header details
-            -> [RowGroup a]       -- ^ Rows which form a cell together
+tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
+            => [ColSpec]            -- ^ Layout specification of columns
+            -> TableStyle           -- ^ Visual table style
+            -> HeaderSpec hSep r  -- ^ Optional row header details
+            -> HeaderSpec vSep c  -- ^ Optional column header details
+            -> [RowGroup a]         -- ^ Rows which form a cell together
             -> [b]
-tableLinesB specs TableStyle { .. } header rowGroups =
+tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
   where
     -- Helpers for horizontal lines that will put layout characters arround and
@@ -279,7 +280,7 @@ tableLinesB specs TableStyle { .. } header rowGroups =
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
-                  = case header of
+                  = case colHeader of
         HeaderHS _ headerColSpecs hTitles
                ->
             let headerLine    = horizontalContentLine headerL headerC headerR (zipWith ($) headerRowMods hTitles)
@@ -312,20 +313,34 @@ tableLinesB specs TableStyle { .. } header rowGroups =
     colWidths     = map widthCMI cMIs
 
 -- | A version of 'tableLinesB' specialised to produce 'String's.
-tableLines :: (Cell a, Cell c) => [ColSpec] -> TableStyle -> HeaderSpec vSep c -> [RowGroup a] -> [String]
+tableLines :: (Cell a, Cell r, Cell c)
+           => [ColSpec]
+           -> TableStyle
+           -> HeaderSpec hSep r
+           -> HeaderSpec vSep c
+           -> [RowGroup a]
+           -> [String]
 tableLines = tableLinesB
 
 -- | Does the same as 'tableLines', but concatenates lines.
-tableStringB :: (Cell a, Cell c, StringBuilder b)
-             => [ColSpec]          -- ^ Layout specification of columns
-             -> TableStyle         -- ^ Visual table style
-             -> HeaderSpec vSep c  -- ^ Optional header details
-             -> [RowGroup a]       -- ^ Rows which form a cell together
+tableStringB :: (Cell a, Cell r, Cell c, StringBuilder b)
+             => [ColSpec]            -- ^ Layout specification of columns
+             -> TableStyle           -- ^ Visual table style
+             -> HeaderSpec hSep r  -- ^ Optional row header details
+             -> HeaderSpec vSep c  -- ^ Optional column header details
+             -> [RowGroup a]         -- ^ Rows which form a cell together
              -> b
-tableStringB specs style header rowGroups = concatLines $ tableLinesB specs style header rowGroups
+tableStringB specs style rowHeader colHeader rowGroups =
+    concatLines $ tableLinesB specs style rowHeader colHeader rowGroups
 
 -- | A version of 'tableStringB' specialised to produce 'String's.
-tableString :: (Cell a, Cell c) => [ColSpec] -> TableStyle -> HeaderSpec vSep c -> [RowGroup a] -> String
+tableString :: (Cell a, Cell r, Cell c)
+            => [ColSpec]
+            -> TableStyle
+            -> HeaderSpec hSep r
+            -> HeaderSpec vSep c
+            -> [RowGroup a]
+            -> String
 tableString = tableStringB
 
 -------------------------------------------------------------------------------
