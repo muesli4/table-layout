@@ -126,8 +126,11 @@ module Text.Layout.Table
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
 
+import           Data.Bifunctor
 import           Data.Default.Class
+import           Data.Either
 import           Data.List
+import           Data.Maybe
 import           Data.Semigroup
 
 import           Text.Layout.Table.Cell
@@ -260,6 +263,14 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- Helpers for horizontal lines that will put layout characters arround and
     -- in between a row of the pre-formatted grid.
 
+    -- | The shape of the column header, ignoring any titles, with 'NoneHS' replaced
+    -- by the shape of the first data row.
+    colHeaderShape = case colHeader of
+        NoneHS sep   -> fmap fst . zipHeader (repeat ()) . fullSepH sep (repeat def) $ () <$ columns
+        h@HeaderHS{} -> () <$ h
+      where
+        columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
+
     -- | Generate columns filled with 'sym', or blank spaces if 'sym' is of width 0.
     fakeColumns :: StringBuilder b => String -> Row b
     fakeColumns sym = map replicateSym colWidths
@@ -269,23 +280,26 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             (q, r) = w `quotRem` l
         (sym', l) = let l' = length sym in if l' == 0 then (" ", 1) else (sym, l')
 
+    -- | Intersperse a row with its separators
+    intersperseSeparators sep r = map (first $ const sep) . flattenHeader . fmap fst $ zipHeader r colHeaderShape
+
     -- Horizontal seperator lines that occur in a table.
-    optTopLine       = optHorizontalDetailLine realTopH realTopL realTopC realTopR $ fakeColumns realTopH
-    optBottomLine    = optHorizontalDetailLine groupBottomH groupBottomL groupBottomC groupBottomR $ fakeColumns groupBottomH
-    optGroupSepLine  = optHorizontalDetailLine groupSepH groupSepLC groupSepC groupSepRC $ fakeColumns groupSepH
-    optHeaderSepLine = optHorizontalDetailLine headerSepH headerSepLC headerSepC headerSepRC $ fakeColumns headerSepH
+    optTopLine       = optHorizontalDetailLine realTopH realTopL realTopR . intersperseSeparators realTopC $ fakeColumns realTopH
+    optBottomLine    = optHorizontalDetailLine groupBottomH groupBottomL groupBottomR . intersperseSeparators groupBottomC $ fakeColumns groupBottomH
+    optGroupSepLine  = optHorizontalDetailLine groupSepH groupSepLC groupSepRC . intersperseSeparators groupSepC $ fakeColumns groupSepH
+    optHeaderSepLine = optHorizontalDetailLine headerSepH headerSepLC headerSepRC . intersperseSeparators headerSepC $ fakeColumns headerSepH
 
     -- Vertical content lines
     rowGroupLines = maybe concat (\seps -> intercalate [seps]) optGroupSepLine linesPerRowGroup
     linesPerRowGroup = map rowGroupToLines rowGroups
-    rowGroupToLines = map (horizontalContentLine groupL groupC groupR) . applyRowMods . rows
+    rowGroupToLines = map (horizontalContentLine groupL groupR . intersperseSeparators groupC) . applyRowMods . rows
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case colHeader of
         HeaderHS _ headerColSpecs hTitles
                ->
-            let headerLine    = horizontalContentLine headerL headerC headerR (zipWith ($) headerRowMods hTitles)
+            let headerLine    = horizontalContentLine headerL headerR . intersperseSeparators headerC $ zipWith ($) headerRowMods hTitles
                 headerRowMods = zipWith3 headerCellModifier
                                          headerColSpecs
                                          cMSs
