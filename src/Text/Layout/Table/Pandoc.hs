@@ -23,7 +23,7 @@ import Text.Layout.Table.Spec.Util
 pandocPipeTableLines
     :: Cell c
     => [ColSpec]
-    -> HeaderSpec c
+    -> HeaderSpec vSep c
     -> [Row String]
     -> [String]
 pandocPipeTableLines specs h tab =
@@ -35,8 +35,8 @@ pandocPipeTableLines specs h tab =
     posSpecs = fmap position specs
 
     (fitHeaderIntoCMIs, consHeaderRow) = case h of
-        NoneHS                      -> (id, id)
-        HeaderHS headerSpecs titles ->
+        NoneHS _                      -> (id, id)
+        HeaderHS _ headerSpecs titles ->
             ( fitTitlesCMI titles posSpecs
             , (zipWith4 headerCellModifier headerSpecs (cutMark <$> specs) cmis titles :)
             )
