@@ -98,6 +98,7 @@ module Text.Layout.Table
 
       -- * Table styles
     , module Text.Layout.Table.Style
+    , module Text.Layout.Table.LineStyle
 
       -- * Column modification functions
     , pad
@@ -135,6 +136,7 @@ import           Data.Semigroup
 
 import           Text.Layout.Table.Cell
 import           Text.Layout.Table.Justify
+import           Text.Layout.Table.LineStyle
 import           Text.Layout.Table.Primitives.AlignInfo
 import           Text.Layout.Table.Primitives.Basic
 import           Text.Layout.Table.Primitives.ColumnModifier
@@ -251,11 +253,11 @@ colsAllG p = rowsG . colsAsRowsAll p
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
 tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
-            => [ColSpec]            -- ^ Layout specification of columns
-            -> TableStyle           -- ^ Visual table style
-            -> HeaderSpec hSep r  -- ^ Optional row header details
-            -> HeaderSpec vSep c  -- ^ Optional column header details
-            -> [RowGroup a]         -- ^ Rows which form a cell together
+            => [ColSpec]             -- ^ Layout specification of columns
+            -> TableStyle hSep vSep  -- ^ Visual table style
+            -> HeaderSpec hSep r     -- ^ Optional row header details
+            -> HeaderSpec vSep c     -- ^ Optional column header details
+            -> [RowGroup a]          -- ^ Rows which form a cell together
             -> [b]
 tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
@@ -277,21 +279,20 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     headerShape (NoneHS sep) xs = fmap fst . zipHeader (repeat ()) . fullSepH sep (repeat def) $ () <$ xs
 
     -- | Intersperse a row or column with its separators
-    withSeparators sep r = map (first $ const sep) . flattenHeader . fmap fst . zipHeader r
+    withSeparators sep r = map (first sep) . flattenHeader . fmap fst . zipHeader r
     withRowSeparators sep r = withSeparators sep r $ headerShape rowHeader rowGroups
     withColSeparators sep r = withSeparators sep r $ headerShape colHeader columns
       where
         columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
 
-
     -- Horizontal seperator lines that occur in a table.
     optTopLine       = optHorizontalDetailLine realTopH realTopL realTopR . withColSeparators realTopC $ fakeColumns realTopH
     optBottomLine    = optHorizontalDetailLine groupBottomH groupBottomL groupBottomR . withColSeparators groupBottomC $ fakeColumns groupBottomH
-    optGroupSepLine  = optHorizontalDetailLine groupSepH groupSepLC groupSepRC . withColSeparators groupSepC $ fakeColumns groupSepH
+    optGroupSepLine s= optHorizontalDetailLine (groupSepH s) (groupSepLC s) (groupSepRC s) . withColSeparators (groupSepC s) $ fakeColumns (groupSepH s)
     optHeaderSepLine = optHorizontalDetailLine headerSepH headerSepLC headerSepRC . withColSeparators headerSepC $ fakeColumns headerSepH
 
     -- Vertical content lines
-    rowGroupLines = maybe concat (\seps -> concatMap (either pure id) . withRowSeparators seps) optGroupSepLine linesPerRowGroup
+    rowGroupLines = concatMap (either (maybe [] pure) id) $ withRowSeparators optGroupSepLine linesPerRowGroup
     linesPerRowGroup = map rowGroupToLines rowGroups
     rowGroupToLines = map (horizontalContentLine groupL groupR . withColSeparators groupC) . applyRowMods . rows
 
@@ -332,7 +333,7 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
 -- | A version of 'tableLinesB' specialised to produce 'String's.
 tableLines :: (Cell a, Cell r, Cell c)
            => [ColSpec]
-           -> TableStyle
+           -> TableStyle hSep vSep
            -> HeaderSpec hSep r
            -> HeaderSpec vSep c
            -> [RowGroup a]
@@ -341,11 +342,11 @@ tableLines = tableLinesB
 
 -- | Does the same as 'tableLines', but concatenates lines.
 tableStringB :: (Cell a, Cell r, Cell c, StringBuilder b)
-             => [ColSpec]            -- ^ Layout specification of columns
-             -> TableStyle           -- ^ Visual table style
-             -> HeaderSpec hSep r  -- ^ Optional row header details
-             -> HeaderSpec vSep c  -- ^ Optional column header details
-             -> [RowGroup a]         -- ^ Rows which form a cell together
+             => [ColSpec]             -- ^ Layout specification of columns
+             -> TableStyle hSep vSep  -- ^ Visual table style
+             -> HeaderSpec hSep r     -- ^ Optional row header details
+             -> HeaderSpec vSep c     -- ^ Optional column header details
+             -> [RowGroup a]          -- ^ Rows which form a cell together
              -> b
 tableStringB specs style rowHeader colHeader rowGroups =
     concatLines $ tableLinesB specs style rowHeader colHeader rowGroups
@@ -353,7 +354,7 @@ tableStringB specs style rowHeader colHeader rowGroups =
 -- | A version of 'tableStringB' specialised to produce 'String's.
 tableString :: (Cell a, Cell r, Cell c)
             => [ColSpec]
-            -> TableStyle
+            -> TableStyle hSep vSep
             -> HeaderSpec hSep r
             -> HeaderSpec vSep c
             -> [RowGroup a]

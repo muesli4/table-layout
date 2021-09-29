@@ -57,6 +57,7 @@ library
                        Text.Layout.Table.Cell.Formatted,
                        Text.Layout.Table.Cell.WideString,
                        Text.Layout.Table.Justify,
+                       Text.Layout.Table.LineStyle,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical,
                        Text.Layout.Table.StringBuilder,
@@ -112,6 +113,7 @@ executable table-layout-test-styles
                        Text.Layout.Table.Cell.Formatted,
                        Text.Layout.Table.Cell.WideString,
                        Text.Layout.Table.Justify,
+                       Text.Layout.Table.LineStyle,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
 
@@ -155,6 +157,7 @@ test-suite table-layout-tests
                        Text.Layout.Table.Cell.Formatted,
                        Text.Layout.Table.Cell.WideString,
                        Text.Layout.Table.Justify,
+                       Text.Layout.Table.LineStyle,
                        Text.Layout.Table.Style,
                        Text.Layout.Table.Vertical
 

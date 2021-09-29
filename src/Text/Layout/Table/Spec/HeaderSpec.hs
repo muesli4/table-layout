@@ -6,6 +6,7 @@ import Data.Bifunctor
 import Data.Default.Class
 import Data.List
 
+import Text.Layout.Table.LineStyle
 import Text.Layout.Table.Spec.HeaderColSpec
 
 -- | Specifies a header.
@@ -33,20 +34,20 @@ noneSepH :: sep -> HeaderSpec sep String
 noneSepH = NoneHS
 
 -- | Specify no header, with columns separated by a default separator.
-noneH :: HeaderSpec () String
-noneH = noneSepH ()
+noneH :: HeaderSpec LineStyle String
+noneH = noneSepH SingleLine
 
 -- | Specify a header column for every title, with a given separator.
 fullSepH :: sep -> [HeaderColSpec] -> [a] -> HeaderSpec sep a
 fullSepH = HeaderHS
 
 -- | Specify a header column for every title, with a default separator.
-fullH :: [HeaderColSpec] -> [a] -> HeaderSpec () a
-fullH = fullSepH ()
+fullH :: [HeaderColSpec] -> [a] -> HeaderSpec LineStyle a
+fullH = fullSepH SingleLine
 
 -- | Use titles with the default header column specification and separator.
-titlesH :: [a] -> HeaderSpec () a
-titlesH = fullSepH () (repeat def)
+titlesH :: [a] -> HeaderSpec LineStyle a
+titlesH = fullSepH SingleLine (repeat def)
 
 -- | Zip a 'HeaderSpec' with a list.
 zipHeader :: [b] -> HeaderSpec sep a -> HeaderSpec sep (b, a)

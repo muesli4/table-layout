@@ -29,14 +29,15 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
     bigNum    = "200300400500600.2"
     smallNum  = "4.20000000"
     styles    = [ asciiS
-                , asciiDoubleS
                 , asciiRoundS
                 , unicodeS
                 , withoutBorders unicodeS
                 , unicodeRoundS
                 , unicodeBoldS
                 , unicodeBoldStripedS
-                , unicodeBoldHeaderS
+                -- , unicodeBoldHeaderS  -- 'TableStyle's with different lines
+                                         -- in the header and body are not yet
+                                         -- supported, so comment this out for now.
                 ]
     columTs   = [ ( column l p a def
                   , ["len spec: " ++ dL, "position: " ++ pL, "alignment: " ++ aL]
