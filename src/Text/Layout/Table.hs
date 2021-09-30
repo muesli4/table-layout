@@ -286,11 +286,19 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- | Intersperse a column with its rendered separators.
     withColSeparators renderDelimiter r = map (first renderIfDrawn)   . flattenWithContent r $ headerShape colHeader columns
       where
-        -- Render the delimiters of a column if it is drawn, otherwise return an empty string.
-        renderIfDrawn x = if isColumnDrawn x then renderDelimiter x else ""
-        -- Check if the delimiters of a column should be drawn
-        isColumnDrawn x = not $ null (headerC $ fst x) && null (groupC $ snd x)
         columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
+        -- Render the delimiters of a column if it is drawn, otherwise return an empty string.
+        renderIfDrawn x
+            -- If no delimiters are drawn in this column, return the empty string
+            | null headerV && null groupV = ""
+            -- If this delimiter is not drawn, but others in the column are, pad with spaces
+            | null separator              = replicate (max (visibleLength headerV) (visibleLength groupV)) ' '
+            -- Otherwise, just render the delimiter
+            | otherwise                   = separator
+          where
+            separator = renderDelimiter x
+            headerV   = headerC $ fst x
+            groupV    = groupC  $ snd x
 
     -- Draw a line using the specified delimiters, but only if the horizontal string is non-null
     optDrawLine horizontal leftD rightD colSepD = if null horizontal

@@ -61,11 +61,10 @@ asciiVertical _          = "|"
 
 -- | Ascii representations for joins.
 asciiJoinString :: LineStyle -> LineStyle -> String
-asciiJoinString NoLine     _          = ""
-asciiJoinString _          NoLine     = ""
 asciiJoinString DoubleLine DoubleLine = "++"
 asciiJoinString _          DoubleLine = "++"
 asciiJoinString DoubleLine _          = ":"
+asciiJoinString _          NoLine     = "-"
 asciiJoinString _          _          = "+"
 
 

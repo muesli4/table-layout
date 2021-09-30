@@ -158,7 +158,7 @@ asciiRoundS = TableStyle
             { headerSepH   = "-"
             , headerSepLC  = ":"
             , headerSepRC  = ":"
-            , headerSepC   = const roundedVerticalJoin
+            , headerSepC   = roundedVerticalJoin
             , headerTopL   = "."
             , headerTopR   = "."
             , headerTopC   = roundedTopJoin
@@ -171,8 +171,8 @@ asciiRoundS = TableStyle
             , groupC       = asciiVertical
             , groupSepH    = asciiHorizontal
             , groupSepC    = roundedInteriorJoin
-            , groupSepLC   = roundedVerticalJoin
-            , groupSepRC   = roundedVerticalJoin
+            , groupSepLC   = roundedVerticalJoin SingleLine
+            , groupSepRC   = roundedVerticalJoin SingleLine
             , groupTopC    = roundedTopJoin
             , groupTopL    = "."
             , groupTopR    = "."
@@ -183,19 +183,18 @@ asciiRoundS = TableStyle
             , groupBottomH = "-"
             }
   where
-    roundedVerticalJoin NoLine = ""
-    roundedVerticalJoin _      = ":"
+    roundedVerticalJoin DoubleLine _          = "::"
+    roundedVerticalJoin _          DoubleLine = "::"
+    roundedVerticalJoin _          _          = ":"
 
-    roundedTopJoin NoLine     = ""
     roundedTopJoin DoubleLine = ".."
+    roundedTopJoin NoLine     = "-"
     roundedTopJoin _          = "."
 
-    roundedBottomJoin NoLine     = ""
     roundedBottomJoin DoubleLine = "''"
+    roundedBottomJoin NoLine     = "-"
     roundedBottomJoin _          = "'"
 
-    roundedInteriorJoin NoLine     _          = ""
-    roundedInteriorJoin _          NoLine     = ""
     roundedInteriorJoin DoubleLine DoubleLine = "::"
     roundedInteriorJoin DoubleLine _          = ":"
     roundedInteriorJoin _          DoubleLine = "++"
