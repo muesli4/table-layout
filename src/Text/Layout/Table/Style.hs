@@ -5,6 +5,8 @@
 
 module Text.Layout.Table.Style where
 
+import Data.Function (on)
+
 import Text.Layout.Table.LineStyle
 
 -- | Specifies the different letters to construct the non-content structure of a
@@ -14,7 +16,7 @@ data TableStyle hSep vSep
     { headerSepH   :: String
     , headerSepLC  :: String
     , headerSepRC  :: String
-    , headerSepC   :: vSep -> String
+    , headerSepC   :: vSep -> vSep -> String
     , headerTopH   :: String
     , headerTopL   :: String
     , headerTopR   :: String
@@ -41,7 +43,7 @@ data TableStyle hSep vSep
 
 -- | Inherit from a 'TableStyle' through a pair of functions
 inheritStyle :: (c -> a) -> (d -> b) -> TableStyle a b -> TableStyle c d
-inheritStyle f g ts = ts { headerSepC   = headerSepC   ts . g
+inheritStyle f g ts = ts { headerSepC   = headerSepC   ts `on` g
                          , headerTopC   = headerTopC   ts . g
                          , headerC      = headerC      ts . g
                          , groupC       = groupC       ts . g
@@ -95,8 +97,10 @@ data TableStyleSpec
     = TableStyleSpec
     { headerSep   :: LineStyle
     , headerTop   :: LineStyle
-    , tableLeft   :: LineStyle
-    , tableRight  :: LineStyle
+    , headerLeft  :: LineStyle
+    , headerRight :: LineStyle
+    , groupLeft   :: LineStyle
+    , groupRight  :: LineStyle
     , groupTop    :: LineStyle
     , groupBottom :: LineStyle
     }
@@ -106,30 +110,30 @@ tableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
 tableStyleFromSpec TableStyleSpec { .. }
     = TableStyle
     { headerSepH   = unicodeHorizontal headerSep
-    , headerSepLC  = unicodeJoinString4 NoLine headerSep tableLeft tableLeft
-    , headerSepRC  = unicodeJoinString4 headerSep NoLine tableRight tableRight
-    , headerSepC   = unicodeJoinString headerSep
+    , headerSepLC  = unicodeJoinString4 NoLine headerSep headerLeft groupLeft
+    , headerSepRC  = unicodeJoinString4 headerSep NoLine headerRight groupRight
+    , headerSepC   = unicodeJoinString4 headerSep headerSep
     , headerTopH   = unicodeHorizontal headerTop
-    , headerTopL   = unicodeJoinString4 NoLine headerTop NoLine tableLeft
-    , headerTopR   = unicodeJoinString4 headerTop NoLine NoLine tableRight
+    , headerTopL   = unicodeJoinString4 NoLine headerTop NoLine headerLeft
+    , headerTopR   = unicodeJoinString4 headerTop NoLine NoLine headerRight
     , headerTopC   = unicodeJoinString4 headerTop headerTop NoLine
-    , headerL      = unicodeVertical tableLeft
-    , headerR      = unicodeVertical tableRight
+    , headerL      = unicodeVertical headerLeft
+    , headerR      = unicodeVertical headerRight
     , headerC      = unicodeVertical
-    , groupL       = unicodeVertical tableLeft
-    , groupR       = unicodeVertical tableRight
+    , groupL       = unicodeVertical groupLeft
+    , groupR       = unicodeVertical groupRight
     , groupC       = unicodeVertical
     , groupSepH    = unicodeHorizontal
     , groupSepC    = unicodeJoinString
-    , groupSepLC   = \h -> unicodeJoinString4 NoLine h tableLeft tableLeft
-    , groupSepRC   = \h -> unicodeJoinString4 h NoLine tableRight tableRight
+    , groupSepLC   = \h -> unicodeJoinString4 NoLine h groupLeft groupLeft
+    , groupSepRC   = \h -> unicodeJoinString4 h NoLine groupRight groupRight
     , groupTopC    = unicodeJoinString4 groupTop groupTop NoLine
-    , groupTopL    = unicodeJoinString4 NoLine groupTop NoLine tableLeft
-    , groupTopR    = unicodeJoinString4 groupTop NoLine NoLine tableRight
+    , groupTopL    = unicodeJoinString4 NoLine groupTop NoLine groupLeft
+    , groupTopR    = unicodeJoinString4 groupTop NoLine NoLine groupRight
     , groupTopH    = unicodeHorizontal groupTop
     , groupBottomC = \v -> unicodeJoinString4 groupBottom groupBottom v NoLine
-    , groupBottomL = unicodeJoinString4 NoLine groupBottom tableLeft NoLine
-    , groupBottomR = unicodeJoinString4 groupBottom NoLine tableRight NoLine
+    , groupBottomL = unicodeJoinString4 NoLine groupBottom groupLeft NoLine
+    , groupBottomR = unicodeJoinString4 groupBottom NoLine groupRight NoLine
     , groupBottomH = unicodeHorizontal groupBottom
     }
 
@@ -139,8 +143,10 @@ unicodeSS :: TableStyleSpec
 unicodeSS = TableStyleSpec
           { headerSep   = DoubleLine
           , headerTop   = SingleLine
-          , tableLeft   = SingleLine
-          , tableRight  = SingleLine
+          , headerLeft  = SingleLine
+          , headerRight = SingleLine
+          , groupLeft   = SingleLine
+          , groupRight  = SingleLine
           , groupTop    = SingleLine
           , groupBottom = SingleLine
           }
@@ -152,7 +158,7 @@ asciiRoundS = TableStyle
             { headerSepH   = "-"
             , headerSepLC  = ":"
             , headerSepRC  = ":"
-            , headerSepC   = roundedVerticalJoin
+            , headerSepC   = const roundedVerticalJoin
             , headerTopL   = "."
             , headerTopR   = "."
             , headerTopC   = roundedTopJoin
@@ -201,7 +207,7 @@ asciiS = TableStyle
        { headerSepH   = "-"
        , headerSepLC  = "+"
        , headerSepRC  = "+"
-       , headerSepC   = asciiJoinString SingleLine
+       , headerSepC   = const $ asciiJoinString SingleLine
        , headerTopH   = "-"
        , headerTopL   = "+"
        , headerTopR   = "+"
@@ -232,7 +238,7 @@ asciiDoubleS = TableStyle
              { headerSepH   = "="
              , headerSepLC  = "++"
              , headerSepRC  = "++"
-             , headerSepC   = asciiJoinString DoubleLine
+             , headerSepC   = const $ asciiJoinString DoubleLine
              , headerTopH   = "="
              , headerTopL   = "++"
              , headerTopR   = "++"
@@ -262,23 +268,14 @@ asciiDoubleS = TableStyle
 unicodeS :: TableStyle LineStyle LineStyle
 unicodeS = tableStyleFromSpec unicodeSS
 
--- 'TableStyle's with different styles in headers versus the body are not yet
--- supported, so comment this out for now.
--- -- | Same as 'unicodeS' but uses bold headers.
--- unicodeBoldHeaderS :: TableStyle
--- unicodeBoldHeaderS = unicodeS
---                    { headerSepH  = "━"
---                    , headerSepLC = "┡"
---                    , headerSepRC = "┩"
---                    , headerSepC  = "╇"
---                    , headerTopL  = "┏"
---                    , headerTopR  = "┓"
---                    , headerTopC  = "┳"
---                    , headerTopH  = "━"
---                    , headerL     = "┃"
---                    , headerR     = "┃"
---                    , headerC     = "┃"
---                    }
+-- | Same as 'unicodeS' but uses bold headers.
+unicodeBoldHeaderS :: TableStyle LineStyle LineStyle
+unicodeBoldHeaderS = tableStyleFromSpec unicodeSS
+                   { headerSep   = HeavyLine
+                   , headerTop   = HeavyLine
+                   , headerLeft  = HeavyLine
+                   , headerRight = HeavyLine
+                   }
 
 -- | Like 'unicodeS' but with rounded edges.
 unicodeRoundS :: TableStyle LineStyle LineStyle
@@ -289,8 +286,10 @@ unicodeBoldS :: TableStyle LineStyle LineStyle
 unicodeBoldS = tableStyleFromSpec $ TableStyleSpec
              { headerSep   = HeavyLine
              , headerTop   = HeavyLine
-             , tableLeft   = HeavyLine
-             , tableRight  = HeavyLine
+             , headerLeft  = HeavyLine
+             , headerRight = HeavyLine
+             , groupLeft   = HeavyLine
+             , groupRight  = HeavyLine
              , groupTop    = HeavyLine
              , groupBottom = HeavyLine
              }
@@ -308,8 +307,10 @@ unicodeDoubleFrameS :: TableStyle LineStyle LineStyle
 unicodeDoubleFrameS = tableStyleFromSpec $ TableStyleSpec
                     { headerSep   = DoubleLine
                     , headerTop   = DoubleLine
-                    , tableLeft   = DoubleLine
-                    , tableRight  = DoubleLine
+                    , headerLeft  = DoubleLine
+                    , headerRight = DoubleLine
+                    , groupLeft   = DoubleLine
+                    , groupRight  = DoubleLine
                     , groupTop    = DoubleLine
                     , groupBottom = DoubleLine
                     }
