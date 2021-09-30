@@ -35,8 +35,8 @@ pandocPipeTableLines specs h tab =
     posSpecs = fmap position specs
 
     (fitHeaderIntoCMIs, consHeaderRow) = case h of
-        NoneHS _                      -> (id, id)
-        HeaderHS _ headerSpecs titles ->
+        NoneHS _                        -> (id, id)
+        HeaderHS _ _ headerSpecs titles ->
             ( fitTitlesCMI titles posSpecs
             , (zipWith4 headerCellModifier headerSpecs (cutMark <$> specs) cmis titles :)
             )
