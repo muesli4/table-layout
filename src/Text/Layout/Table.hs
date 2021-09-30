@@ -292,15 +292,15 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
         isColumnDrawn x = not $ null (headerC $ fst x) && null (groupC $ snd x)
         columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
 
+    -- Draw a line using the specified delimiters, but only if the horizontal string is non-null
+    optDrawLine horizontal leftD rightD colSepD = if null horizontal
+        then Nothing
+        else Just . horizontalDetailLine horizontal leftD rightD . withColSeparators colSepD $ fakeColumns horizontal
     -- Horizontal separator lines that occur in a table.
-    optTopLine        = optHorizontalDetailLine realTopH realTopL realTopR
-                      . withColSeparators realTopC $ fakeColumns realTopH
-    optBottomLine     = optHorizontalDetailLine groupBottomH groupBottomL groupBottomR
-                      . withColSeparators (groupBottomC . snd) $ fakeColumns groupBottomH
-    optGroupSepLine s = optHorizontalDetailLine (groupSepH s) (groupSepLC s) (groupSepRC s)
-                      . withColSeparators (groupSepC s . snd) $ fakeColumns (groupSepH s)
-    optHeaderSepLine  = optHorizontalDetailLine headerSepH headerSepLC headerSepRC
-                      . withColSeparators (uncurry headerSepC) $ fakeColumns headerSepH
+    optTopLine        = optDrawLine realTopH realTopL realTopR realTopC
+    optBottomLine     = optDrawLine groupBottomH groupBottomL groupBottomR (groupBottomC . snd)
+    optGroupSepLine s = optDrawLine (groupSepH s) (groupSepLC s) (groupSepRC s) (groupSepC s . snd)
+    optHeaderSepLine  = optDrawLine headerSepH headerSepLC headerSepRC (uncurry headerSepC)
 
     -- Vertical content lines
     rowGroupLines = concatRowGroups $ withRowSeparators (optGroupSepLine . snd) linesPerRowGroup
