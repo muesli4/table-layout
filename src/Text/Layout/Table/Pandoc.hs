@@ -35,11 +35,13 @@ pandocPipeTableLines specs h tab =
     posSpecs = fmap position specs
 
     (fitHeaderIntoCMIs, consHeaderRow) = case h of
-        NoneHS _                        -> (id, id)
-        HeaderHS _ _ headerSpecs titles ->
+        NoneHS _ -> (id, id)
+        _        ->
             ( fitTitlesCMI titles posSpecs
             , (zipWith4 headerCellModifier headerSpecs (cutMark <$> specs) cmis titles :)
             )
+      where
+        (headerSpecs, titles) = unzip $ headerContents h
 
     vSeparators = zipWith (\pos cmi -> applyPandocPositionMarker pos $ replicate (widthCMI cmi) '-') posSpecs cmis
 
