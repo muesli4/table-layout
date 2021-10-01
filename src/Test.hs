@@ -18,10 +18,16 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                             ]
     genTable c s = tableLines (repeat c)
                               s
-                              noneH
-                              (titlesH ["Some text", "Some numbers", "X"])
-                              [ rowsG [ [longText, smallNum, "foo"]
-                                      , [shortText, bigNum, "bar"]
+                              (noneSepH DashLine)
+                              (groupH HeavyLine Nothing
+                                  [ fullSepH SingleLine (Just DashLine) (repeat def) ["Some text", "Some numbers", "X"]
+                                  , fullSepH SingleLine (Just NoLine)   (repeat def) ["Text", "Y"]
+                                  ]
+                              )
+                              [ rowsG [ [longText, smallNum, "foo", shortText, "baz"]
+                                      , [shortText, bigNum, "bar", shortText, "wibble"]
+                                      ]
+                              , rowsG [ [longText, smallNum, "foo", shortText, "wobble" ]
                                       ]
                               ]
     longText  = "This is long text"

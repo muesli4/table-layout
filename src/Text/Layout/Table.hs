@@ -3,7 +3,8 @@
 -- and length restriction it also provides advanced features like justifying
 -- text and fancy tables with styling support.
 --
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Text.Layout.Table
     ( -- * Layout combinators
       -- | Specify how a column is rendered with the combinators in this
@@ -74,8 +75,11 @@ module Text.Layout.Table
     , fullSepH
     , fullH
     , titlesH
+    , groupH
+    , headerH
     , zipHeader
     , flattenHeader
+    , headerContents
 
       -- ** Layout
     , tableLines
@@ -252,7 +256,8 @@ colsAllG p = rowsG . colsAsRowsAll p
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
+tableLinesB :: forall hSep r vSep c a b.
+               (Cell a, Cell r, Cell c, StringBuilder b)
             => [ColSpec]             -- ^ Layout specification of columns
             -> TableStyle hSep vSep  -- ^ Visual table style
             -> HeaderSpec hSep r     -- ^ Optional row header details
@@ -266,7 +271,7 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- in between a row of the pre-formatted grid.
 
     -- | Generate columns filled with 'sym', or blank spaces if 'sym' is of width 0.
-    fakeColumns :: StringBuilder b => String -> Row b
+    fakeColumns :: String -> Row b
     fakeColumns sym = map replicateSym colWidths
       where
         replicateSym w = stimesMonoid q (stringB sym') <> stringB (take r sym')
@@ -274,17 +279,18 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             (q, r) = w `quotRem` l
         (sym', l) = let l' = length sym in if l' == 0 then (" ", 1) else (sym, l')
 
-    -- | Get the shape of a header, ignoring any titles. Replace 'NoneHS' with the shape of the data.
-    headerShape h@HeaderHS{} _  = () <$ h
-    headerShape (NoneHS sep) xs = fmap fst . zipHeader (repeat ()) . fullSepH sep Nothing (repeat def) $ () <$ xs
-
     -- | Replace the content of a 'HeaderSpec' with the content of the rows or columns to be rendered,
-    -- and flatten to a list of content interspersed with column/row separators.
-    flattenWithContent r = flattenHeader . fmap fst . zipHeader r
+    -- and flatten to a list of content interspersed with column/row separators. If given 'NoneHS', first
+    -- replace it with the shape of the data.
+    flattenWithContent (NoneHS sep) content r = flattenHeader . fmap fst . zipHeader mempty r $ fullSepH sep Nothing (repeat def) $ () <$ content
+    flattenWithContent h            _       r = flattenHeader . fmap fst $ zipHeader mempty r h
+
     -- | Intersperse a row with its rendered separators.
-    withRowSeparators renderDelimiter r = map (first renderDelimiter) . flattenWithContent r $ headerShape rowHeader rowGroups
+    withRowSeparators :: ((hSep, hSep) -> Maybe b) -> [[b]] -> [Either (Maybe b) [b]]
+    withRowSeparators renderDelimiter = map (first renderDelimiter) . flattenWithContent rowHeader rowGroups
     -- | Intersperse a column with its rendered separators.
-    withColSeparators renderDelimiter r = map (first renderIfDrawn)   . flattenWithContent r $ headerShape colHeader columns
+    withColSeparators :: ((vSep, vSep) -> String) -> [b] -> [Either String b]
+    withColSeparators renderDelimiter = map (first renderIfDrawn)   . flattenWithContent colHeader columns
       where
         columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
         -- Render the delimiters of a column if it is drawn, otherwise return an empty string.
@@ -319,22 +325,6 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
                   = case colHeader of
-        HeaderHS _ _ headerColSpecs hTitles
-               ->
-            let headerLine    = horizontalContentLine headerL headerR . withColSeparators (headerC . fst)
-                              $ zipWith ($) headerRowMods hTitles
-                headerRowMods = zipWith3 headerCellModifier
-                                         headerColSpecs
-                                         cMSs
-                                         cMIs
-            in
-            ( (headerLine :) . maybe id (:) optHeaderSepLine
-            , fitTitlesCMI hTitles posSpecs
-            , headerTopH
-            , headerTopL
-            , headerTopC . fst
-            , headerTopR
-            )
         NoneHS _ ->
             ( id
             , id
@@ -342,6 +332,22 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             , groupTopL
             , groupTopC . snd
             , groupTopR
+            )
+        _ ->
+            let headerLine    = horizontalContentLine headerL headerR . withColSeparators (headerC . fst)
+                              $ zipWith ($) headerRowMods hTitles
+                headerRowMods = zipWith3 headerCellModifier
+                                         headerColSpecs
+                                         cMSs
+                                         cMIs
+                (headerColSpecs, hTitles) = unzip $ headerContents colHeader
+            in
+            ( (headerLine :) . maybe id (:) optHeaderSepLine
+            , fitTitlesCMI hTitles posSpecs
+            , headerTopH
+            , headerTopL
+            , headerTopC . fst
+            , headerTopR
             )
 
     cMSs          = map cutMark specs
