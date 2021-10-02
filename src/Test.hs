@@ -2,6 +2,15 @@ module Main where
 
 import Text.Layout.Table
 
+data MySeparator = BigSep | SmallSep | TinySep
+
+inheritMyStyle :: TableStyle LineStyle LineStyle -> TableStyle LineStyle MySeparator
+inheritMyStyle = inheritStyleHeaderGroup id (fst . style) (snd . style)
+  where
+    style BigSep   = (HeavyLine,  HeavyLine)
+    style SmallSep = (SingleLine, DashLine)
+    style TinySep  = (SingleLine, NoLine)
+
 main :: IO ()
 main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                               , column expand center noAlign noCutMark
@@ -19,30 +28,35 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
     genTable c s = tableLines (repeat c)
                               s
                               (noneSepH DashLine)
-                              (groupH HeavyLine Nothing
-                                  [ fullSepH SingleLine (Just DashLine) (repeat def) ["Some text", "Some numbers", "X"]
-                                  , fullSepH SingleLine (Just NoLine)   (repeat def) ["Text", "Y"]
+                              (groupH BigSep
+                                  [ fullSepH SmallSep (repeat def) ["Some text", "Some numbers", "X"]
+                                  , groupH SmallSep
+                                      [ fullSepH TinySep (repeat def) ["Z", "W"]
+                                      , fullSepH TinySep (repeat def) ["A", "B"]
+                                      ]
+                                  , fullSepH TinySep  (repeat def) ["Text", "Y"]
                                   ]
                               )
-                              [ rowsG [ [longText, smallNum, "foo", shortText, "baz"]
-                                      , [shortText, bigNum, "bar", shortText, "wibble"]
+                              [ rowsG [ [longText, smallNum, "foo", "blah", "bloo", "blop", "blog", shortText, "baz"]
+                                      , [shortText, bigNum, "bar", "yadda", "yoda", "yeeda", "york", shortText, "wibble"]
                                       ]
-                              , rowsG [ [longText, smallNum, "foo", shortText, "wobble" ]
+                              , rowsG [ [longText, smallNum, "foo", "bibbidy", "babbidy", "boo", "blue", shortText, "wobble" ]
                                       ]
                               ]
     longText  = "This is long text"
     shortText = "Short"
     bigNum    = "200300400500600.2"
     smallNum  = "4.20000000"
-    styles    = [ asciiS
-                , asciiRoundS
-                , unicodeS
-                , withoutBorders unicodeS
-                , unicodeRoundS
-                , unicodeBoldS
-                , unicodeBoldStripedS
-                , unicodeBoldHeaderS
-                ]
+    styles    = map inheritMyStyle
+                    [ asciiS
+                    , asciiRoundS
+                    , unicodeS
+                    , withoutBorders unicodeS
+                    , unicodeRoundS
+                    , unicodeBoldS
+                    , unicodeBoldStripedS
+                    , unicodeBoldHeaderS
+                    ]
     columTs   = [ ( column l p a def
                   , ["len spec: " ++ dL, "position: " ++ pL, "alignment: " ++ aL]
                   )

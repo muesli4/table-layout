@@ -41,19 +41,32 @@ data TableStyle hSep vSep
     , groupBottomH :: String
     }
 
--- | Inherit from a 'TableStyle' through a pair of functions
-inheritStyle :: (c -> a) -> (d -> b) -> TableStyle a b -> TableStyle c d
-inheritStyle f g ts = ts { headerSepC   = headerSepC   ts `on` g
-                         , headerTopC   = headerTopC   ts . g
-                         , headerC      = headerC      ts . g
-                         , groupC       = groupC       ts . g
-                         , groupSepH    = groupSepH    ts . f
-                         , groupSepC    = \a b -> groupSepC ts (f a) (g b)
-                         , groupSepLC   = groupSepLC   ts . f
-                         , groupSepRC   = groupSepRC   ts . f
-                         , groupTopC    = groupTopC    ts . g
-                         , groupBottomC = groupBottomC ts . g
-                         }
+-- | Inherit from a 'TableStyle' through a pair of functions.
+inheritStyle :: (c -> a)        -- ^ The function to transform the row labels.
+             -> (d -> b)        -- ^ The function to transform the column labels.
+             -> TableStyle a b  -- ^ The 'TableStyle' to inherit from.
+             -> TableStyle c d
+inheritStyle f g = inheritStyleHeaderGroup f g g
+
+-- | Inherit from a 'TableStyle' using a triple of functions, specifying the
+-- correspondence for row separators, column heading separators, and column separators.
+inheritStyleHeaderGroup :: (c -> a)        -- ^ The function to transform the row labels.
+                        -> (d -> b)        -- ^ The function to transform the column labels in the header.
+                        -> (d -> b)        -- ^ The function to transform the column labels in the body.
+                        -> TableStyle a b  -- ^ The 'TableStyle' to inherit from.
+                        -> TableStyle c d
+inheritStyleHeaderGroup row colHead col ts =
+    ts { headerSepC   = \a b -> headerSepC ts (colHead a) (col b)
+       , headerTopC   = headerTopC   ts . colHead
+       , headerC      = headerC      ts . colHead
+       , groupC       = groupC       ts . col
+       , groupSepH    = groupSepH    ts . row
+       , groupSepC    = \a b -> groupSepC ts (row a) (col b)
+       , groupSepLC   = groupSepLC   ts . row
+       , groupSepRC   = groupSepRC   ts . row
+       , groupTopC    = groupTopC    ts . col
+       , groupBottomC = groupBottomC ts . col
+       }
 
 -- | Remove the top, bottom, left, and right borders from a 'TableStyle'.
 withoutBorders :: TableStyle a b -> TableStyle a b
@@ -269,12 +282,13 @@ unicodeS = tableStyleFromSpec unicodeSS
 
 -- | Same as 'unicodeS' but uses bold headers.
 unicodeBoldHeaderS :: TableStyle LineStyle LineStyle
-unicodeBoldHeaderS = tableStyleFromSpec unicodeSS
-                   { headerSep   = HeavyLine
-                   , headerTop   = HeavyLine
-                   , headerLeft  = HeavyLine
-                   , headerRight = HeavyLine
-                   }
+unicodeBoldHeaderS = inheritStyleHeaderGroup id makeLineBold id $
+    tableStyleFromSpec unicodeSS
+        { headerSep   = HeavyLine
+        , headerTop   = HeavyLine
+        , headerLeft  = HeavyLine
+        , headerRight = HeavyLine
+        }
 
 -- | Like 'unicodeS' but with rounded edges.
 unicodeRoundS :: TableStyle LineStyle LineStyle

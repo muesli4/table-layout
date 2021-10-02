@@ -282,14 +282,14 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- | Replace the content of a 'HeaderSpec' with the content of the rows or columns to be rendered,
     -- and flatten to a list of content interspersed with column/row separators. If given 'NoneHS', first
     -- replace it with the shape of the data.
-    flattenWithContent (NoneHS sep) content r = flattenHeader . fmap fst . zipHeader mempty r $ fullSepH sep Nothing (repeat def) $ () <$ content
+    flattenWithContent (NoneHS sep) content r = flattenHeader . fmap fst . zipHeader mempty r . fullSepH sep (repeat def) $ () <$ content
     flattenWithContent h            _       r = flattenHeader . fmap fst $ zipHeader mempty r h
 
     -- | Intersperse a row with its rendered separators.
-    withRowSeparators :: ((hSep, hSep) -> Maybe b) -> [[b]] -> [Either (Maybe b) [b]]
+    withRowSeparators :: (hSep -> Maybe b) -> [[b]] -> [Either (Maybe b) [b]]
     withRowSeparators renderDelimiter = map (first renderDelimiter) . flattenWithContent rowHeader rowGroups
     -- | Intersperse a column with its rendered separators.
-    withColSeparators :: ((vSep, vSep) -> String) -> [b] -> [Either String b]
+    withColSeparators :: (vSep -> String) -> [b] -> [Either String b]
     withColSeparators renderDelimiter = map (first renderIfDrawn)   . flattenWithContent colHeader columns
       where
         columns = fromMaybe [] $ listToMaybe . rows =<< listToMaybe rowGroups
@@ -303,8 +303,8 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             | otherwise                   = separator
           where
             separator = renderDelimiter x
-            headerV   = headerC $ fst x
-            groupV    = groupC  $ snd x
+            headerV   = headerC x
+            groupV    = groupC  x
 
     -- Draw a line using the specified delimiters, but only if the horizontal string is non-null
     optDrawLine horizontal leftD rightD colSepD = if null horizontal
@@ -312,15 +312,15 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
         else Just . horizontalDetailLine horizontal leftD rightD . withColSeparators colSepD $ fakeColumns horizontal
     -- Horizontal separator lines that occur in a table.
     optTopLine        = optDrawLine realTopH realTopL realTopR realTopC
-    optBottomLine     = optDrawLine groupBottomH groupBottomL groupBottomR (groupBottomC . snd)
-    optGroupSepLine s = optDrawLine (groupSepH s) (groupSepLC s) (groupSepRC s) (groupSepC s . snd)
-    optHeaderSepLine  = optDrawLine headerSepH headerSepLC headerSepRC (uncurry headerSepC)
+    optBottomLine     = optDrawLine groupBottomH groupBottomL groupBottomR groupBottomC
+    optGroupSepLine s = optDrawLine (groupSepH s) (groupSepLC s) (groupSepRC s) (groupSepC s)
+    optHeaderSepLine  = optDrawLine headerSepH headerSepLC headerSepRC (\x -> headerSepC x x)
 
     -- Vertical content lines
-    rowGroupLines = concatRowGroups $ withRowSeparators (optGroupSepLine . snd) linesPerRowGroup
+    rowGroupLines = concatRowGroups $ withRowSeparators optGroupSepLine linesPerRowGroup
     concatRowGroups = concatMap (either (maybe [] pure) id)
     linesPerRowGroup = map rowGroupToLines rowGroups
-    rowGroupToLines = map (horizontalContentLine groupL groupR . withColSeparators (groupC . snd)) . applyRowMods . rows
+    rowGroupToLines = map (horizontalContentLine groupL groupR . withColSeparators groupC) . applyRowMods . rows
 
     -- Optional values for the header
     (addHeaderLines, fitHeaderIntoCMIs, realTopH, realTopL, realTopC, realTopR)
@@ -330,11 +330,11 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             , id
             , groupTopH
             , groupTopL
-            , groupTopC . snd
+            , groupTopC
             , groupTopR
             )
         _ ->
-            let headerLine    = horizontalContentLine headerL headerR . withColSeparators (headerC . fst)
+            let headerLine    = horizontalContentLine headerL headerR . withColSeparators headerC
                               $ zipWith ($) headerRowMods hTitles
                 headerRowMods = zipWith3 headerCellModifier
                                          headerColSpecs
@@ -346,7 +346,7 @@ tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
             , fitTitlesCMI hTitles posSpecs
             , headerTopH
             , headerTopL
-            , headerTopC . fst
+            , headerTopC
             , headerTopR
             )
 
