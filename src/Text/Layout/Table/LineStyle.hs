@@ -1,6 +1,10 @@
 module Text.Layout.Table.LineStyle
     ( -- * Line styling
       LineStyle(..)
+    , makeLineBold
+    , makeLineLight
+    , makeLineDashed
+    , makeLineSolid
 
       -- * Ascii lines and joins
     , asciiHorizontal
@@ -29,6 +33,38 @@ data LineStyle
     | Dash2Line       -- | @╌@ and @╎@.
     | HeavyDash2Line  -- | @╍@ and @╏@.
   deriving (Eq)
+
+-- | Make a 'LineStyle' bold.
+makeLineBold :: LineStyle -> LineStyle
+makeLineBold SingleLine = HeavyLine
+makeLineBold DashLine   = HeavyDashLine
+makeLineBold Dash4Line  = HeavyDash4Line
+makeLineBold Dash2Line  = HeavyDash2Line
+makeLineBold x          = x
+
+-- | Make a 'LineStyle' unbolded.
+makeLineLight :: LineStyle -> LineStyle
+makeLineLight HeavyLine      = SingleLine
+makeLineLight HeavyDashLine  = DashLine
+makeLineLight HeavyDash4Line = Dash4Line
+makeLineLight HeavyDash2Line = Dash2Line
+makeLineLight x              = x
+
+-- | Make a 'LineStyle' dashed.
+makeLineDashed :: LineStyle -> LineStyle
+makeLineDashed SingleLine = DashLine
+makeLineDashed HeavyLine  = HeavyDashLine
+makeLineDashed x          = x
+
+-- | Make a 'LineStyle' solid.
+makeLineSolid :: LineStyle -> LineStyle
+makeLineSolid DashLine       = SingleLine
+makeLineSolid Dash4Line      = SingleLine
+makeLineSolid Dash2Line      = SingleLine
+makeLineSolid HeavyDashLine  = HeavyLine
+makeLineSolid HeavyDash4Line = HeavyLine
+makeLineSolid HeavyDash2Line = HeavyLine
+makeLineSolid x              = x
 
 -- | Join styles supported by the Unicode Box-Drawing block.
 data UnicodeJoin = NoJoin | Light | Heavy | Double
