@@ -19,6 +19,18 @@ import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
 import Text.Layout.Table.Cell.Formatted
 
+
+-- A newtype wrapper around 'String', allowing an 'Arbitrary' instance which
+-- guarantees the width of each character is exactly one.
+newtype NonControlASCIIString = NonControlASCIIString String
+  deriving (Eq, Ord, Show)
+
+-- Generate only non-control characters within the ASCII range
+-- (see https://en.wikipedia.org/wiki/Control_character).
+instance Arbitrary NonControlASCIIString where
+  arbitrary = NonControlASCIIString <$> listOf (chooseEnum ('\32', '\126'))
+  shrink (NonControlASCIIString xs) = NonControlASCIIString <$> shrink xs
+
 spec :: Spec
 spec = do
     describe "fill" $ do
@@ -205,21 +217,21 @@ spec = do
         let wide = WideString "㐀㐁㐂"
             narrow = WideString "Bien sûr!"
         describe "buildCell" $ do
-            prop "agrees for ascii strings" $ \(ASCIIString x) -> buildCell (WideString x) `shouldBe` x
+            prop "agrees for ascii strings" $ \(NonControlASCIIString x) -> buildCell (WideString x) `shouldBe` x
             it "renders double width" $ buildCell wide `shouldBe` "㐀㐁㐂"
             it "renders zero width" $ buildCell narrow `shouldBe` "Bien sûr!"
         describe "visibleLength" $ do
-            prop "agrees for ascii strings" $ \(ASCIIString x) -> visibleLength (WideString x) `shouldBe` visibleLength x
+            prop "agrees for ascii strings" $ \(NonControlASCIIString x) -> visibleLength (WideString x) `shouldBe` visibleLength x
             it "detects double width" $ visibleLength wide `shouldBe` 6
             it "detects zero width" $ visibleLength narrow `shouldBe` 9
         describe "measureAlignment" $ do
-            prop "agrees for ascii strings" $ \(ASCIIString x) -> measureAlignmentAt 'e' (WideString x) `shouldBe` measureAlignment (=='e') x
+            prop "agrees for ascii strings" $ \(NonControlASCIIString x) -> measureAlignmentAt 'e' (WideString x) `shouldBe` measureAlignment (=='e') x
             it "detects double width" $ measureAlignmentAt '㐁' wide `shouldBe` AlignInfo 2 (Just 2)
             it "fails to detect" $ measureAlignmentAt 'a' wide `shouldBe` AlignInfo 6 Nothing
             it "detects zero width after" $ measureAlignmentAt 'n' narrow `shouldBe` AlignInfo 3 (Just 5)
             it "detects zero width before" $ measureAlignmentAt 'r' narrow `shouldBe` AlignInfo 7 (Just 1)
         describe "dropLeft" $ do
-            prop "agrees for ascii strings" $ \(Small n) (ASCIIString x) -> buildCell (dropLeft n (WideString x)) `shouldBe` dropLeft n x
+            prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropLeft n (WideString x)) `shouldBe` dropLeft n x
             describe "on wide characters" $ do
                 it "drops 1 character of double width" $ dropLeft 2 wide `shouldBe` WideString "㐁㐂"
                 it "drops 2 characters of double width and adds a space" $ dropLeft 3 wide `shouldBe` WideString " 㐂"
@@ -227,7 +239,7 @@ spec = do
                 it "drops combining characters with their previous" $ dropLeft 7 narrow `shouldBe` WideString "r!"
                 it "drops combining characters after a dropped wide character which overshoots" $ dropLeft 1 (WideString "㐀̈㐁") `shouldBe` WideString " 㐁"
         describe "dropRight" $ do
-            prop "agrees for ascii strings" $ \(Small n) (ASCIIString x) -> buildCell (dropRight n (WideString x)) `shouldBe` dropRight n x
+            prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropRight n (WideString x)) `shouldBe` dropRight n x
             describe "on wide characters" $ do
                 it "drops 1 character of double width" $ dropRight 2 wide `shouldBe` WideString "㐀㐁"
                 it "drops 2 characters of double width and adds a space" $ dropRight 3 wide `shouldBe` WideString "㐀 "
