@@ -35,19 +35,19 @@ noneSepH :: sep -> HeaderSpec sep String
 noneSepH = NoneHS
 
 -- | Specify no header, with columns separated by a default separator.
-noneH :: HeaderSpec LineStyle String
-noneH = noneSepH SingleLine
+noneH :: Default sep => HeaderSpec sep String
+noneH = noneSepH def
 
 -- | Specify a header column for every title, with a given separator.
 fullSepH :: sep -> [HeaderColSpec] -> [a] -> HeaderSpec sep a
 fullSepH sep specs = GroupHS sep . zipWith HeaderHS specs
 
 -- | Specify a header column for every title, with a default separator.
-fullH :: [HeaderColSpec] -> [a] -> HeaderSpec LineStyle a
-fullH = fullSepH SingleLine
+fullH :: Default sep => [HeaderColSpec] -> [a] -> HeaderSpec sep a
+fullH = fullSepH def
 
 -- | Use titles with the default header column specification and separator.
-titlesH :: [a] -> HeaderSpec LineStyle a
+titlesH :: Default sep => [a] -> HeaderSpec sep a
 titlesH = fullH (repeat def)
 
 -- | Use titles with the default header column specification.

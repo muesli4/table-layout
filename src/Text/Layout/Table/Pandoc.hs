@@ -1,9 +1,14 @@
 -- | Render tables that can be used in <https://pandoc.org/ Pandoc>. In
 -- particular, this supports the
 -- <https://pandoc.org/MANUAL.html#tables pipe_tables> extension.
-module Text.Layout.Table.Pandoc where
+module Text.Layout.Table.Pandoc
+  ( PandocSeparator
+  , pandocPipeTableLines
+  ) where
 
 import Data.List
+
+import Data.Default.Class
 
 import Text.Layout.Table.Cell
 import Text.Layout.Table.Primitives.ColumnModifier
@@ -12,6 +17,17 @@ import Text.Layout.Table.Spec.ColSpec
 import Text.Layout.Table.Spec.HeaderSpec
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Spec.Util
+
+-- | The separator to be used for 'HeaderSpec'.  The only supported value is
+-- 'def'.  Typically, it is not necessary to use this.
+data PandocSeparator
+    -- The value is not actually used anywhere.  It exists with the sole
+    -- purpose to limit user input to the single supported character.
+    = PandocSeparator
+
+instance Default PandocSeparator where
+    -- | A single line represented by @-@ and @|@.
+    def = PandocSeparator
 
 -- | Generate a table that is readable but also serves as input to pandoc.
 --
@@ -23,7 +39,7 @@ import Text.Layout.Table.Spec.Util
 pandocPipeTableLines
     :: Cell c
     => [ColSpec]
-    -> HeaderSpec vSep c
+    -> HeaderSpec PandocSeparator c
     -> [Row String]
     -> [String]
 pandocPipeTableLines specs h tab =
