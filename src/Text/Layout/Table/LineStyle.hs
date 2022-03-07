@@ -19,6 +19,7 @@ module Text.Layout.Table.LineStyle
     ) where
 
 import Data.Function (on)
+import Data.Default.Class
 
 -- | The line styles supported by the Unicode Box-Drawing block.
 data LineStyle
@@ -33,6 +34,10 @@ data LineStyle
     | Dash2Line       -- | @╌@ and @╎@.
     | HeavyDash2Line  -- | @╍@ and @╏@.
   deriving (Eq)
+
+instance Default LineStyle where
+    -- | A single line.
+    def = SingleLine
 
 -- | Make a 'LineStyle' bold.
 makeLineBold :: LineStyle -> LineStyle
