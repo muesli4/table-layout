@@ -22,16 +22,16 @@ import Data.Function (on)
 
 -- | The line styles supported by the Unicode Box-Drawing block.
 data LineStyle
-    = NoLine          -- | @@ and @@.
-    | SingleLine      -- | @─@ and @│@.
-    | HeavyLine       -- | @━@ and @┃@.
-    | DoubleLine      -- | @═@ and @║@.
-    | DashLine        -- | @┄@ and @┆@.
-    | HeavyDashLine   -- | @┅@ and @┇@.
-    | Dash4Line       -- | @┈@ and @┊@.
-    | HeavyDash4Line  -- | @┉@ and @┋@.
-    | Dash2Line       -- | @╌@ and @╎@.
-    | HeavyDash2Line  -- | @╍@ and @╏@.
+    = NoLine          -- ^ @@ and @@.
+    | SingleLine      -- ^ @─@ and @│@.
+    | HeavyLine       -- ^ @━@ and @┃@.
+    | DoubleLine      -- ^ @═@ and @║@.
+    | DashLine        -- ^ @┄@ and @┆@.
+    | HeavyDashLine   -- ^ @┅@ and @┇@.
+    | Dash4Line       -- ^ @┈@ and @┊@.
+    | HeavyDash4Line  -- ^ @┉@ and @┋@.
+    | Dash2Line       -- ^ @╌@ and @╎@.
+    | HeavyDash2Line  -- ^ @╍@ and @╏@.
   deriving (Eq)
 
 -- | Make a 'LineStyle' bold.
