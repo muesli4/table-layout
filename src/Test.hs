@@ -12,7 +12,7 @@ inheritMyStyle = inheritStyleHeaderGroup makeLineSolid id (fst . style) (snd . s
     style TinySep  = (SingleLine, NoLine)
 
 main :: IO ()
-main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
+main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') ellipsisCutMark
                               , column expand center noAlign noCutMark
                               ]
                               unicodeRoundS
@@ -29,12 +29,12 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                               s
                               (fullSepH DashLine (repeat $ headerColumn right Nothing) ["1", "Two"])
                               (groupH BigSep
-                                  [ fullSepH SmallSep (repeat def) ["Some text", "Some numbers", "X"]
+                                  [ fullSepH SmallSep (repeat defHeaderColSpec) ["Some text", "Some numbers", "X"]
                                   , groupH SmallSep
-                                      [ fullSepH TinySep (repeat def) ["Z", "W"]
-                                      , fullSepH TinySep (repeat def) ["A", "B"]
+                                      [ fullSepH TinySep (repeat defHeaderColSpec) ["Z", "W"]
+                                      , fullSepH TinySep (repeat defHeaderColSpec) ["A", "B"]
                                       ]
-                                  , fullSepH TinySep  (repeat def) ["Text", "Y"]
+                                  , fullSepH TinySep  (repeat defHeaderColSpec) ["Text", "Y"]
                                   ]
                               )
                               [ rowsG [ [longText, smallNum, "foo", "blah", "bloo", "blop", "blog", shortText, "baz"]
@@ -57,7 +57,7 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                     , unicodeBoldStripedS
                     , unicodeBoldHeaderS
                     ]
-    columTs   = [ ( column l p a def
+    columTs   = [ ( column l p a ellipsisCutMark
                   , ["len spec: " ++ dL, "position: " ++ pL, "alignment: " ++ aL]
                   )
                 | (l, dL) <- zip [expand, fixed 10, expandUntil 10, fixedUntil 10]

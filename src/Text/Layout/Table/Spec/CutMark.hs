@@ -6,6 +6,7 @@ module Text.Layout.Table.Spec.CutMark
     , noCutMark
     , leftMark
     , rightMark
+    , ellipsisCutMark
     ) where
 
 import Data.Default.Class
@@ -20,7 +21,11 @@ data CutMark
 
 -- | A single ellipsis unicode character is used to show cut marks.
 instance Default CutMark where
-    def = singleCutMark "…"
+    def = ellipsisCutMark
+
+-- | The default 'CutMark' is a single ellipsis unicode character on each side.
+ellipsisCutMark :: CutMark
+ellipsisCutMark = singleCutMark "…"
 
 -- | Specify two different cut marks, one for cuts on the left and one for cuts
 -- on the right.

@@ -19,6 +19,7 @@ module Text.Layout.Table
     , numCol
     , fixedCol
     , fixedLeftCol
+    , defColSpec
       -- ** Length of columns
     , LenSpec
     , expand
@@ -32,6 +33,7 @@ module Text.Layout.Table
     , left
     , right
     , center
+    , beginning
       -- ** Alignment of cells at characters
     , AlignSpec
     , noAlign
@@ -43,6 +45,7 @@ module Text.Layout.Table
     , noCutMark
     , singleCutMark
     , doubleCutMark
+    , ellipsisCutMark
 
       -- * Basic grid layout
     , Row
@@ -80,6 +83,7 @@ module Text.Layout.Table
     , titlesH
     , groupH
     , headerH
+    , defHeaderColSpec
     , zipHeader
     , flattenHeader
     , headerContents
@@ -175,11 +179,11 @@ dotAlign = charAlign '.'
 
 -- | Numbers are positioned on the right and aligned on the floating point dot.
 numCol :: ColSpec
-numCol = column def right dotAlign def
+numCol = column expand right dotAlign ellipsisCutMark
 
 -- | Fixes the column length and positions according to the given 'Position'.
 fixedCol :: Int -> Position H -> ColSpec
-fixedCol l pS = column (fixed l) pS def def
+fixedCol l pS = column (fixed l) pS noAlign ellipsisCutMark
 
 -- | Fixes the column length and positions on the left.
 fixedLeftCol :: Int -> ColSpec
@@ -312,7 +316,7 @@ tableLinesBWithCMIs specs TableStyle { .. } rowHeader colHeader rowGroups =
     -- | Replace the content of a 'HeaderSpec' with the content of the rows or columns to be rendered,
     -- and flatten to a list of content interspersed with column/row separators. If given 'NoneHS', first
     -- replace it with the shape of the data.
-    flattenWithContent (NoneHS sep) content r = flattenHeader . fmap fst . zipHeader mempty r . fullSepH sep (repeat def) $ () <$ content
+    flattenWithContent (NoneHS sep) content r = flattenHeader . fmap fst . zipHeader mempty r . fullSepH sep (repeat defHeaderColSpec) $ () <$ content
     flattenWithContent h            _       r = flattenHeader . fmap fst $ zipHeader mempty r h
 
     -- | Intersperse a row with its rendered separators.

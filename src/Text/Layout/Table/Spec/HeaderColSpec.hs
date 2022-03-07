@@ -16,4 +16,8 @@ headerColumn = HeaderColSpec
 
 -- | Header columns are usually centered.
 instance Default HeaderColSpec where
-    def = headerColumn center def
+    def = defHeaderColSpec
+
+-- | The default 'HeaderColSpec' centers the text and uses no 'CutMark'.
+defHeaderColSpec :: HeaderColSpec
+defHeaderColSpec = headerColumn center Nothing
