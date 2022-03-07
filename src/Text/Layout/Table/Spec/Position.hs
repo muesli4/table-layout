@@ -23,8 +23,13 @@ instance Show (Position V) where
         Center -> "center"
         End    -> "bottom"
 
+-- | The default 'Position' displays at the left or top, depending on the orientation.
 instance Default (Position orientation) where
-    def = Start
+    def = beginning
+
+-- | Displays at the left or top, depending on the orientation.
+beginning :: Position orientation
+beginning = Start
 
 -- | Horizontal orientation.
 data H

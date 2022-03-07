@@ -31,7 +31,7 @@ instance Default PandocSeparator where
 
 -- | Generate a table that is readable but also serves as input to pandoc.
 --
--- >>> mapM_ putStrLn $ pandocPipeTableLines [def, numCol] (titlesH ["text", "numeric value"]) [["a", "1.5"], ["b", "6.60000"]]
+-- >>> mapM_ putStrLn $ pandocPipeTableLines [defColSpec, numCol] (titlesH ["text", "numeric value"]) [["a", "1.5"], ["b", "6.60000"]]
 -- |text|numberic value|
 -- |:---|-------------:|
 -- |a   |       1.5    |

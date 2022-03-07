@@ -17,6 +17,7 @@ data LenSpec
     | FixedUntil Int
     | ExpandBetween Int Int
 
+-- | The default 'LenSpec' allows columns to use as much space as needed.
 instance Default LenSpec where
     def = expand
 

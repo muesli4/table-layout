@@ -26,7 +26,11 @@ instance Bifunctor HeaderSpec where
 
 -- | By the default the header is not shown.
 instance Default sep => Default (HeaderSpec sep a) where
-    def = NoneHS def
+    def = defHeaderSpec
+
+-- | The default 'HeaderSpec' does not display the header and uses the default separator.
+defHeaderSpec :: Default sep => HeaderSpec sep a
+defHeaderSpec = NoneHS def
 
 -- | Specify no header, with columns separated by a given separator.
 noneSepH :: sep -> HeaderSpec sep String
@@ -46,7 +50,7 @@ fullH = fullSepH def
 
 -- | Use titles with the default header column specification and separator.
 titlesH :: Default sep => [a] -> HeaderSpec sep a
-titlesH = fullH (repeat def)
+titlesH = fullH (repeat defHeaderColSpec)
 
 -- | Use titles with the default header column specification.
 groupH :: sep -> [HeaderSpec sep a] -> HeaderSpec sep a
