@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Text.Layout.Table.Cell where
 
+import Data.Bifunctor (bimap)
 import qualified Data.Text as T
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -40,6 +41,14 @@ class Cell a where
     buildCell :: StringBuilder b => a -> b
 
     {-# MINIMAL visibleLength, measureAlignment, buildCell, (dropBoth | (dropLeft, dropRight))  #-}
+
+instance (Cell a, Cell b) => Cell (Either a b) where
+    dropLeft n = bimap (dropLeft n) (dropLeft n)
+    dropRight n = bimap (dropRight n) (dropRight n)
+    dropBoth l r = bimap (dropBoth l r) (dropBoth l r)
+    visibleLength = either visibleLength visibleLength
+    measureAlignment p = either (measureAlignment p) (measureAlignment p)
+    buildCell = either buildCell buildCell
 
 instance Cell String where
     dropLeft = drop
