@@ -1,9 +1,12 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module TestSpec
     ( spec
     ) where
 
 -- TODO idempotency of fitting CMIs
 
+import Data.List (intercalate)
 import qualified Data.Text as T
 
 import Data.Maybe (listToMaybe)
@@ -12,6 +15,7 @@ import Text.DocLayout (charWidth)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
+import Test.QuickCheck.Instances.Text ()
 
 import Text.Layout.Table
 import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
@@ -25,6 +29,7 @@ import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
 import Text.Layout.Table.Cell.Formatted
+import Text.Layout.Table.Cell.ElidableList
 
 
 -- A newtype wrapper around 'String', allowing an 'Arbitrary' instance which
@@ -72,6 +77,24 @@ hposG    = elements [left, center, right]
 instance Arbitrary WideString where
     arbitrary = fmap WideString $ arbitrary `suchThat` (maybe True ((0 /=) . charWidth) . listToMaybe)
     shrink (WideString x) = map WideString $ shrink x
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (ElidableList a b) where
+  arbitrary = ElidableList
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> (getSmall . getNonNegative <$> arbitrary)
+            <*> (getSmall . getNonNegative <$> arbitrary)
+            <*> (getSmall . getNonNegative <$> arbitrary)
+            <*> arbitrary
+  shrink a = do
+      eStr  <- shrink $ elidedElisionStr a
+      sep   <- shrink $ elidedSep a
+      num   <- shrinkIntegral $ elidedNum a
+      ls    <- shrinkIntegral $ elidedLeftSpace a
+      rs    <- shrinkIntegral $ elidedLeftSpace a
+      xs    <- shrinkList shrink $ elidedList a
+      return $ ElidableList (elidedFromLeft a) eStr sep num ls rs xs
 
 spec :: Spec
 spec = do
@@ -244,6 +267,8 @@ spec = do
             narrow  = "Short"
             wideW   = WideString "a㐀b㐁c㐂d"
             narrowW = WideString "ab"
+            wideE   = elidableListL (\n -> show n ++ " more") ", " ["First", "second", "third"]
+            narrowE = elidableListL (\n -> show n ++ " more") ", " ["a", "b", "c"]
         describe "expand" $ do
             prop "for String"     $ propExpand id noAlign
             prop "for WideString" $ propExpand WideString noAlign
@@ -255,11 +280,13 @@ spec = do
             prop "for WideString" $ propExpandUntil WideString [0, 1] noAlign
             let col pos = column (expandUntil 8) pos noAlign noCutMark
             describe "when dropping from the right" $ do
-                it "for String"     $ grid [col left]  [[wide],  [narrow]]  `shouldBe` [["A long s"], ["Short   "]]
-                it "for WideString" $ grid [col left]  [[wideW], [narrowW]] `shouldBe` [["a㐀b㐁c"],  ["ab     "] ]
+                it "for String"       $ grid [col left] [[wide],  [narrow]]  `shouldBe` [["A long s"], ["Short   "]]
+                it "for WideString"   $ grid [col left] [[wideW], [narrowW]] `shouldBe` [["a㐀b㐁c"],  ["ab     "] ]
+                it "for ElidableList" $ grid [col left] [[wideE], [narrowE]] `shouldBe` [["3 more "], ["a, b, c"]]
             describe "when dropping from the left" $ do
-                it "for String"     $ grid [col right] [[wide],  [narrow]]  `shouldBe` [["g string"], ["   Short"]]
-                it "for WideString" $ grid [col right] [[wideW], [narrowW]] `shouldBe` [["b㐁c㐂d"],  ["     ab"] ]
+                it "for String"       $ grid [col right] [[wide],  [narrow]]  `shouldBe` [["g string"], ["   Short"]]
+                it "for WideString"   $ grid [col right] [[wideW], [narrowW]] `shouldBe` [["b㐁c㐂d"],  ["     ab"] ]
+                it "for ElidableList" $ grid [col right] [[wideE], [narrowE]] `shouldBe` [[" 3 more"], ["a, b, c"]]
         describe "fixedUntil" $ do
             prop "for String"     $ propFixedUntil id noAlign
             prop "for WideString" $ propFixedUntil WideString noAlign
@@ -352,6 +379,63 @@ spec = do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropLeft n . WideText $ T.pack x) `shouldBe` (buildCell . dropLeft n $ WideString x :: String)
         describe "dropRight" $ do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropRight n . WideText $ T.pack x) `shouldBe` (buildCell . dropRight n $ WideString x :: String)
+
+    describe "elidable list" . modifyMaxSuccess (const 1000) $ do
+        describe "visibleLength" $ do
+            prop "gives the same result after buildCell" $ \(x :: ElidableList T.Text T.Text) ->
+                visibleLength x == visibleLength (buildCell x :: T.Text)
+        describe "measureAlignment" $ do
+            prop "when no separator or elision, agrees after passing through buildCell" $ \(c :: Char) (x :: ElidableList T.Text T.Text) ->
+                let y = x{elidedNum = 0, elidedSep = T.pack ""}
+                in measureAlignmentAt c y == measureAlignmentAt c (buildCell y :: String)
+        describe "dropLeft" $ do
+            prop "drops to the correct length" $ \(NonNegative (Small n)) (x :: ElidableList T.Text T.Text) ->
+                visibleLength (dropLeft n x) == max 0 (visibleLength x - n)
+            prop "is a monoid action" $ \(NonNegative (Small n)) (NonNegative (Small m)) (x :: ElidableList T.Text T.Text) ->
+                dropLeft m (dropLeft n x) == dropLeft (m + n) x
+        describe "dropRight" $ do
+            prop "drops to the correct length" $ \(NonNegative (Small n)) (x :: ElidableList T.Text T.Text) ->
+                visibleLength (dropRight n x) == max 0 (visibleLength x - n)
+            prop "is a monoid action" $ \(NonNegative (Small n)) (NonNegative (Small m)) (x :: ElidableList T.Text T.Text) ->
+                dropRight m (dropRight n x) == dropRight (m + n) x
+        describe "on a list of single digit numbers" $ do
+            let xs = map show [0..9]
+            describe "elidableListL" $ do
+                let list = elidableListL (\n -> show n ++ " more") ", " xs
+                describe "visibleLength" $
+                    it "measures the correct length" $ visibleLength list `shouldBe` 28
+                describe "buildCell" $ do
+                    it "intercalates the separator" $
+                        buildCell list `shouldBe` intercalate ", " xs
+                    it "drops 3 spaces from the left" $
+                        buildCell (dropLeft 3 list) `shouldBe` intercalate ", " (" 4 more" : drop 4 xs)
+                    it "drops 3 spaces from the right" $
+                        buildCell (dropRight 3 list) `shouldBe` intercalate ", " ("4 more" : drop 4 xs) ++ " "
+                    it "drops 26 spaces from the left" $
+                        buildCell (dropLeft 26 list) `shouldBe` "re"
+                    it "drops 26 spaces from the right" $
+                        buildCell (dropRight 26 list) `shouldBe` "10"
+                describe "measureAlignment" $ do
+                    it "can match elements" $
+                        measureAlignmentAt '4' list `shouldBe` AlignInfo 12 (Just 15)
+                    it "can match separators" $
+                        measureAlignmentAt ',' list `shouldBe` AlignInfo 1 (Just 26)
+                    it "can match elision strings" $
+                        measureAlignmentAt 'm' (dropLeft 1 list) `shouldBe` AlignInfo 2 (Just 24)
+            describe "elidableListR" $ do
+                let list = elidableListR (\n -> show n ++ " more") ", " xs
+                it "visibleLength" $ visibleLength list `shouldBe` 28
+                describe "buildCell" $ do
+                    it "intercalates the separator" $
+                        buildCell list `shouldBe` intercalate ", " xs
+                    it "drops 3 spaces from the left" $
+                        buildCell (dropLeft 3 list) `shouldBe` ' ' : intercalate ", " (dropR 4 xs ++ ["4 more"])
+                    it "drops 3 spaces from the right" $
+                        buildCell (dropRight 3 list) `shouldBe` intercalate ", " (dropR 4 xs ++ ["4 more "])
+                    it "drops 26 spaces from the left" $
+                        buildCell (dropLeft 26 list) `shouldBe` "re"
+                    it "drops 26 spaces from the right" $
+                        buildCell (dropRight 26 list) `shouldBe` "10"
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"
@@ -451,3 +535,6 @@ spec = do
 
     measureAlignmentAt :: Cell a => Char -> a -> AlignInfo
     measureAlignmentAt c = measureAlignment (== c)
+
+    dropR :: Int -> [a] -> [a]
+    dropR n xs = zipWith const xs $ drop n xs
