@@ -32,6 +32,21 @@ class Cell a where
     -- output medium.
     visibleLength :: a -> Int
 
+    -- | A decreasing list of natural truncation lengths of this cell from the
+    -- left, or 'Nothing' if all truncations are natural. It is always safe to
+    -- leave this as the default implementation, but you can sometimes get
+    -- tighter bounds with 'ExpandUntil' with a custom definition.
+    visibleLengthLeftTruncations :: a -> Maybe [Int]
+    visibleLengthLeftTruncations = const Nothing
+
+    -- | As above, but for right truncations
+    visibleLengthRightTruncations :: a -> Maybe [Int]
+    visibleLengthRightTruncations = const Nothing
+
+    -- | As above, but for center truncations
+    visibleLengthCenterTruncations :: a -> Maybe [Int]
+    visibleLengthCenterTruncations = const Nothing
+
     -- | Measure the preceeding and following characters for a position where
     -- the predicate matches.
     measureAlignment :: (Char -> Bool) -> a -> AlignInfo

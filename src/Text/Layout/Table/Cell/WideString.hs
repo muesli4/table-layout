@@ -6,6 +6,7 @@ module Text.Layout.Table.Cell.WideString
     , WideText(..)
     ) where
 
+import Data.List (inits, tails)
 import Data.String
 import qualified Data.Text as T
 import Text.DocLayout
@@ -22,6 +23,8 @@ instance Cell WideString where
     dropLeft i (WideString s) = WideString $ dropWide True i s
     dropRight i (WideString s) = WideString . reverse . dropWide False i $ reverse s
     visibleLength (WideString s) = realLength s
+    visibleLengthLeftTruncations (WideString s) = Just . map realLength $ tails s
+    visibleLengthRightTruncations (WideString s) = Just . map realLength . reverse $ inits s
     measureAlignment p (WideString s) = measureAlignmentWide p s
     buildCell (WideString s) = buildCell s
 
@@ -54,6 +57,8 @@ instance Cell WideText where
     dropLeft i (WideText s) = WideText $ dropLeftWideT i s
     dropRight i (WideText s) = WideText $ dropRightWideT i s
     visibleLength (WideText s) = realLength s
+    visibleLengthLeftTruncations (WideText s) = Just . map realLength $ T.tails s
+    visibleLengthRightTruncations (WideText s) = Just . map realLength . reverse $ T.inits s
     measureAlignment p (WideText s) = measureAlignmentWideT p s
     buildCell (WideText s) = buildCell s
 

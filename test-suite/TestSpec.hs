@@ -16,6 +16,7 @@ import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
+import Text.Layout.Table.Primitives.ColumnModifier
 import Text.Layout.Table.Justify
 import Text.Layout.Table.Cell.Formatted
 
@@ -246,6 +247,24 @@ spec = do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropLeft n . WideText $ T.pack x) `shouldBe` (buildCell . dropLeft n $ WideString x :: String)
         describe "dropRight" $ do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropRight n . WideText $ T.pack x) `shouldBe` (buildCell . dropRight n $ WideString x :: String)
+
+    describe "grid" $ do
+        describe "expandUntil" $ do
+            let col pos = column (expandUntil 7) pos noAlign noCutMark
+                wide = "A long string"
+                narrow = "Short"
+            it "when dropping from the right" $
+                grid [col left]  [[wide], [narrow]] `shouldBe` [["A long "], ["Short  "]]
+            it "when dropping from the left" $
+                grid [col right] [[wide], [narrow]] `shouldBe` [[" string"], ["  Short"]]
+            describe "when not all truncations are natural, will not add extra padding" $ do
+                let col pos = column (expandUntil 3) pos noAlign noCutMark
+                    wide = WideString "㐁㐂"
+                    narrow = WideString "ab"
+                it "when dropping from the right" $
+                    grid [col left] [[wide], [narrow]] `shouldBe` [["㐁"], ["ab"]]
+                it "when dropping from the left" $
+                    grid [col right] [[wide], [narrow]] `shouldBe` [["㐂"], ["ab"]]
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"
