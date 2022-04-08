@@ -108,6 +108,7 @@ module Text.Layout.Table
 
       -- * Column modification functions
     , pad
+    , trim
     , trimOrPad
     , align
     , alignFixed
