@@ -13,7 +13,9 @@ import Test.QuickCheck
 import Text.Layout.Table
 import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
 import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
+import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
+import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
@@ -65,6 +67,14 @@ spec = do
         prop "left" propPadLeft
         prop "right" propPadRight
         prop "center" propPadCenter
+
+    describe "trim" $ do
+        prop "left" $ propTrim left noCutMark
+        prop "left with cut mark" $ propTrim left customCM
+        prop "right" $ propTrim right noCutMark
+        prop "right with cut mark" $ propTrim right customCM
+        prop "center" $ propTrim center noCutMark
+        prop "center with cut mark" $ propTrim center customCM
 
     describe "trimOrPad" $ do
         prop "pad" $ forAll hposG $ \p s (Positive (Small n)) ->
@@ -286,6 +296,18 @@ spec = do
             trimLeft = drop q padded
         in len >= n || (all (== ' ') (take q padded) && take len trimLeft == s
                         && drop len trimLeft == replicate (q + r) ' ')
+
+    propTrim :: Position o -> CutMark -> String -> Positive (Small Int) -> Bool
+    propTrim pos cm s (Positive (Small n)) =
+        let len = length s
+            trimmed = trim pos cm n s :: String
+            cutMarkTooLong = case pos of
+                Start  -> n < length (rightMark cm)
+                End    -> n < length (leftMark cm)
+                Center -> n < length (rightMark cm) + length (leftMark cm)
+        in cutMarkTooLong || if len > n
+           then length trimmed == n
+           else trimmed == s
 
     measureAlignmentAt :: Cell a => Char -> a -> AlignInfo
     measureAlignmentAt c = measureAlignment (== c)

@@ -80,30 +80,53 @@ remSpacesB' n k = spacesB $ n - k
 
 -- | Fill the right side with spaces if necessary.
 fillRight :: (Cell a, StringBuilder b) => Int -> a -> b
-fillRight n c = buildCell c <> remSpacesB n c
+fillRight n c = fillRight' n (visibleLength c) c
+
+-- | Fill the right side with spaces if necessary. Preconditions that are
+-- required to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c == k
+fillRight' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
+fillRight' n k c = buildCell c <> remSpacesB' n k
 
 -- | Fill both sides with spaces if necessary.
 fillCenter :: (Cell a, StringBuilder b) => Int -> a -> b
-fillCenter n c = spacesB q <> buildCell c <> spacesB (q + r)
+fillCenter n c = fillCenter' n (visibleLength c) c
+
+-- | Fill both sides with spaces if necessary. Preconditions that are
+-- required to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c == k
+fillCenter' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
+fillCenter' n k c = spacesB q <> buildCell c <> spacesB (q + r)
   where
-    missing = n - visibleLength c
+    missing = n - k
     (q, r)  = missing `divMod` 2
 
 -- | Fill the left side with spaces if necessary.
 fillLeft :: (Cell a, StringBuilder b) => Int -> a -> b
-fillLeft n c = remSpacesB n c <> buildCell c
+fillLeft n c = fillLeft' n (visibleLength c) c
 
--- | Assume the given length is greater or equal than the length of the cell
--- passed. Pads the given cell accordingly using the position specification.
+-- | Fill the left side with spaces if necessary. Preconditions that are
+-- required to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c == k
+fillLeft' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
+fillLeft' n k c = remSpacesB' n k <> buildCell c
+
+-- | Pads the given cell accordingly using the position specification.
 --
 -- >>> pad left 10 "foo" :: String
 -- "foo       "
---
 pad :: (Cell a, StringBuilder b) => Position o -> Int -> a -> b
-pad p = case p of
-    Start  -> fillRight
-    Center -> fillCenter
-    End    -> fillLeft
+pad p n c = pad' p n (visibleLength c) c
+
+-- | Pads the given cell accordingly using the position specification.
+-- Preconditions that require to be met (otherwise the function will produce
+-- garbage):
+-- prop> visibleLength c == k
+pad' :: (Cell a, StringBuilder b) => Position o -> Int -> Int -> a -> b
+pad' p n k = case p of
+    Start  -> fillRight' n k
+    Center -> fillCenter' n k
+    End    -> fillLeft' n k
 
 -- | If the given text is too long, the 'String' will be shortened according to
 -- the position specification. Adds cut marks to indicate that the column has
@@ -113,16 +136,25 @@ pad p = case p of
 -- "A longer.."
 --
 trimOrPad :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
-trimOrPad p cm n c = case compare (visibleLength c) n of
-    LT -> pad p n c
+trimOrPad p cm n c = case compare k n of
+    LT -> pad' p n k c
     EQ -> buildCell c
-    GT -> trim p cm n c
+    GT -> trim' p cm n k c
+  where
+    k = visibleLength c
+
+-- | Trim a cell based on the position.
+trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
+trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
+  where
+    k = visibleLength c
 
 -- | Trim a cell based on the position. Preconditions that require to be met
 -- (otherwise the function will produce garbage):
 -- prop> visibleLength c > n
-trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
-trim p cm n c = case p of
+-- prop> visibleLength c == k
+trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
+trim' p cm n k c = case p of
     Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (rightMark cm)
     Center -> case cutLen `divMod` 2 of
         (0, 1) -> buildCell (leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
@@ -137,7 +169,7 @@ trim p cm n c = case p of
     leftLen = length $ leftMark cm
     rightLen = length $ rightMark cm
 
-    cutLen = visibleLength c - n
+    cutLen = k - n
 
 -- | Align a cell by first locating the position to align with and then padding
 -- on both sides. If no such position is found, it will align it such that it
