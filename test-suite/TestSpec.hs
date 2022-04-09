@@ -6,6 +6,9 @@ module TestSpec
 
 import qualified Data.Text as T
 
+import Data.Maybe (listToMaybe)
+import Text.DocLayout (charWidth)
+
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
@@ -13,6 +16,7 @@ import Test.QuickCheck
 import Text.Layout.Table
 import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
 import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
+import Text.Layout.Table.Spec.AlignSpec
 import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Spec.Position
@@ -32,6 +36,41 @@ newtype NonControlASCIIString = NonControlASCIIString String
 instance Arbitrary NonControlASCIIString where
   arbitrary = NonControlASCIIString <$> listOf (chooseEnum ('\32', '\126'))
   shrink (NonControlASCIIString xs) = NonControlASCIIString <$> shrink xs
+
+instance Arbitrary (Position o) where
+    arbitrary = elements [Start, End, Center]
+    shrink Center = [Start, End]
+    shrink End    = [Start]
+    shrink Start  = []
+
+instance Arbitrary AlignSpec where
+    arbitrary = oneof [pure noAlign, charAlign <$> arbitrary]
+    shrink NoAlign = []
+    shrink _ = [NoAlign]
+
+forAllAlign :: Testable prop => (AlignSpec -> prop) -> Property
+forAllAlign = forAllShrinkShow arbitrary shrink showAlign . (. maybe NoAlign charAlign)
+  where
+    showAlign Nothing = "NoAlign"
+    showAlign (Just c) = "align at " ++ show c
+
+instance Arbitrary CutMark where
+    arbitrary = elements [noCutMark, def, customCM, unevenCM]
+    shrink x | x == noCutMark = []
+             | x == def       = [noCutMark]
+             | otherwise      = [noCutMark, def]
+
+customCM, unevenCM :: CutMark
+customCM = doubleCutMark "<.." "..>"
+unevenCM = doubleCutMark "<" "-->"
+
+occS     = predOccSpec (== ':')
+hposG    = elements [left, center, right]
+
+-- Arbitrary instance of WideString needs to exclude combining characters at the start
+instance Arbitrary WideString where
+    arbitrary = fmap WideString $ arbitrary `suchThat` (maybe True ((0 /=) . charWidth) . listToMaybe)
+    shrink (WideString x) = map WideString $ shrink x
 
 spec :: Spec
 spec = do
@@ -199,6 +238,30 @@ spec = do
             it "even" $ concatPadLine 9 (Line 9 3 ["It", "is", "on"]) `shouldBe` "It is on"
             it "odd" $ concatPadLine 13 (Line 11 4 ["It", "is", "on", "us"]) `shouldBe` "It  is on  us"
 
+    describe "grid" . modifyMaxSuccess (const 1000) $ do
+        let wide   = "A long string"
+            narrow = "Short"
+        describe "expand" $ do
+            prop "for String"     $ propExpand id noAlign
+            prop "for WideString" $ propExpand WideString noAlign
+        describe "fixed" $ do
+            prop "for String"     $ propFixed id noAlign
+            prop "for WideString" $ propFixed WideString noAlign
+        describe "expandUntil" $ do
+            prop "for String"     $ propExpandUntil id noAlign
+            prop "for WideString" $ propExpandUntil WideString noAlign
+            let col pos i = column (expandUntil i) pos noAlign noCutMark
+            it "when dropping from the right" $
+                grid [col left 8]  [[wide], [narrow]] `shouldBe` [["A long s"], ["Short   "]]
+            it "when dropping from the left" $
+                grid [col right 8] [[wide], [narrow]] `shouldBe` [["g string"], ["   Short"]]
+        describe "fixedUntil" $ do
+            prop "for String"     $ propFixedUntil id noAlign
+            prop "for WideString" $ propFixedUntil WideString noAlign
+        describe "expandBetween" $ do
+            prop "for String"     $ propExpandBetween id noAlign
+            prop "for WideString" $ propExpandBetween WideString noAlign
+
     describe "formatted text" $ do
         let exampleF = formatted "XXX" (plain "Hello" <> formatted "Z" (plain "there") "W") "YYY"
         describe "rendering" $ do
@@ -308,6 +371,50 @@ spec = do
         in cutMarkTooLong || if len > n
            then length trimmed == n
            else trimmed == s
+
+    gridPropHelper :: (Cell a, Testable prop) => ColSpec -> (String -> a) -> [a] -> (Int -> prop) -> Property
+    gridPropHelper col f xs isRightLength = conjoin .
+        map (conjoin . map (isRightLength . visibleLength . f)) . grid [col] $ map pure xs
+
+    propExpand :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+               -> NonEmptyList a -> Property
+    propExpand f align pos cm (NonEmpty xs) =
+        let col = column expand pos align cm
+            len = maximum $ map visibleLength xs
+        in gridPropHelper col f xs (=== len)
+
+    propFixed :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+              -> Positive (Small Int) -> NonEmptyList a -> Property
+    propFixed f align pos cm (Positive (Small n)) (NonEmpty xs) =
+        let col = column (fixed n) pos align cm
+        in gridPropHelper col f xs (=== n)
+
+    propExpandUntil :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+                    -> Positive (Small Int) -> NonEmptyList a -> Property
+    propExpandUntil f align pos cm (Positive (Small n)) (NonEmpty xs) =
+        let col = column (expandUntil n) pos align cm
+            len = maximum $ map visibleLength xs
+        in cover 10 (len <= n) "shorter than limit" . cover 10 (len > n)  "longer than limit" $
+               gridPropHelper col f xs (=== min len n)
+
+    propFixedUntil :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+                   -> Positive (Small Int) -> NonEmptyList a -> Property
+    propFixedUntil f align pos cm (Positive (Small n)) (NonEmpty xs) =
+        let col = column (fixedUntil n) pos align cm
+            len = maximum $ map visibleLength xs
+        in cover 10 (len <= n) "shorter than limit" . cover 10 (len > n)  "longer than limit" $
+               gridPropHelper col f xs (=== max len n)
+
+    propExpandBetween :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+                      -> Positive (Small Int) -> Positive (Small Int) -> NonEmptyList a -> Property
+    propExpandBetween f align pos cm (Positive (Small m)) (Positive (Small n)) (NonEmpty xs) =
+        let col = column (expandBetween (min m n) (max m n)) pos align cm
+            len = maximum $ map visibleLength xs
+            b = min m n
+            t = max m n
+        in cover 10 (len <= b) "shorter than limit" . cover 10 (len > t)  "longer than limit" .
+           cover 10 (len > b && len <= t) "between limits" $
+               gridPropHelper col f xs (=== max b (min t len))
 
     measureAlignmentAt :: Cell a => Char -> a -> AlignInfo
     measureAlignmentAt c = measureAlignment (== c)

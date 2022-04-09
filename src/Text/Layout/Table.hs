@@ -24,6 +24,7 @@ module Text.Layout.Table
     , fixed
     , expandUntil
     , fixedUntil
+    , expandBetween
       -- ** Positional alignment
     , Position
     , H
@@ -110,6 +111,7 @@ module Text.Layout.Table
     , pad
     , trim
     , trimOrPad
+    , trimOrPadBetween
     , align
     , alignFixed
 

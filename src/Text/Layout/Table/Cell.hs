@@ -143,6 +143,20 @@ trimOrPad p cm n c = case compare k n of
   where
     k = visibleLength c
 
+-- | If the given text is longer than the second 'Int' argument, it will be
+-- trimmed to that length according to the position specification. Adds cut
+-- marks to indicate that the column has been trimmed in length. Otherwise, if
+-- it is shorter than the first 'Int' argument, it will be padded to that
+-- length.
+--
+trimOrPadBetween :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
+trimOrPadBetween p cm s l c
+    | k > l     = trim' p cm l k c
+    | k < s     = pad' p s k c
+    | otherwise = buildCell c
+  where
+    k = visibleLength c
+
 -- | Trim a cell based on the position.
 trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
 trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
