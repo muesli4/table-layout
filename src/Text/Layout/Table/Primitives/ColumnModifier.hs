@@ -102,22 +102,30 @@ deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
                            expandUntil' f i max' = if f (max' <= i)
                                                    then FillTo max'
                                                    else fitTo i max'
+                           expandBetween' i j max' | max' > j  = fitTo j max'
+                                                   | max' < i  = fitTo i max'
+                                                   | otherwise = FillTo max'
                            fun                  = case lenS of
-                               Expand        -> FillTo
-                               Fixed i       -> fitTo i
-                               ExpandUntil i -> expandUntil' id i
-                               FixedUntil i  -> expandUntil' not i
+                               Expand            -> FillTo
+                               Fixed i           -> fitTo i
+                               ExpandUntil i     -> expandUntil' id i
+                               FixedUntil i      -> expandUntil' not i
+                               ExpandBetween i j -> expandBetween' i j
                        in fun . maximum . map visibleLength
         AlignOcc oS -> let fitToAligned i      = FitTo i . Just . (,) oS
                            fillAligned         = FillAligned oS
                            expandUntil' f i ai = if f (widthAI ai <= i)
                                                 then fillAligned ai
                                                 else fitToAligned i ai
+                           expandBetween' i j ai | widthAI ai > j = fitToAligned j ai
+                                                 | widthAI ai < i = fitToAligned i ai
+                                                 | otherwise      = fillAligned ai
                            fun                = case lenS of
-                               Expand        -> fillAligned
-                               Fixed i       -> fitToAligned i
-                               ExpandUntil i -> expandUntil' id i
-                               FixedUntil i  -> expandUntil' not i
+                               Expand            -> fillAligned
+                               Fixed i           -> fitToAligned i
+                               ExpandUntil i     -> expandUntil' id i
+                               FixedUntil i      -> expandUntil' not i
+                               ExpandBetween i j -> expandBetween' i j
                         in fun . foldMap (deriveAlignInfo oS)
 
 deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]

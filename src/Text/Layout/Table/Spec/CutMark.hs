@@ -16,7 +16,7 @@ data CutMark
     = CutMark
     { leftMark  :: String
     , rightMark :: String
-    }
+    } deriving (Show, Eq)
 
 -- | A single ellipsis unicode character is used to show cut marks.
 instance Default CutMark where

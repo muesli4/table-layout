@@ -4,6 +4,7 @@ module Text.Layout.Table.Spec.LenSpec
     , fixed
     , expandUntil
     , fixedUntil
+    , expandBetween
     ) where
 
 import Data.Default.Class
@@ -14,6 +15,7 @@ data LenSpec
     | Fixed Int
     | ExpandUntil Int
     | FixedUntil Int
+    | ExpandBetween Int Int
 
 instance Default LenSpec where
     def = expand
@@ -33,3 +35,8 @@ expandUntil = ExpandUntil
 -- | The column will be at least as wide as the given width.
 fixedUntil :: Int -> LenSpec
 fixedUntil = FixedUntil
+
+-- | The column will be at least as wide as the first width, and will expand as
+-- long as it is smaller than the second.
+expandBetween :: Int -> Int -> LenSpec
+expandBetween = ExpandBetween
