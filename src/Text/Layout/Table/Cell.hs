@@ -157,28 +157,29 @@ trimOrPadBetween p cm s l c
   where
     k = visibleLength c
 
--- | Trim a cell based on the position.
+-- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
 trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
   where
     k = visibleLength c
 
--- | Trim a cell based on the position. Preconditions that require to be met
--- (otherwise the function will produce garbage):
+-- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
+--
+-- Preconditions that require to be met (otherwise the function will produce garbage):
 -- prop> visibleLength c > n
 -- prop> visibleLength c == k
 trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
 trim' p cm n k c = case p of
-    Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (rightMark cm)
+    Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (drop (rightLen - n) $ rightMark cm)
     Center -> case cutLen `divMod` 2 of
-        (0, 1) -> buildCell (leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
-        (q, r) -> if n > leftLen + rightLen
+        (0, 1) -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
+        (q, r) -> if n >= leftLen + rightLen
                   then buildCell (leftMark cm) <> buildCell (dropBoth (leftLen + q + r) (rightLen + q) c)
                        <> buildCell (rightMark cm)
                   else case n `divMod` 2 of
                       (qn, rn) -> buildCell (take qn $ leftMark cm)
                                   <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
-    End    -> buildCell (leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
+    End    -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
   where
     leftLen = length $ leftMark cm
     rightLen = length $ rightMark cm
