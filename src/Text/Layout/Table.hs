@@ -42,6 +42,9 @@ module Text.Layout.Table
     , noCutMark
     , singleCutMark
     , doubleCutMark
+     -- ** Padding
+    , Padded(..)
+    , totalPadding
 
       -- * Basic grid layout
     , Row

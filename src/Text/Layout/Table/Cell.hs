@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE FlexibleInstances #-}
+
 module Text.Layout.Table.Cell where
 
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, first, second)
+import Data.Bitraversable (bitraverse)
 import qualified Data.Text as T
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -29,11 +32,52 @@ class Cell a where
     dropBoth :: Int -> Int -> a -> a
     dropBoth l r = dropRight r . dropLeft l
 
+    -- | Like 'dropLeft', but does not add extra padding if the exact amount
+    -- cannot be dropped. The amount of padding needed is returned with the
+    -- result.
+    --
+    -- This is useful if it is not possible to drop an exact amount, for
+    -- example with wide characters.
+    dropLeftNoPad :: Int -> a -> Padded a
+    dropLeftNoPad n = pure . dropLeft n
+
+    -- | Like 'dropRight', but does not add extra padding if the exact amount
+    -- cannot be dropped. The amount of padding needed is returned with the
+    -- result.
+    --
+    -- This is useful if it is not possible to drop an exact amount, for
+    -- example with wide characters.
+    dropRightNoPad :: Int -> a -> Padded a
+    dropRightNoPad n = pure . dropRight n
+
+    -- | Like 'dropBoth', but does not add extra padding if the exact amount
+    -- cannot be dropped. The amount of left and right padding needed is
+    -- returned with the result.
+    --
+    -- This is useful if it is not possible to drop an exact amount, for
+    -- example with wide characters.
+    --
+    -- The default implementation, when invoked with @dropBothNoPad l r@, will
+    -- first drop @l@ from the left and then drop the minimal amount from the
+    -- right so the total amount dropped is at least @l + r@. Any padding necessary
+    -- to make the total amount dropped exactly @l + r@ will be distributed between
+    -- the left and right proportionately to the values of @l@ and @r@.
+    --
+    -- Note that less than @r@ may be dropped from the right if more than @l@ is
+    -- dropped from the left.
+    dropBothNoPad :: Int -> Int -> a -> Padded a
+    dropBothNoPad l r = go (max 0 l) (max 0 r)
+      where
+        go 0 0 a = pure a
+        go l' r' a = redistributePadding l' r' . dropRightAdjusted $ dropLeftNoPad l' a
+          where
+            dropRightAdjusted x = dropRightNoPad (r' - totalPadding x) $ paddedObject x
+
     -- | Returns the length of the visible characters as displayed on the
     -- output medium.
     visibleLength :: a -> Int
 
-    -- | Measure the preceeding and following characters for a position where
+    -- | Measure the preceding and following characters for a position where
     -- the predicate matches.
     measureAlignment :: (Char -> Bool) -> a -> AlignInfo
 
@@ -46,6 +90,9 @@ instance (Cell a, Cell b) => Cell (Either a b) where
     dropLeft n = bimap (dropLeft n) (dropLeft n)
     dropRight n = bimap (dropRight n) (dropRight n)
     dropBoth l r = bimap (dropBoth l r) (dropBoth l r)
+    dropLeftNoPad n = bitraverse (dropLeftNoPad n) (dropLeftNoPad n)
+    dropRightNoPad n = bitraverse (dropRightNoPad n) (dropRightNoPad n)
+    dropBothNoPad l r = bitraverse (dropBothNoPad l r) (dropBothNoPad l r)
     visibleLength = either visibleLength visibleLength
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
     buildCell = either buildCell buildCell
@@ -71,6 +118,32 @@ instance Cell T.Text where
             else Just $ T.length rs - 1
 
     buildCell = textB
+
+-- | An object with padding on the left and right.
+data Padded a
+    = Padded
+    { paddedObject :: a
+    , leftPadding  :: Int
+    , rightPadding :: Int
+    } deriving (Eq, Ord, Show, Functor)
+
+instance Applicative Padded where
+  pure a = Padded a 0 0
+  (Padded f l r) <*> (Padded a l' r') = Padded (f a) (l + l') (r + r')
+
+instance Monad Padded where
+  (Padded a l r) >>= f = let Padded b l' r' = f a in Padded b (l + l') (r + r')
+
+-- | The total amount of padding in 'Padded'.
+totalPadding :: Padded a -> Int
+totalPadding a = leftPadding a + rightPadding a
+
+-- | Redistribute the padding using a given ratio.
+redistributePadding :: Int -> Int -> Padded a -> Padded a
+redistributePadding l r padded = Padded (paddedObject padded) lPadding rPadding
+  where
+    lPadding = (totalPadding padded * l) `div` (l + r)
+    rPadding = totalPadding padded - lPadding
 
 remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c
