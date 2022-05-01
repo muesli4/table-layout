@@ -6,7 +6,7 @@ module Text.Layout.Table.LineStyle
     , makeLineDashed
     , makeLineSolid
 
-      -- * Ascii lines and joins
+      -- * ASCII lines and joins
     , asciiHorizontal
     , asciiVertical
     , asciiJoinString
@@ -22,16 +22,16 @@ import Data.Function (on)
 
 -- | The line styles supported by the Unicode Box-Drawing block.
 data LineStyle
-    = NoLine          -- | @@ and @@.
-    | SingleLine      -- | @─@ and @│@.
-    | HeavyLine       -- | @━@ and @┃@.
-    | DoubleLine      -- | @═@ and @║@.
-    | DashLine        -- | @┄@ and @┆@.
-    | HeavyDashLine   -- | @┅@ and @┇@.
-    | Dash4Line       -- | @┈@ and @┊@.
-    | HeavyDash4Line  -- | @┉@ and @┋@.
-    | Dash2Line       -- | @╌@ and @╎@.
-    | HeavyDash2Line  -- | @╍@ and @╏@.
+    = NoLine          -- ^ No lines in both orientations.
+    | SingleLine      -- ^ @─@ and @│@.
+    | HeavyLine       -- ^ @━@ and @┃@.
+    | DoubleLine      -- ^ @═@ and @║@.
+    | DashLine        -- ^ @┄@ and @┆@.
+    | HeavyDashLine   -- ^ @┅@ and @┇@.
+    | Dash4Line       -- ^ @┈@ and @┊@.
+    | HeavyDash4Line  -- ^ @┉@ and @┋@.
+    | Dash2Line       -- ^ @╌@ and @╎@.
+    | HeavyDash2Line  -- ^ @╍@ and @╏@.
   deriving (Eq)
 
 -- | Make a 'LineStyle' bold.
@@ -83,19 +83,19 @@ joinType HeavyDash2Line  = Heavy
 joinType DoubleLine      = Double
 
 
--- | Ascii representations for horizontal lines.
+-- | ASCII representations for horizontal lines.
 asciiHorizontal :: LineStyle -> String
 asciiHorizontal NoLine     = ""
 asciiHorizontal DoubleLine = "="
 asciiHorizontal _          = "-"
 
--- | Ascii representations for vertical lines.
+-- | ASCII representations for vertical lines.
 asciiVertical :: LineStyle -> String
 asciiVertical NoLine     = ""
 asciiVertical DoubleLine = "||"
 asciiVertical _          = "|"
 
--- | Ascii representations for joins.
+-- | ASCII representations for joins.
 asciiJoinString :: LineStyle -> LineStyle -> String
 asciiJoinString DoubleLine DoubleLine = "++"
 asciiJoinString _          DoubleLine = "++"
@@ -135,8 +135,12 @@ unicodeJoinString :: LineStyle -> LineStyle -> String
 unicodeJoinString h v = unicodeJoinString4 h h v v
 
 -- | Unicode interior joins, allowing the lines to change when passing through the vertex.
--- The argument order is west, east, north, then south.
-unicodeJoinString4 :: LineStyle -> LineStyle -> LineStyle -> LineStyle -> String
+unicodeJoinString4
+    :: LineStyle -- ^ 'LineStyle' of the line coming from the west.
+    -> LineStyle -- ^ 'LineStyle' of the line coming from the east.
+    -> LineStyle -- ^ 'LineStyle' of the line coming from the north.
+    -> LineStyle -- ^ 'LineStyle' of the line coming from the south.
+    -> String
 unicodeJoinString4 NoLine NoLine NoLine NoLine          = " "
 unicodeJoinString4 NoLine NoLine n      s      | n == s = unicodeVertical n
 unicodeJoinString4 w      e      NoLine NoLine | w == e = unicodeHorizontal w
