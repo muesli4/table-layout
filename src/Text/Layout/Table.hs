@@ -46,6 +46,7 @@ module Text.Layout.Table
     , Row
     , grid
     , gridB
+    , gridBWithCMIs
     , gridLines
     , gridLinesB
     , gridString
@@ -84,6 +85,7 @@ module Text.Layout.Table
       -- ** Layout
     , tableLines
     , tableLinesB
+    , tableLinesBWithCMIs
     , tableString
     , tableStringB
 
@@ -187,7 +189,16 @@ fixedLeftCol i = fixedCol i left
 
 -- | Modifies cells according to the column specification.
 gridB :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [Row b]
-gridB specs tab = zipWith ($) (deriveColMods specs tab) <$> tab
+gridB specs = fst . gridBWithCMIs specs
+
+-- | Modifies cells according to the column specification, also returning the
+-- 'ColModInfo' used to generate the grid.
+gridBWithCMIs :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> ([Row b], [ColModInfo])
+gridBWithCMIs specs tab = (zipWith4 columnModifier positions cms cMIs <$> tab, cMIs)
+  where
+    cMIs = deriveColModInfos' specs tab
+    positions = map position specs
+    cms = map cutMark specs
 
 -- | A version of 'gridB' specialised to produce 'String's.
 grid :: Cell a => [ColSpec] -> [Row a] -> [Row String]
@@ -256,16 +267,31 @@ colsAllG p = rowsG . colsAsRowsAll p
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLinesB :: forall hSep r vSep c a b.
-               (Cell a, Cell r, Cell c, StringBuilder b)
+tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
             => [ColSpec]             -- ^ Layout specification of columns
             -> TableStyle hSep vSep  -- ^ Visual table style
             -> HeaderSpec hSep r     -- ^ Optional row header details
             -> HeaderSpec vSep c     -- ^ Optional column header details
             -> [RowGroup a]          -- ^ Rows which form a cell together
             -> [b]
-tableLinesB specs TableStyle { .. } rowHeader colHeader rowGroups =
-    maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
+tableLinesB specs style rowHeader colHeader =
+    fst . tableLinesBWithCMIs specs style rowHeader colHeader
+
+-- | Layouts a pretty table with an optional header. Note that providing fewer
+-- layout specifications than columns or vice versa will result in not showing
+-- the redundant ones.
+tableLinesBWithCMIs :: forall hSep r vSep c a b.
+                       (Cell a, Cell r, Cell c, StringBuilder b)
+                    => [ColSpec]             -- ^ Layout specification of columns
+                    -> TableStyle hSep vSep  -- ^ Visual table style
+                    -> HeaderSpec hSep r     -- ^ Optional row header details
+                    -> HeaderSpec vSep c     -- ^ Optional column header details
+                    -> [RowGroup a]          -- ^ Rows which form a cell together
+                    -> ([b], [ColModInfo])
+tableLinesBWithCMIs specs TableStyle { .. } rowHeader colHeader rowGroups =
+    ( maybe id (:) optTopLine . addHeaderLines $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
+    , cMIs
+    )
   where
     -- Helpers for horizontal lines that will put layout characters around and
     -- in between a row of the pre-formatted grid.
