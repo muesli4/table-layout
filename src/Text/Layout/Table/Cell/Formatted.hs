@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE LambdaCase        #-}
 
 -- | Provides formatting to an instance of 'Cell'. For example, in a unix
 -- terminal one could use the following:
@@ -11,6 +12,8 @@ module Text.Layout.Table.Cell.Formatted
     ( Formatted
     , plain
     , formatted
+    , mapAffix
+    , cataFormatted
     ) where
 
 import Data.List (foldl', mapAccumL, mapAccumR)
@@ -21,9 +24,9 @@ import Text.Layout.Table.Cell
 import Text.Layout.Table.StringBuilder
 
 data Formatted a
-    = Plain a
+    = Empty
     | Concat [Formatted a]
-    | Empty
+    | Plain a
     | Format String (Formatted a) String
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -39,6 +42,29 @@ formatted
     -> String -- ^ Suffix text directives for formatting.
     -> Formatted a
 formatted = Format
+
+-- | Map over the formatting directives of a formatted value.
+mapAffix :: (String -> String)  -- ^ Function to operate on prefix text directives.
+         -> (String -> String)  -- ^ Function to operate on suffix text directives.
+         -> Formatted a  -- ^ The formatted value to operate on.
+         -> Formatted a
+mapAffix preF sufF = cataFormatted Empty Concat Plain (\p x s -> Format (preF p) x (sufF s))
+
+-- | Process a formatted value to produce an arbitrary value.
+-- This is the catamorphism for 'Formatted'.
+cataFormatted :: b  -- ^ Value of 'Empty'.
+              -> ([b] -> b)  -- ^ Function for operating over 'Concat'.
+              -> (a -> b)  -- ^ Function for operating over 'Plain'.
+              -> (String -> b -> String -> b)  -- ^ Function for operating over 'Format'.
+              -> Formatted a
+              -> b
+cataFormatted emptyF concatF plainF formatF = \case
+    Empty        -> emptyF
+    Concat xs    -> concatF $ map cataFormatted' xs
+    Plain x      -> plainF x
+    Format p x s -> formatF p (cataFormatted' x) s
+  where
+    cataFormatted' = cataFormatted emptyF concatF plainF formatF
 
 instance IsString a => IsString (Formatted a) where
     fromString = plain . fromString
@@ -59,7 +85,7 @@ instance Cell a => Cell (Formatted a) where
     dropRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
     visibleLength = sum . fmap visibleLength
     measureAlignment p = foldl' (mergeAlign p) mempty
-    buildCell = buildCellMF
+    buildCell = cataFormatted mempty mconcat buildCell (\p a s -> stringB p <> a <> stringB s)
 
 -- | Drop characters either from the right or left, while also tracking the
 -- remaining number of characters to drop.
@@ -72,10 +98,3 @@ dropTrackRemaining dropF i a
 mergeAlign :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo
 mergeAlign _ (AlignInfo l (Just r)) x = AlignInfo l (Just $ r + visibleLength x)
 mergeAlign p (AlignInfo l Nothing)  x = let AlignInfo l' r = measureAlignment p x in AlignInfo (l + l') r
-
--- | Surrounds the content with the directives.
-buildCellMF :: (Cell a, StringBuilder b) => Formatted a -> b
-buildCellMF Empty          = mempty
-buildCellMF (Plain a)      = buildCell a
-buildCellMF (Concat as)    = foldMap buildCell as
-buildCellMF (Format p a s) = stringB p <> buildCell a <> stringB s
