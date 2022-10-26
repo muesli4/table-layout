@@ -29,8 +29,6 @@ module Text.Layout.Table.Primitives.Basic
 
 import Text.Layout.Table.Spec.CutMark
 
-import Data.List
-
 spaces :: Int -> String
 spaces = flip replicate ' '
 

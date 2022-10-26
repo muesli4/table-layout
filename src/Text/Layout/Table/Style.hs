@@ -43,8 +43,6 @@ module Text.Layout.Table.Style
     , TableStyle(..)
     ) where
 
-import Data.Function (on)
-
 import Text.Layout.Table.LineStyle
 
 -- | Specifies the different letters to construct the non-content structure of a

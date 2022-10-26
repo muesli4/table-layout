@@ -31,7 +31,7 @@ instance Cell WideString where
 -- The provided `Bool` determines whether to continue dropping zero-width
 -- characters after the requested width has been dropped.
 dropWide :: Bool -> Int -> String -> String
-dropWide _ i [] = []
+dropWide _ _ [] = []
 dropWide gobbleZeroWidth i l@(x : xs)
     | gobbleZeroWidth && i == 0 && charLen == 0 = dropWide gobbleZeroWidth i xs
     | i <= 0       = l
