@@ -10,6 +10,9 @@ module Text.Layout.Table.LineStyle
     , asciiHorizontal
     , asciiVertical
     , asciiJoinString
+    , asciiJoinString4
+    , roundedAsciiJoinString
+    , roundedAsciiJoinString4
 
       -- * Unicode lines and joins
     , unicodeHorizontal
@@ -18,7 +21,6 @@ module Text.Layout.Table.LineStyle
     , unicodeJoinString4
     ) where
 
-import Data.Function (on)
 import Data.Default.Class
 
 -- | The line styles supported by the Unicode Box-Drawing block.
@@ -100,13 +102,67 @@ asciiVertical NoLine     = ""
 asciiVertical DoubleLine = "||"
 asciiVertical _          = "|"
 
--- | ASCII representations for joins.
+-- | ASCII representations for joins using pluses.
 asciiJoinString :: LineStyle -> LineStyle -> String
-asciiJoinString DoubleLine DoubleLine = "++"
-asciiJoinString _          DoubleLine = "++"
-asciiJoinString DoubleLine _          = ":"
-asciiJoinString _          NoLine     = "-"
-asciiJoinString _          _          = "+"
+asciiJoinString h v = asciiJoinString4 h h v v
+
+-- | ASCII representations for joins using rounded joins.
+roundedAsciiJoinString :: LineStyle -> LineStyle -> String
+roundedAsciiJoinString h v = roundedAsciiJoinString4 h h v v
+
+-- | ASCII interior joins, allowing the lines to change when passing through the vertex.
+-- Uses pluses for joins. The argument order is west, east, north, then south.
+asciiJoinString4 :: LineStyle -> LineStyle -> LineStyle -> LineStyle -> String
+asciiJoinString4 NoLine NoLine NoLine NoLine          = " "
+asciiJoinString4 NoLine NoLine n      s      | n == s = asciiVertical n
+asciiJoinString4 w      e      NoLine NoLine | w == e = asciiHorizontal w
+asciiJoinString4 w      e      n      s               = aJoins w e n s
+
+-- | ASCII interior joins, allowing the lines to change when passing through the vertex.
+-- Uses rounded joins. The argument order is west, east, north, then south.
+roundedAsciiJoinString4 :: LineStyle -> LineStyle -> LineStyle -> LineStyle -> String
+roundedAsciiJoinString4 NoLine NoLine NoLine NoLine          = " "
+roundedAsciiJoinString4 NoLine NoLine n      s      | n == s = asciiVertical n
+roundedAsciiJoinString4 w      e      NoLine NoLine | w == e = asciiHorizontal w
+roundedAsciiJoinString4 w      e      n      s               = arJoins w e n s
+
+-- | Draw ASCII line joins with pluses. Arguments are in the order west, east,
+-- north, south.
+--
+-- Only 'NoLine', 'SingleLine', and 'DoubleLine' are supported by ASCII. Other
+-- line styles are treated as 'SingleLine'.
+aJoins :: LineStyle -> LineStyle -> LineStyle -> LineStyle -> String
+aJoins _ _ DoubleLine _          = "++"
+aJoins _ _ _          DoubleLine = "++"
+aJoins _ _ _          _          = "+"
+
+-- | Draw ASCII line joins with rounded joins. Arguments are in order west,
+-- east, north, south.
+--
+-- Only 'NoLine', 'SingleLine', and 'DoubleLine' are supported by ASCII. Other
+-- line styles are treated as 'SingleLine'.
+arJoins :: LineStyle -> LineStyle -> LineStyle -> LineStyle -> String
+-- Top joins
+arJoins _          _          NoLine     DoubleLine = ".."
+arJoins _          _          NoLine     _          = "."
+-- Bottom joins
+arJoins _          _          DoubleLine NoLine     = "''"
+arJoins _          _          _          NoLine     = "'"
+-- Left joins
+arJoins NoLine     DoubleLine DoubleLine _          = "::"
+arJoins NoLine     DoubleLine _          _          = ":"
+arJoins NoLine     SingleLine DoubleLine _          = "++"
+arJoins NoLine     SingleLine _          _          = "+"
+-- Right joins
+arJoins DoubleLine NoLine     DoubleLine _          = "::"
+arJoins DoubleLine NoLine     _          _          = ":"
+arJoins SingleLine NoLine     DoubleLine _          = "++"
+arJoins SingleLine NoLine     _          _          = "+"
+-- Interior joins
+arJoins DoubleLine _          DoubleLine _          = "::"
+arJoins DoubleLine _          _          _          = ":"
+arJoins _          _          DoubleLine _          = "++"
+arJoins _          _          _          _          = "+"
 
 
 -- | Unicode representations for horizontal lines.
