@@ -3,7 +3,45 @@
 
 {-# LANGUAGE RecordWildCards #-}
 
-module Text.Layout.Table.Style where
+module Text.Layout.Table.Style
+    ( -- * Pre-constructed 'TableStyle'
+      -- ** ASCII 'TableStyle'
+      asciiS
+    , asciiRoundS
+    , asciiDoubleS
+
+      -- ** Unicode 'TableStyle'
+    , unicodeS
+    , unicodeBoldHeaderS
+    , unicodeRoundS
+    , unicodeBoldS
+    , unicodeBoldStripedS
+    , unicodeDoubleFrameS
+
+      -- * Transform 'TableStyle'
+    , withoutBorders
+    , withoutTopBorder
+    , withoutBottomBorder
+    , withoutLeftBorder
+    , withoutRightBorder
+    , withRoundCorners
+    , inheritStyle
+    , inheritStyleHeaderGroup
+
+      -- * Construct 'TableStyle' from 'TableStyleSpec'
+    , asciiTableStyleFromSpec
+    , roundedAsciiTableStyleFromSpec
+    , unicodeTableStyleFromSpec
+    , tableStyleFromSpec
+
+      -- ** Construct 'TableStyleSpec'
+    , TableStyleSpec(..)
+    , simpleTableStyleSpec
+    , setTableStyleSpecSeparator
+
+      -- * Low-level 'TableStyle' interface
+    , TableStyle(..)
+    ) where
 
 import Data.Function (on)
 
@@ -11,34 +49,67 @@ import Text.Layout.Table.LineStyle
 
 -- | Specifies the different letters to construct the non-content structure of a
 -- table.
+--
+-- This is quite low-level and difficult to construct by hand. If you want to
+-- construct your own, you may wish to use the higher-level interface provided
+-- by (in increasing order of detail):
+--
+--   1. 'simpleTableStyleSpec'
+--   2. 'TableStyleSpec'
+--   3. 'unicodeTableStyleFromSpec'
+--   4. 'asciiTableStyleFromSpec'
+--   5. 'tableStyleFromSpec'
 data TableStyle hSep vSep
     = TableStyle
-    { headerSepH   :: String
-    , headerSepLC  :: String
-    , headerSepRC  :: String
-    , headerSepC   :: vSep -> vSep -> String
-    , headerTopH   :: String
-    , headerTopL   :: String
-    , headerTopR   :: String
-    , headerTopC   :: vSep -> String
-    , headerL      :: String
-    , headerR      :: String
-    , headerC      :: vSep -> String
-    , groupL       :: String
-    , groupR       :: String
-    , groupC       :: vSep -> String
-    , groupSepH    :: hSep -> String
-    , groupSepC    :: hSep -> vSep -> String
-    , groupSepLC   :: hSep -> String
-    , groupSepRC   :: hSep -> String
-    , groupTopC    :: vSep -> String
-    , groupTopL    :: String
-    , groupTopR    :: String
-    , groupTopH    :: String
-    , groupBottomC :: vSep -> String
-    , groupBottomL :: String
-    , groupBottomR :: String
-    , groupBottomH :: String
+    -- Within the column header but not the row header (11 cases)
+    { headerSepH     :: String
+    , headerSepLC    :: String
+    , headerSepRC    :: String
+    , headerSepC     :: vSep -> vSep -> String
+    , headerTopH     :: String
+    , headerTopL     :: String
+    , headerTopR     :: String
+    , headerTopC     :: vSep -> String
+    , headerL        :: String
+    , headerR        :: String
+    , headerC        :: vSep -> String
+    -- Within the row header but not the column header (11 cases)
+    , rowHeaderSepV  :: String
+    , rowHeaderSepTC :: String
+    , rowHeaderSepBC :: String
+    , rowHeaderSepC  :: hSep -> hSep -> String
+    , rowHeaderLeftV :: String
+    , rowHeaderLeftT :: String
+    , rowHeaderLeftB :: String
+    , rowHeaderLeftC :: hSep -> String
+    , rowHeaderT     :: String
+    , rowHeaderB     :: String
+    , rowHeaderC     :: hSep -> String
+    -- Within the intersection of the row and column headers (8 cases)
+    , bothHeadersTL  :: String
+    , bothHeadersTR  :: String
+    , bothHeadersBL  :: String
+    , bothHeadersBR  :: String
+    , bothHeadersL   :: String
+    , bothHeadersR   :: String
+    , bothHeadersT   :: String
+    , bothHeadersB   :: String
+    -- Main body of the table, in neither the row or column headers (15 cases)
+    , groupL         :: String
+    , groupR         :: String
+    , groupC         :: vSep -> String
+    , groupSepH      :: hSep -> String
+    , groupSepC      :: hSep -> vSep -> String
+    , groupSepLC     :: hSep -> String
+    , groupSepRC     :: hSep -> String
+    , groupTopC      :: vSep -> String
+    , groupTopL      :: String
+    , groupTopR      :: String
+    , groupTopH      :: String
+    , groupBottomC   :: vSep -> String
+    , groupBottomL   :: String
+    , groupBottomR   :: String
+    , groupBottomH   :: String
     }
 
 -- | Inherit from a 'TableStyle' through a pair of functions.
@@ -46,26 +117,30 @@ inheritStyle :: (c -> a)        -- ^ The function to transform the row labels.
              -> (d -> b)        -- ^ The function to transform the column labels.
              -> TableStyle a b  -- ^ The 'TableStyle' to inherit from.
              -> TableStyle c d
-inheritStyle f g = inheritStyleHeaderGroup f g g
+inheritStyle f g = inheritStyleHeaderGroup f f g g
 
 -- | Inherit from a 'TableStyle' using a triple of functions, specifying the
 -- correspondence for row separators, column heading separators, and column separators.
-inheritStyleHeaderGroup :: (c -> a)        -- ^ The function to transform the row labels.
+inheritStyleHeaderGroup :: (c -> a)        -- ^ The function to transform the row labels in the header.
+                        -> (c -> a)        -- ^ The function to transform the row labels in the body.
                         -> (d -> b)        -- ^ The function to transform the column labels in the header.
                         -> (d -> b)        -- ^ The function to transform the column labels in the body.
                         -> TableStyle a b  -- ^ The 'TableStyle' to inherit from.
                         -> TableStyle c d
-inheritStyleHeaderGroup row colHead col ts =
-    ts { headerSepC   = \a b -> headerSepC ts (colHead a) (col b)
-       , headerTopC   = headerTopC   ts . colHead
-       , headerC      = headerC      ts . colHead
-       , groupC       = groupC       ts . col
-       , groupSepH    = groupSepH    ts . row
-       , groupSepC    = \a b -> groupSepC ts (row a) (col b)
-       , groupSepLC   = groupSepLC   ts . row
-       , groupSepRC   = groupSepRC   ts . row
-       , groupTopC    = groupTopC    ts . col
-       , groupBottomC = groupBottomC ts . col
+inheritStyleHeaderGroup rowHead row colHead col ts =
+    ts { headerSepC     = \a b -> headerSepC ts (colHead a) (col b)
+       , headerTopC     = headerTopC     ts . colHead
+       , headerC        = headerC        ts . colHead
+       , rowHeaderSepC  = \a b -> rowHeaderSepC ts (rowHead a) (rowHead b)
+       , rowHeaderLeftC = rowHeaderLeftC ts . rowHead
+       , rowHeaderC     = rowHeaderC     ts . rowHead
+       , groupC         = groupC         ts . col
+       , groupSepH      = groupSepH      ts . row
+       , groupSepC      = \a b -> groupSepC ts (row a) (col b)
+       , groupSepLC     = groupSepLC     ts . row
+       , groupSepRC     = groupSepRC     ts . row
+       , groupTopC      = groupTopC      ts . col
+       , groupBottomC   = groupBottomC   ts . col
        }
 
 -- | Remove the top, bottom, left, and right borders from a 'TableStyle'.
@@ -75,16 +150,21 @@ withoutBorders = withoutTopBorder . withoutBottomBorder . withoutLeftBorder . wi
 -- | Remove the top border from a 'TableStyle'.
 withoutTopBorder :: TableStyle a b -> TableStyle a b
 withoutTopBorder ts = ts { headerTopH = "", headerTopL = "", headerTopR = "", headerTopC = const ""
+                         , rowHeaderLeftT = "", rowHeaderT = "", rowHeaderSepTC = ""
+                         , bothHeadersTL = "", bothHeadersTR = "", bothHeadersT = ""
                          , groupTopC = const "", groupTopL = "", groupTopR = "", groupTopH = ""
                          }
 
 -- | Remove the bottom border from a 'TableStyle'.
 withoutBottomBorder :: TableStyle a b -> TableStyle a b
-withoutBottomBorder ts = ts { groupBottomC = const "", groupBottomL = "", groupBottomR = "", groupBottomH = "" }
+withoutBottomBorder ts = ts { rowHeaderLeftB = "", rowHeaderB = "", rowHeaderSepBC = ""
+                            , groupBottomC = const "", groupBottomL = "", groupBottomR = "", groupBottomH = "" }
 
 -- | Remove the left border from a 'TableStyle'.
 withoutLeftBorder :: TableStyle a b -> TableStyle a b
 withoutLeftBorder ts = ts { headerSepLC = "", headerTopL = "", headerL = ""
+                          , rowHeaderLeftV = "", rowHeaderLeftT = "", rowHeaderLeftB = "", rowHeaderLeftC = const ""
+                          , bothHeadersTL = "", bothHeadersBL = "", bothHeadersL = ""
                           , groupL = "", groupSepLC = const "", groupTopL = "", groupBottomL = ""
                           }
 
@@ -96,199 +176,158 @@ withoutRightBorder ts = ts { headerSepRC = "", headerTopR = "", headerR = ""
 
 -- | Modify a 'TableStyle' to use Unicode rounded corners.
 withRoundCorners :: TableStyle a b -> TableStyle a b
-withRoundCorners ts = ts { headerTopL   = "╭"
-                         , headerTopR   = "╮"
-                         , groupTopL    = "╭"
-                         , groupTopR    = "╮"
-                         , groupBottomL = "╰"
-                         , groupBottomR = "╯"
+withRoundCorners ts = ts { headerTopL     = "╭"
+                         , rowHeaderLeftT = "╭"
+                         , bothHeadersTL  = "╭"
+                         , groupTopL      = "╭"
+                         , headerTopR     = "╮"
+                         , groupTopR      = "╮"
+                         , rowHeaderLeftB = "╰"
+                         , groupBottomL   = "╰"
+                         , groupBottomR   = "╯"
                          }
 
 -- | A short-hand specification for generating Unicode table styles, by
 -- specifying the line type of each of the main lines.
 data TableStyleSpec
     = TableStyleSpec
-    { headerSep   :: LineStyle
-    , headerTop   :: LineStyle
-    , headerLeft  :: LineStyle
-    , headerRight :: LineStyle
-    , groupLeft   :: LineStyle
-    , groupRight  :: LineStyle
-    , groupTop    :: LineStyle
-    , groupBottom :: LineStyle
+    { headerSep         :: LineStyle
+    , headerTop         :: LineStyle
+    , headerLeft        :: LineStyle
+    , headerRight       :: LineStyle
+    , rowHeaderSep      :: LineStyle
+    , rowHeaderLeft     :: LineStyle
+    , rowHeaderTop      :: LineStyle
+    , rowHeaderBottom   :: LineStyle
+    , bothHeadersTop    :: LineStyle
+    , bothHeadersBottom :: LineStyle
+    , bothHeadersLeft   :: LineStyle
+    , bothHeadersRight  :: LineStyle
+    , groupLeft         :: LineStyle
+    , groupRight        :: LineStyle
+    , groupTop          :: LineStyle
+    , groupBottom       :: LineStyle
     }
 
--- | Generate a 'TableSpec' from a given 'TableStyleSpec'.
-tableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
-tableStyleFromSpec TableStyleSpec { .. }
+-- | Constructs a simple 'TableStyleSpec' which uses the given 'LineStyle's in
+-- the headers and group, respectively.
+simpleTableStyleSpec :: LineStyle -> LineStyle -> TableStyleSpec
+simpleTableStyleSpec headerStyle groupStyle
+    = TableStyleSpec
+    { headerSep         = headerStyle
+    , headerTop         = headerStyle
+    , headerLeft        = headerStyle
+    , headerRight       = headerStyle
+    , rowHeaderSep      = headerStyle
+    , rowHeaderLeft     = headerStyle
+    , rowHeaderTop      = headerStyle
+    , rowHeaderBottom   = headerStyle
+    , bothHeadersTop    = headerStyle
+    , bothHeadersBottom = headerStyle
+    , bothHeadersLeft   = headerStyle
+    , bothHeadersRight  = headerStyle
+    , groupLeft         = groupStyle
+    , groupRight        = groupStyle
+    , groupTop          = groupStyle
+    , groupBottom       = groupStyle
+    }
+
+-- Generate an ASCII 'TableStyle' from a 'TableStyleSpec' using pluses for joins.
+asciiTableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
+asciiTableStyleFromSpec = tableStyleFromSpec asciiHorizontal asciiVertical asciiJoinString4
+
+-- Generate an ASCII 'TableStyle' from a 'TableStyleSpec' using rounded joins.
+roundedAsciiTableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
+roundedAsciiTableStyleFromSpec = tableStyleFromSpec asciiHorizontal asciiVertical roundedAsciiJoinString4
+
+-- Generate a unicode 'TableStyle' from a 'TableStyleSpec'.
+unicodeTableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
+unicodeTableStyleFromSpec = tableStyleFromSpec unicodeHorizontal unicodeVertical unicodeJoinString4
+
+-- | Generate a 'TableStyle from a given 'TableStyleSpec', along with functions
+-- to construct horizontal and vertical lines and joins.
+-- The function for constructing join strings takes its arguments in the order
+-- west, east, north, south.
+tableStyleFromSpec :: (LineStyle -> String) -> (LineStyle -> String)
+                   -> (LineStyle -> LineStyle -> LineStyle -> LineStyle -> String)
+                   -> TableStyleSpec
+                   -> TableStyle LineStyle LineStyle
+tableStyleFromSpec hString vString joinString TableStyleSpec { .. }
     = TableStyle
-    { headerSepH   = unicodeHorizontal headerSep
-    , headerSepLC  = unicodeJoinString4 NoLine headerSep headerLeft groupLeft
-    , headerSepRC  = unicodeJoinString4 headerSep NoLine headerRight groupRight
-    , headerSepC   = unicodeJoinString4 headerSep headerSep
-    , headerTopH   = unicodeHorizontal headerTop
-    , headerTopL   = unicodeJoinString4 NoLine headerTop NoLine headerLeft
-    , headerTopR   = unicodeJoinString4 headerTop NoLine NoLine headerRight
-    , headerTopC   = unicodeJoinString4 headerTop headerTop NoLine
-    , headerL      = unicodeVertical headerLeft
-    , headerR      = unicodeVertical headerRight
-    , headerC      = unicodeVertical
-    , groupL       = unicodeVertical groupLeft
-    , groupR       = unicodeVertical groupRight
-    , groupC       = unicodeVertical
-    , groupSepH    = unicodeHorizontal
-    , groupSepC    = unicodeJoinString
-    , groupSepLC   = \h -> unicodeJoinString4 NoLine h groupLeft groupLeft
-    , groupSepRC   = \h -> unicodeJoinString4 h NoLine groupRight groupRight
-    , groupTopC    = unicodeJoinString4 groupTop groupTop NoLine
-    , groupTopL    = unicodeJoinString4 NoLine groupTop NoLine groupLeft
-    , groupTopR    = unicodeJoinString4 groupTop NoLine NoLine groupRight
-    , groupTopH    = unicodeHorizontal groupTop
-    , groupBottomC = \v -> unicodeJoinString4 groupBottom groupBottom v NoLine
-    , groupBottomL = unicodeJoinString4 NoLine groupBottom groupLeft NoLine
-    , groupBottomR = unicodeJoinString4 groupBottom NoLine groupRight NoLine
-    , groupBottomH = unicodeHorizontal groupBottom
+    { headerSepH     = hString headerSep
+    , headerSepLC    = joinString NoLine headerSep headerLeft groupLeft
+    , headerSepRC    = joinString headerSep NoLine headerRight groupRight
+    , headerSepC     = joinString headerSep headerSep
+    , headerTopH     = hString headerTop
+    , headerTopL     = joinString NoLine headerTop NoLine headerLeft
+    , headerTopR     = joinString headerTop NoLine NoLine headerRight
+    , headerTopC     = joinString headerTop headerTop NoLine
+    , headerL        = vString headerLeft
+    , headerR        = vString headerRight
+    , headerC        = vString
+    , rowHeaderSepV  = vString rowHeaderSep
+    , rowHeaderSepTC = joinString rowHeaderTop groupTop NoLine rowHeaderSep
+    , rowHeaderSepBC = joinString rowHeaderBottom groupBottom rowHeaderSep NoLine
+    , rowHeaderSepC  = \h g -> joinString h g rowHeaderSep rowHeaderSep
+    , rowHeaderLeftV = vString rowHeaderLeft
+    , rowHeaderLeftT = joinString NoLine rowHeaderTop NoLine rowHeaderLeft
+    , rowHeaderLeftB = joinString NoLine rowHeaderBottom rowHeaderLeft NoLine
+    , rowHeaderLeftC = \h -> joinString NoLine h rowHeaderLeft rowHeaderLeft
+    , rowHeaderT     = hString rowHeaderTop
+    , rowHeaderB     = hString rowHeaderBottom
+    , rowHeaderC     = hString
+    , bothHeadersTL  = joinString NoLine bothHeadersTop NoLine bothHeadersLeft
+    , bothHeadersTR  = joinString bothHeadersTop headerTop NoLine bothHeadersRight
+    , bothHeadersBL  = joinString NoLine bothHeadersBottom bothHeadersLeft rowHeaderLeft
+    , bothHeadersBR  = joinString bothHeadersBottom headerSep bothHeadersRight rowHeaderSep
+    , bothHeadersL   = vString bothHeadersLeft
+    , bothHeadersR   = vString bothHeadersRight
+    , bothHeadersT   = hString bothHeadersTop
+    , bothHeadersB   = hString bothHeadersBottom
+    , groupL         = vString groupLeft
+    , groupR         = vString groupRight
+    , groupC         = vString
+    , groupSepH      = hString
+    , groupSepC      = \h v -> joinString h h v v
+    , groupSepLC     = \h -> joinString NoLine h groupLeft groupLeft
+    , groupSepRC     = \h -> joinString h NoLine groupRight groupRight
+    , groupTopC      = joinString groupTop groupTop NoLine
+    , groupTopL      = joinString NoLine groupTop NoLine groupLeft
+    , groupTopR      = joinString groupTop NoLine NoLine groupRight
+    , groupTopH      = hString groupTop
+    , groupBottomC   = \v -> joinString groupBottom groupBottom v NoLine
+    , groupBottomL   = joinString NoLine groupBottom groupLeft NoLine
+    , groupBottomR   = joinString groupBottom NoLine groupRight NoLine
+    , groupBottomH   = hString groupBottom
     }
 
--- | A basic 'TableStyleSpec' which uses 'SingleLine' for all borders except
--- the header separator, which is a 'DoubleLine'.
-unicodeSS :: TableStyleSpec
-unicodeSS = TableStyleSpec
-          { headerSep   = DoubleLine
-          , headerTop   = SingleLine
-          , headerLeft  = SingleLine
-          , headerRight = SingleLine
-          , groupLeft   = SingleLine
-          , groupRight  = SingleLine
-          , groupTop    = SingleLine
-          , groupBottom = SingleLine
-          }
-
+-- | Modify a 'TableStyleSpec' to use the given 'LineStyle' for header separators.
+setTableStyleSpecSeparator :: LineStyle -> TableStyleSpec -> TableStyleSpec
+setTableStyleSpecSeparator sep spec =
+    spec { headerSep = sep, rowHeaderSep = sep, bothHeadersBottom = sep, bothHeadersRight = sep }
 
 -- | My usual ASCII table style.
 asciiRoundS :: TableStyle LineStyle LineStyle
-asciiRoundS = TableStyle
-            { headerSepH   = "-"
-            , headerSepLC  = ":"
-            , headerSepRC  = ":"
-            , headerSepC   = roundedVerticalJoin
-            , headerTopL   = "."
-            , headerTopR   = "."
-            , headerTopC   = roundedTopJoin
-            , headerTopH   = "-"
-            , headerL      = "|"
-            , headerR      = "|"
-            , headerC      = asciiVertical
-            , groupL       = "|"
-            , groupR       = "|"
-            , groupC       = asciiVertical
-            , groupSepH    = asciiHorizontal
-            , groupSepC    = roundedInteriorJoin
-            , groupSepLC   = roundedVerticalJoin SingleLine
-            , groupSepRC   = roundedVerticalJoin SingleLine
-            , groupTopC    = roundedTopJoin
-            , groupTopL    = "."
-            , groupTopR    = "."
-            , groupTopH    = "-"
-            , groupBottomC = roundedBottomJoin
-            , groupBottomL = "'"
-            , groupBottomR = "'"
-            , groupBottomH = "-"
-            }
-  where
-    roundedVerticalJoin DoubleLine _          = "::"
-    roundedVerticalJoin _          DoubleLine = "::"
-    roundedVerticalJoin _          _          = ":"
-
-    roundedTopJoin DoubleLine = ".."
-    roundedTopJoin NoLine     = "-"
-    roundedTopJoin _          = "."
-
-    roundedBottomJoin DoubleLine = "''"
-    roundedBottomJoin NoLine     = "-"
-    roundedBottomJoin _          = "'"
-
-    roundedInteriorJoin DoubleLine DoubleLine = "::"
-    roundedInteriorJoin DoubleLine _          = ":"
-    roundedInteriorJoin _          DoubleLine = "++"
-    roundedInteriorJoin _          _          = "+"
+asciiRoundS = tableStyleFromSpec asciiHorizontal asciiVertical roundedAsciiJoinString4 $
+    simpleTableStyleSpec SingleLine SingleLine
 
 -- | Uses lines and plus for joints.
 asciiS :: TableStyle LineStyle LineStyle
-asciiS = TableStyle
-       { headerSepH   = "-"
-       , headerSepLC  = "+"
-       , headerSepRC  = "+"
-       , headerSepC   = const $ asciiJoinString SingleLine
-       , headerTopH   = "-"
-       , headerTopL   = "+"
-       , headerTopR   = "+"
-       , headerTopC   = asciiJoinString SingleLine
-       , headerL      = "|"
-       , headerR      = "|"
-       , headerC      = asciiVertical
-       , groupL       = "|"
-       , groupR       = "|"
-       , groupC       = asciiVertical
-       , groupSepH    = asciiHorizontal
-       , groupSepC    = asciiJoinString
-       , groupSepLC   = (`asciiJoinString` SingleLine)
-       , groupSepRC   = (`asciiJoinString` SingleLine)
-       , groupTopC    = asciiJoinString SingleLine
-       , groupTopL    = "+"
-       , groupTopR    = "+"
-       , groupTopH    = "-"
-       , groupBottomC = asciiJoinString SingleLine
-       , groupBottomL = "+"
-       , groupBottomR = "+"
-       , groupBottomH = "-"
-       }
+asciiS = asciiTableStyleFromSpec $ simpleTableStyleSpec SingleLine SingleLine
 
--- | Like 'asciiS', but uses dobule lines and double pluses for borders.
+-- | Like 'asciiS', but uses double lines and double pluses for borders.
 asciiDoubleS :: TableStyle LineStyle LineStyle
-asciiDoubleS = TableStyle
-             { headerSepH   = "="
-             , headerSepLC  = "++"
-             , headerSepRC  = "++"
-             , headerSepC   = const $ asciiJoinString DoubleLine
-             , headerTopH   = "="
-             , headerTopL   = "++"
-             , headerTopR   = "++"
-             , headerTopC   = asciiJoinString DoubleLine
-             , headerL      = "||"
-             , headerR      = "||"
-             , headerC      = asciiVertical
-             , groupL       = "||"
-             , groupR       = "||"
-             , groupC       = asciiVertical
-             , groupSepH    = asciiHorizontal
-             , groupSepC    = asciiJoinString
-             , groupSepLC   = (`asciiJoinString` DoubleLine)
-             , groupSepRC   = (`asciiJoinString` DoubleLine)
-             , groupTopC    = asciiJoinString DoubleLine
-             , groupTopL    = "++"
-             , groupTopR    = "++"
-             , groupTopH    = "="
-             , groupBottomC = asciiJoinString DoubleLine
-             , groupBottomL = "++"
-             , groupBottomR = "++"
-             , groupBottomH = "="
-             }
-
+asciiDoubleS = asciiTableStyleFromSpec $ simpleTableStyleSpec DoubleLine SingleLine
 
 -- | Uses special unicode characters to draw clean thin boxes.
 unicodeS :: TableStyle LineStyle LineStyle
-unicodeS = tableStyleFromSpec unicodeSS
+unicodeS = unicodeTableStyleFromSpec . setTableStyleSpecSeparator DoubleLine $
+    simpleTableStyleSpec SingleLine SingleLine
 
 -- | Same as 'unicodeS' but uses bold headers.
 unicodeBoldHeaderS :: TableStyle LineStyle LineStyle
-unicodeBoldHeaderS = inheritStyleHeaderGroup id makeLineBold id $
-    tableStyleFromSpec unicodeSS
-        { headerSep   = HeavyLine
-        , headerTop   = HeavyLine
-        , headerLeft  = HeavyLine
-        , headerRight = HeavyLine
-        }
+unicodeBoldHeaderS = inheritStyleHeaderGroup makeLineBold id makeLineBold id .
+    unicodeTableStyleFromSpec $ simpleTableStyleSpec HeavyLine SingleLine
 
 -- | Like 'unicodeS' but with rounded edges.
 unicodeRoundS :: TableStyle LineStyle LineStyle
@@ -296,16 +335,7 @@ unicodeRoundS = withRoundCorners unicodeS
 
 -- | Uses bold lines.
 unicodeBoldS :: TableStyle LineStyle LineStyle
-unicodeBoldS = tableStyleFromSpec $ TableStyleSpec
-             { headerSep   = HeavyLine
-             , headerTop   = HeavyLine
-             , headerLeft  = HeavyLine
-             , headerRight = HeavyLine
-             , groupLeft   = HeavyLine
-             , groupRight  = HeavyLine
-             , groupTop    = HeavyLine
-             , groupBottom = HeavyLine
-             }
+unicodeBoldS = unicodeTableStyleFromSpec $ simpleTableStyleSpec HeavyLine HeavyLine
 
 -- | Uses bold lines with the exception of group separators, which are striped.
 unicodeBoldStripedS :: TableStyle LineStyle LineStyle
@@ -317,13 +347,4 @@ unicodeBoldStripedS = unicodeBoldS
 
 -- | Draw every line with a double frame.
 unicodeDoubleFrameS :: TableStyle LineStyle LineStyle
-unicodeDoubleFrameS = tableStyleFromSpec $ TableStyleSpec
-                    { headerSep   = DoubleLine
-                    , headerTop   = DoubleLine
-                    , headerLeft  = DoubleLine
-                    , headerRight = DoubleLine
-                    , groupLeft   = DoubleLine
-                    , groupRight  = DoubleLine
-                    , groupTop    = DoubleLine
-                    , groupBottom = DoubleLine
-                    }
+unicodeDoubleFrameS = unicodeTableStyleFromSpec $ simpleTableStyleSpec DoubleLine DoubleLine

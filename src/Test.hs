@@ -5,7 +5,7 @@ import Text.Layout.Table
 data MySeparator = BigSep | SmallSep | TinySep
 
 inheritMyStyle :: TableStyle LineStyle LineStyle -> TableStyle LineStyle MySeparator
-inheritMyStyle = inheritStyleHeaderGroup id (fst . style) (snd . style)
+inheritMyStyle = inheritStyleHeaderGroup makeLineSolid id (fst . style) (snd . style)
   where
     style BigSep   = (HeavyLine,  HeavyLine)
     style SmallSep = (SingleLine, DashLine)
@@ -27,7 +27,7 @@ main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') def
                             ]
     genTable c s = tableLines (repeat c)
                               s
-                              (noneSepH DashLine)
+                              (fullSepH DashLine (repeat $ headerColumn right Nothing) ["1", "Two"])
                               (groupH BigSep
                                   [ fullSepH SmallSep (repeat def) ["Some text", "Some numbers", "X"]
                                   , groupH SmallSep

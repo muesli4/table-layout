@@ -10,6 +10,7 @@ module Text.Layout.Table.Vertical
 
 import Data.List
 
+import Text.Layout.Table.Cell
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Spec.Util
 import Text.Layout.Table.Primitives.Basic
@@ -21,8 +22,8 @@ import Text.Layout.Table.Primitives.Basic
 
 The result is intended to be used with a grid layout function like 'Text.Layout.Table.grid'.
 -}
-colsAsRowsAll :: Monoid a => Position V -> [Col a] -> [Row a]
-colsAsRowsAll ps = transpose . vPadAll mempty ps
+colsAsRowsAll :: Cell a => Position V -> [Col a] -> [Row a]
+colsAsRowsAll ps = transpose . vPadAll emptyCell ps
 
 {- | Works like 'colsAsRowsAll' but every position can be specified on its
    own:
@@ -30,8 +31,8 @@ colsAsRowsAll ps = transpose . vPadAll mempty ps
 >>> colsAsRows [top, center, bottom] [["a1"], ["b1", "b2", "b3"], ["c3"]]
 [["a1","b1",""],["","b2",""],["","b3","c3"]]
 -}
-colsAsRows :: Monoid a => [Position V] -> [Col a] -> [Row a]
-colsAsRows ps = transpose . vPad mempty ps
+colsAsRows :: Cell a => [Position V] -> [Col a] -> [Row a]
+colsAsRows ps = transpose . vPad emptyCell ps
 
 -- | Fill all columns to the same length by aligning at the given position.
 vPadAll :: a -> Position V -> [Col a] -> [Col a]

@@ -85,6 +85,7 @@ instance Cell a => Cell (Formatted a) where
     dropRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
     visibleLength = sum . fmap visibleLength
     measureAlignment p = foldl' (mergeAlign p) mempty
+    emptyCell = mempty
     buildCell = cataFormatted mempty mconcat buildCell (\p a s -> stringB p <> a <> stringB s)
 
 -- | Drop characters either from the right or left, while also tracking the
