@@ -12,7 +12,6 @@ import Text.DocLayout
 
 import Text.Layout.Table.Cell
 import Text.Layout.Table.Primitives.AlignInfo
-import Text.Layout.Table.StringBuilder
 
 -- | A newtype for String in which characters can be wider than one space.
 newtype WideString = WideString String
@@ -23,6 +22,7 @@ instance Cell WideString where
     dropRight i (WideString s) = WideString . reverse . dropWide False i $ reverse s
     visibleLength (WideString s) = realLength s
     measureAlignment p (WideString s) = measureAlignmentWide p s
+    emptyCell = WideString ""
     buildCell (WideString s) = buildCell s
 
 -- | Drop characters from the left side of a 'String' until at least the
@@ -55,6 +55,7 @@ instance Cell WideText where
     dropRight i (WideText s) = WideText $ dropRightWideT i s
     visibleLength (WideText s) = realLength s
     measureAlignment p (WideText s) = measureAlignmentWideT p s
+    emptyCell = WideText ""
     buildCell (WideText s) = buildCell s
 
 dropLeftWideT :: Int -> T.Text -> T.Text
