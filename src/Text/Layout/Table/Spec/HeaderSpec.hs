@@ -5,9 +5,7 @@ module Text.Layout.Table.Spec.HeaderSpec where
 import Data.Bifunctor
 import Data.Default.Class
 import Data.List
-import Data.Maybe
 
-import Text.Layout.Table.LineStyle
 import Text.Layout.Table.Spec.HeaderColSpec
 
 -- | Specifies a header.
