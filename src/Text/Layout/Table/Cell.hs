@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE FlexibleInstances #-}
+
 module Text.Layout.Table.Cell where
 
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, first, second)
+import Data.Bitraversable (bitraverse)
 import qualified Data.Text as T
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -29,11 +32,52 @@ class Cell a where
     dropBoth :: Int -> Int -> a -> a
     dropBoth l r = dropRight r . dropLeft l
 
+    -- | Like 'dropLeft', but does not add extra padding if the exact amount
+    -- cannot be dropped. The amount of padding needed is returned with the
+    -- result.
+    --
+    -- This is useful if it is not possible to drop an exact amount, for
+    -- example with wide characters.
+    dropLeftNoPad :: Int -> a -> Padded a
+    dropLeftNoPad n = pure . dropLeft n
+
+    -- | Like 'dropRight', but does not add extra padding if the exact amount
+    -- cannot be dropped. The amount of padding needed is returned with the
+    -- result.
+    --
+    -- This is useful if it is not possible to drop an exact amount, for
+    -- example with wide characters.
+    dropRightNoPad :: Int -> a -> Padded a
+    dropRightNoPad n = pure . dropRight n
+
+    -- | Like 'dropBoth', but does not add extra padding if the exact amount
+    -- cannot be dropped. The amount of left and right padding needed is
+    -- returned with the result.
+    --
+    -- This is useful if it is not possible to drop an exact amount, for
+    -- example with wide characters.
+    --
+    -- The default implementation, when invoked with @dropBothNoPad l r@, will
+    -- first drop @l@ from the left and then drop the minimal amount from the
+    -- right so the total amount dropped is at least @l + r@. Any padding necessary
+    -- to make the total amount dropped exactly @l + r@ will be distributed between
+    -- the left and right proportionately to the values of @l@ and @r@.
+    --
+    -- Note that less than @r@ may be dropped from the right if more than @l@ is
+    -- dropped from the left.
+    dropBothNoPad :: Int -> Int -> a -> Padded a
+    dropBothNoPad l r = go (max 0 l) (max 0 r)
+      where
+        go 0 0 a = pure a
+        go l' r' a = redistributePadding l' r' . dropRightAdjusted $ dropLeftNoPad l' a
+          where
+            dropRightAdjusted x = dropRightNoPad (r' - totalPadding x) $ paddedObject x
+
     -- | Returns the length of the visible characters as displayed on the
     -- output medium.
     visibleLength :: a -> Int
 
-    -- | Measure the preceeding and following characters for a position where
+    -- | Measure the preceding and following characters for a position where
     -- the predicate matches.
     measureAlignment :: (Char -> Bool) -> a -> AlignInfo
 
@@ -46,6 +90,9 @@ instance (Cell a, Cell b) => Cell (Either a b) where
     dropLeft n = bimap (dropLeft n) (dropLeft n)
     dropRight n = bimap (dropRight n) (dropRight n)
     dropBoth l r = bimap (dropBoth l r) (dropBoth l r)
+    dropLeftNoPad n = bitraverse (dropLeftNoPad n) (dropLeftNoPad n)
+    dropRightNoPad n = bitraverse (dropRightNoPad n) (dropRightNoPad n)
+    dropBothNoPad l r = bitraverse (dropBothNoPad l r) (dropBothNoPad l r)
     visibleLength = either visibleLength visibleLength
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
     buildCell = either buildCell buildCell
@@ -72,6 +119,32 @@ instance Cell T.Text where
 
     buildCell = textB
 
+-- | An object with padding on the left and right.
+data Padded a
+    = Padded
+    { paddedObject :: a
+    , leftPadding  :: Int
+    , rightPadding :: Int
+    } deriving (Eq, Ord, Show, Functor)
+
+instance Applicative Padded where
+  pure a = Padded a 0 0
+  (Padded f l r) <*> (Padded a l' r') = Padded (f a) (l + l') (r + r')
+
+instance Monad Padded where
+  (Padded a l r) >>= f = let Padded b l' r' = f a in Padded b (l + l') (r + r')
+
+-- | The total amount of padding in 'Padded'.
+totalPadding :: Padded a -> Int
+totalPadding a = leftPadding a + rightPadding a
+
+-- | Redistribute the padding using a given ratio.
+redistributePadding :: Int -> Int -> Padded a -> Padded a
+redistributePadding l r padded = Padded (paddedObject padded) lPadding rPadding
+  where
+    lPadding = (totalPadding padded * l) `div` (l + r)
+    rPadding = totalPadding padded - lPadding
+
 remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c
 
@@ -80,30 +153,53 @@ remSpacesB' n k = spacesB $ n - k
 
 -- | Fill the right side with spaces if necessary.
 fillRight :: (Cell a, StringBuilder b) => Int -> a -> b
-fillRight n c = buildCell c <> remSpacesB n c
+fillRight n c = fillRight' n (visibleLength c) c
+
+-- | Fill the right side with spaces if necessary. Preconditions that are
+-- required to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c == k
+fillRight' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
+fillRight' n k c = buildCell c <> remSpacesB' n k
 
 -- | Fill both sides with spaces if necessary.
 fillCenter :: (Cell a, StringBuilder b) => Int -> a -> b
-fillCenter n c = spacesB q <> buildCell c <> spacesB (q + r)
+fillCenter n c = fillCenter' n (visibleLength c) c
+
+-- | Fill both sides with spaces if necessary. Preconditions that are
+-- required to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c == k
+fillCenter' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
+fillCenter' n k c = spacesB q <> buildCell c <> spacesB (q + r)
   where
-    missing = n - visibleLength c
+    missing = n - k
     (q, r)  = missing `divMod` 2
 
 -- | Fill the left side with spaces if necessary.
 fillLeft :: (Cell a, StringBuilder b) => Int -> a -> b
-fillLeft n c = remSpacesB n c <> buildCell c
+fillLeft n c = fillLeft' n (visibleLength c) c
 
--- | Assume the given length is greater or equal than the length of the cell
--- passed. Pads the given cell accordingly using the position specification.
+-- | Fill the left side with spaces if necessary. Preconditions that are
+-- required to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c == k
+fillLeft' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
+fillLeft' n k c = remSpacesB' n k <> buildCell c
+
+-- | Pads the given cell accordingly using the position specification.
 --
 -- >>> pad left 10 "foo" :: String
 -- "foo       "
---
 pad :: (Cell a, StringBuilder b) => Position o -> Int -> a -> b
-pad p = case p of
-    Start  -> fillRight
-    Center -> fillCenter
-    End    -> fillLeft
+pad p n c = pad' p n (visibleLength c) c
+
+-- | Pads the given cell accordingly using the position specification.
+-- Preconditions that require to be met (otherwise the function will produce
+-- garbage):
+-- prop> visibleLength c == k
+pad' :: (Cell a, StringBuilder b) => Position o -> Int -> Int -> a -> b
+pad' p n k = case p of
+    Start  -> fillRight' n k
+    Center -> fillCenter' n k
+    End    -> fillLeft' n k
 
 -- | If the given text is too long, the 'String' will be shortened according to
 -- the position specification. Adds cut marks to indicate that the column has
@@ -113,31 +209,55 @@ pad p = case p of
 -- "A longer.."
 --
 trimOrPad :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
-trimOrPad p cm n c = case compare (visibleLength c) n of
-    LT -> pad p n c
+trimOrPad p cm n c = case compare k n of
+    LT -> pad' p n k c
     EQ -> buildCell c
-    GT -> trim p cm n c
+    GT -> trim' p cm n k c
+  where
+    k = visibleLength c
 
--- | Trim a cell based on the position. Preconditions that require to be met
--- (otherwise the function will produce garbage):
--- prop> visibleLength c > n
+-- | If the given text is longer than the second 'Int' argument, it will be
+-- trimmed to that length according to the position specification. Adds cut
+-- marks to indicate that the column has been trimmed in length. Otherwise, if
+-- it is shorter than the first 'Int' argument, it will be padded to that
+-- length.
+--
+trimOrPadBetween :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
+trimOrPadBetween p cm s l c
+    | k > l     = trim' p cm l k c
+    | k < s     = pad' p s k c
+    | otherwise = buildCell c
+  where
+    k = visibleLength c
+
+-- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
-trim p cm n c = case p of
-    Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (rightMark cm)
+trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
+  where
+    k = visibleLength c
+
+-- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
+--
+-- Preconditions that require to be met (otherwise the function will produce garbage):
+-- prop> visibleLength c > n
+-- prop> visibleLength c == k
+trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
+trim' p cm n k c = case p of
+    Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (drop (rightLen - n) $ rightMark cm)
     Center -> case cutLen `divMod` 2 of
-        (0, 1) -> buildCell (leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
-        (q, r) -> if n > leftLen + rightLen
+        (0, 1) -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
+        (q, r) -> if n >= leftLen + rightLen
                   then buildCell (leftMark cm) <> buildCell (dropBoth (leftLen + q + r) (rightLen + q) c)
                        <> buildCell (rightMark cm)
                   else case n `divMod` 2 of
                       (qn, rn) -> buildCell (take qn $ leftMark cm)
                                   <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
-    End    -> buildCell (leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
+    End    -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
   where
     leftLen = length $ leftMark cm
     rightLen = length $ rightMark cm
 
-    cutLen = visibleLength c - n
+    cutLen = k - n
 
 -- | Align a cell by first locating the position to align with and then padding
 -- on both sides. If no such position is found, it will align it such that it

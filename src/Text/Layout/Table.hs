@@ -24,6 +24,7 @@ module Text.Layout.Table
     , fixed
     , expandUntil
     , fixedUntil
+    , expandBetween
       -- ** Positional alignment
     , Position
     , H
@@ -41,6 +42,9 @@ module Text.Layout.Table
     , noCutMark
     , singleCutMark
     , doubleCutMark
+     -- ** Padding
+    , Padded(..)
+    , totalPadding
 
       -- * Basic grid layout
     , Row
@@ -108,7 +112,9 @@ module Text.Layout.Table
 
       -- * Column modification functions
     , pad
+    , trim
     , trimOrPad
+    , trimOrPadBetween
     , align
     , alignFixed
 

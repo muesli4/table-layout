@@ -1,23 +1,35 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module TestSpec
     ( spec
     ) where
 
 -- TODO idempotency of fitting CMIs
 
+import Data.List (intercalate)
 import qualified Data.Text as T
+
+import Data.Maybe (listToMaybe)
+import Text.DocLayout (charWidth)
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
+import Test.QuickCheck.Instances.Text ()
 
 import Text.Layout.Table
 import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
 import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
+import Text.Layout.Table.Spec.AlignSpec
+import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
+import Text.Layout.Table.Spec.Position
+import Text.Layout.Table.StringBuilder
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
 import Text.Layout.Table.Cell.Formatted
+import Text.Layout.Table.Cell.ElidableList
 
 
 -- A newtype wrapper around 'String', allowing an 'Arbitrary' instance which
@@ -30,6 +42,59 @@ newtype NonControlASCIIString = NonControlASCIIString String
 instance Arbitrary NonControlASCIIString where
   arbitrary = NonControlASCIIString <$> listOf (chooseEnum ('\32', '\126'))
   shrink (NonControlASCIIString xs) = NonControlASCIIString <$> shrink xs
+
+instance Arbitrary (Position o) where
+    arbitrary = elements [Start, End, Center]
+    shrink Center = [Start, End]
+    shrink End    = [Start]
+    shrink Start  = []
+
+instance Arbitrary AlignSpec where
+    arbitrary = oneof [pure noAlign, charAlign <$> arbitrary]
+    shrink NoAlign = []
+    shrink _ = [NoAlign]
+
+forAllAlign :: Testable prop => (AlignSpec -> prop) -> Property
+forAllAlign = forAllShrinkShow arbitrary shrink showAlign . (. maybe NoAlign charAlign)
+  where
+    showAlign Nothing = "NoAlign"
+    showAlign (Just c) = "align at " ++ show c
+
+instance Arbitrary CutMark where
+    arbitrary = elements [noCutMark, def, customCM, unevenCM]
+    shrink x | x == noCutMark = []
+             | x == def       = [noCutMark]
+             | otherwise      = [noCutMark, def]
+
+customCM, unevenCM :: CutMark
+customCM = doubleCutMark "<.." "..>"
+unevenCM = doubleCutMark "<" "-->"
+
+occS     = predOccSpec (== ':')
+hposG    = elements [left, center, right]
+
+-- Arbitrary instance of WideString needs to exclude combining characters at the start
+instance Arbitrary WideString where
+    arbitrary = fmap WideString $ arbitrary `suchThat` (maybe True ((0 /=) . charWidth) . listToMaybe)
+    shrink (WideString x) = map WideString $ shrink x
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (ElidableList a b) where
+  arbitrary = ElidableList
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> (getSmall . getNonNegative <$> arbitrary)
+            <*> (getSmall . getNonNegative <$> arbitrary)
+            <*> (getSmall . getNonNegative <$> arbitrary)
+            <*> arbitrary
+  shrink a = do
+      eStr  <- shrink $ elidedElisionStr a
+      sep   <- shrink $ elidedSep a
+      num   <- shrinkIntegral $ elidedNum a
+      ls    <- shrinkIntegral $ elidedLeftSpace a
+      rs    <- shrinkIntegral $ elidedLeftSpace a
+      xs    <- shrinkList shrink $ elidedList a
+      return $ ElidableList (elidedFromLeft a) eStr sep num ls rs xs
 
 spec :: Spec
 spec = do
@@ -65,6 +130,14 @@ spec = do
         prop "left" propPadLeft
         prop "right" propPadRight
         prop "center" propPadCenter
+
+    describe "trim" $ do
+        prop "left" $ propTrim left noCutMark
+        prop "left with cut mark" $ propTrim left customCM
+        prop "right" $ propTrim right noCutMark
+        prop "right with cut mark" $ propTrim right customCM
+        prop "center" $ propTrim center noCutMark
+        prop "center with cut mark" $ propTrim center customCM
 
     describe "trimOrPad" $ do
         prop "pad" $ forAll hposG $ \p s (Positive (Small n)) ->
@@ -189,6 +262,45 @@ spec = do
             it "even" $ concatPadLine 9 (Line 9 3 ["It", "is", "on"]) `shouldBe` "It is on"
             it "odd" $ concatPadLine 13 (Line 11 4 ["It", "is", "on", "us"]) `shouldBe` "It  is on  us"
 
+    describe "grid" . modifyMaxSuccess (const 1000) $ do
+        let wide    = "A long string"
+            narrow  = "Short"
+            wideW   = WideString "a㐀b㐁c㐂d"
+            narrowW = WideString "ab"
+            wideE   = elidableListL (\n -> show n ++ " more") ", " ["First", "second", "third"]
+            narrowE = elidableListL (\n -> show n ++ " more") ", " ["a", "b", "c"]
+        describe "expand" $ do
+            prop "for String"     $ propExpand id noAlign
+            prop "for WideString" $ propExpand WideString noAlign
+        describe "fixed" $ do
+            prop "for String"     $ propFixed id noAlign
+            prop "for WideString" $ propFixed WideString noAlign
+        describe "expandUntil" $ do
+            prop "for String"     $ propExpandUntil id [0] noAlign
+            prop "for WideString" $ propExpandUntil WideString [0, 1] noAlign
+            let col pos = column (expandUntil 8) pos noAlign noCutMark
+            describe "when dropping from the right" $ do
+                it "for String"       $ grid [col left] [[wide],  [narrow]]  `shouldBe` [["A long s"], ["Short   "]]
+                it "for WideString"   $ grid [col left] [[wideW], [narrowW]] `shouldBe` [["a㐀b㐁c"],  ["ab     "] ]
+                it "for ElidableList" $ grid [col left] [[wideE], [narrowE]] `shouldBe` [["3 more "], ["a, b, c"]]
+            describe "when dropping from the left" $ do
+                it "for String"       $ grid [col right] [[wide],  [narrow]]  `shouldBe` [["g string"], ["   Short"]]
+                it "for WideString"   $ grid [col right] [[wideW], [narrowW]] `shouldBe` [["b㐁c㐂d"],  ["     ab"] ]
+                it "for ElidableList" $ grid [col right] [[wideE], [narrowE]] `shouldBe` [[" 3 more"], ["a, b, c"]]
+        describe "fixedUntil" $ do
+            prop "for String"     $ propFixedUntil id noAlign
+            prop "for WideString" $ propFixedUntil WideString noAlign
+        describe "expandBetween" $ do
+            prop "for String"     $ propExpandBetween id [0] noAlign
+            prop "for WideString" $ propExpandBetween WideString [0, 1] noAlign
+            let col pos = column (expandBetween 2 8) pos noAlign noCutMark
+            describe "when dropping from the right" $ do
+                it "for String"     $ grid [col left]  [[wide],  [narrow]]  `shouldBe` [["A long s"], ["Short   "]]
+                it "for WideString" $ grid [col left]  [[wideW], [narrowW]] `shouldBe` [["a㐀b㐁c"],  ["ab     "] ]
+            describe "when dropping from the left" $ do
+                it "for String"     $ grid [col right] [[wide],  [narrow]]  `shouldBe` [["g string"], ["   Short"]]
+                it "for WideString" $ grid [col right] [[wideW], [narrowW]] `shouldBe` [["b㐁c㐂d"],  ["     ab"] ]
+
     describe "formatted text" $ do
         let exampleF = formatted "XXX" (plain "Hello" <> formatted "Z" (plain "there") "W") "YYY"
         describe "rendering" $ do
@@ -246,6 +358,15 @@ spec = do
             describe "on narrow characters" $ do
                 it "drops a combining character for free" $ dropRight 3 narrow `shouldBe` WideString "Bien s"
                 it "does not drop a combining character without their previous" $ dropRight 2 narrow `shouldBe` WideString "Bien sû"
+        describe "dropLeftNoPad" $ do
+            prop "agrees with dropLeft" $ propDropLeftNoPad WideString
+            it "records extra padding needed" $ dropLeftNoPad 1 (WideString "㐀㐁") `shouldBe` Padded (WideString "㐁") 1 0
+        describe "dropRightNoPad" $ do
+            prop "agrees with dropRight" $ propDropRightNoPad WideString
+            it "records extra padding needed" $ dropRightNoPad 1 (WideString "㐀㐁") `shouldBe` Padded (WideString "㐀") 0 1
+        describe "dropBothNoPad" $ do
+            it "records extra padding needed"      $ dropBothNoPad 1 1 (WideString "a㐀㐁") `shouldBe` Padded (WideString "㐀") 0 1
+            it "drops less on the right if it can" $ dropBothNoPad 1 1 (WideString "㐀㐁") `shouldBe` Padded (WideString "㐁") 0 0
 
     describe "wide text" $ do
         describe "buildCell" $ do
@@ -258,6 +379,63 @@ spec = do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropLeft n . WideText $ T.pack x) `shouldBe` (buildCell . dropLeft n $ WideString x :: String)
         describe "dropRight" $ do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropRight n . WideText $ T.pack x) `shouldBe` (buildCell . dropRight n $ WideString x :: String)
+
+    describe "elidable list" . modifyMaxSuccess (const 1000) $ do
+        describe "visibleLength" $ do
+            prop "gives the same result after buildCell" $ \(x :: ElidableList T.Text T.Text) ->
+                visibleLength x == visibleLength (buildCell x :: T.Text)
+        describe "measureAlignment" $ do
+            prop "when no separator or elision, agrees after passing through buildCell" $ \(c :: Char) (x :: ElidableList T.Text T.Text) ->
+                let y = x{elidedNum = 0, elidedSep = T.pack ""}
+                in measureAlignmentAt c y == measureAlignmentAt c (buildCell y :: String)
+        describe "dropLeft" $ do
+            prop "drops to the correct length" $ \(NonNegative (Small n)) (x :: ElidableList T.Text T.Text) ->
+                visibleLength (dropLeft n x) == max 0 (visibleLength x - n)
+            prop "is a monoid action" $ \(NonNegative (Small n)) (NonNegative (Small m)) (x :: ElidableList T.Text T.Text) ->
+                dropLeft m (dropLeft n x) == dropLeft (m + n) x
+        describe "dropRight" $ do
+            prop "drops to the correct length" $ \(NonNegative (Small n)) (x :: ElidableList T.Text T.Text) ->
+                visibleLength (dropRight n x) == max 0 (visibleLength x - n)
+            prop "is a monoid action" $ \(NonNegative (Small n)) (NonNegative (Small m)) (x :: ElidableList T.Text T.Text) ->
+                dropRight m (dropRight n x) == dropRight (m + n) x
+        describe "on a list of single digit numbers" $ do
+            let xs = map show [0..9]
+            describe "elidableListL" $ do
+                let list = elidableListL (\n -> show n ++ " more") ", " xs
+                describe "visibleLength" $
+                    it "measures the correct length" $ visibleLength list `shouldBe` 28
+                describe "buildCell" $ do
+                    it "intercalates the separator" $
+                        buildCell list `shouldBe` intercalate ", " xs
+                    it "drops 3 spaces from the left" $
+                        buildCell (dropLeft 3 list) `shouldBe` intercalate ", " (" 4 more" : drop 4 xs)
+                    it "drops 3 spaces from the right" $
+                        buildCell (dropRight 3 list) `shouldBe` intercalate ", " ("4 more" : drop 4 xs) ++ " "
+                    it "drops 26 spaces from the left" $
+                        buildCell (dropLeft 26 list) `shouldBe` "re"
+                    it "drops 26 spaces from the right" $
+                        buildCell (dropRight 26 list) `shouldBe` "10"
+                describe "measureAlignment" $ do
+                    it "can match elements" $
+                        measureAlignmentAt '4' list `shouldBe` AlignInfo 12 (Just 15)
+                    it "can match separators" $
+                        measureAlignmentAt ',' list `shouldBe` AlignInfo 1 (Just 26)
+                    it "can match elision strings" $
+                        measureAlignmentAt 'm' (dropLeft 1 list) `shouldBe` AlignInfo 2 (Just 24)
+            describe "elidableListR" $ do
+                let list = elidableListR (\n -> show n ++ " more") ", " xs
+                it "visibleLength" $ visibleLength list `shouldBe` 28
+                describe "buildCell" $ do
+                    it "intercalates the separator" $
+                        buildCell list `shouldBe` intercalate ", " xs
+                    it "drops 3 spaces from the left" $
+                        buildCell (dropLeft 3 list) `shouldBe` ' ' : intercalate ", " (dropR 4 xs ++ ["4 more"])
+                    it "drops 3 spaces from the right" $
+                        buildCell (dropRight 3 list) `shouldBe` intercalate ", " (dropR 4 xs ++ ["4 more "])
+                    it "drops 26 spaces from the left" $
+                        buildCell (dropLeft 26 list) `shouldBe` "re"
+                    it "drops 26 spaces from the right" $
+                        buildCell (dropRight 26 list) `shouldBe` "10"
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"
@@ -287,5 +465,76 @@ spec = do
         in len >= n || (all (== ' ') (take q padded) && take len trimLeft == s
                         && drop len trimLeft == replicate (q + r) ' ')
 
+    propTrim :: Position o -> CutMark -> String -> Positive (Small Int) -> Bool
+    propTrim pos cm s (Positive (Small n)) =
+        let len = length s
+            trimmed = trim pos cm n s :: String
+            cutMarkTooLong = case pos of
+                Start  -> n < length (rightMark cm)
+                End    -> n < length (leftMark cm)
+                Center -> n < length (rightMark cm) + length (leftMark cm)
+        in cutMarkTooLong || if len > n
+           then length trimmed == n
+           else trimmed == s
+
+    gridPropHelper :: (Cell a, Testable prop) => ColSpec -> (String -> a) -> [a] -> (Int -> prop) -> Property
+    gridPropHelper col f xs isRightLength = conjoin .
+        map (conjoin . map (isRightLength . visibleLength . f)) . grid [col] $ map pure xs
+
+    propExpand :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+               -> NonEmptyList a -> Property
+    propExpand f align pos cm (NonEmpty xs) =
+        let col = column expand pos align cm
+            len = maximum $ map visibleLength xs
+        in gridPropHelper col f xs (=== len)
+
+    propFixed :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+              -> Positive (Small Int) -> NonEmptyList a -> Property
+    propFixed f align pos cm (Positive (Small n)) (NonEmpty xs) =
+        let col = column (fixed n) pos align cm
+        in gridPropHelper col f xs (=== n)
+
+    propExpandUntil :: Cell a => (String -> a) -> [Int] -> AlignSpec -> Position H -> CutMark
+                    -> Positive (Small Int) -> NonEmptyList a -> Property
+    propExpandUntil f offsets align pos cm (Positive (Small n)) (NonEmpty xs) =
+        let col = column (expandUntil n) pos align cm
+            len = maximum $ map visibleLength xs
+        in cover 10 (len <= n) "shorter than limit" . cover 10 (len > n)  "longer than limit" $
+               gridPropHelper col f xs (\a -> disjoin $ map (\i -> a === min (n - i) len) offsets)
+
+    propFixedUntil :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+                   -> Positive (Small Int) -> NonEmptyList a -> Property
+    propFixedUntil f align pos cm (Positive (Small n)) (NonEmpty xs) =
+        let col = column (fixedUntil n) pos align cm
+            len = maximum $ map visibleLength xs
+        in cover 10 (len <= n) "shorter than limit" . cover 10 (len > n)  "longer than limit" $
+               gridPropHelper col f xs (=== max len n)
+
+    propExpandBetween :: Cell a => (String -> a) -> [Int] -> AlignSpec -> Position H -> CutMark
+                      -> Positive (Small Int) -> Positive (Small Int) -> NonEmptyList a -> Property
+    propExpandBetween f offsets align pos cm (Positive (Small m)) (Positive (Small n)) (NonEmpty xs) =
+        let col = column (expandBetween (min m n) (max m n)) pos align cm
+            len = maximum $ map visibleLength xs
+            b = min m n
+            t = max m n
+        in cover 10 (len <= b) "shorter than limit" . cover 10 (len > t)  "longer than limit" .
+           cover 10 (len > b && len <= t) "between limits" $
+               gridPropHelper col f xs (\a -> disjoin $ map (\i -> a === max b (min (max b $ t - i) len)) offsets)
+
+    propDropLeftNoPad :: Cell a => (String -> a) -> Positive (Small Int) -> a -> Property
+    propDropLeftNoPad _ (Positive (Small n)) a =
+        buildCell (dropLeft n a) === (replicateCharB l ' ' <> buildCell b :: String)
+      where
+        Padded b l _ = dropLeftNoPad n a
+
+    propDropRightNoPad :: Cell a => (String -> a) -> Positive (Small Int) -> a -> Property
+    propDropRightNoPad _ (Positive (Small n)) a =
+        buildCell (dropRight n a) === (buildCell b <> replicateCharB r ' ' :: String)
+      where
+        Padded b _ r = dropRightNoPad n a
+
     measureAlignmentAt :: Cell a => Char -> a -> AlignInfo
     measureAlignmentAt c = measureAlignment (== c)
+
+    dropR :: Int -> [a] -> [a]
+    dropR n xs = zipWith const xs $ drop n xs

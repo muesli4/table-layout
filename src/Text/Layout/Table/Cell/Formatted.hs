@@ -14,6 +14,7 @@ module Text.Layout.Table.Cell.Formatted
     , formatted
     , mapAffix
     , cataFormatted
+    , alignFromState
     ) where
 
 import Data.List (foldl', mapAccumL, mapAccumR)
@@ -84,7 +85,7 @@ instance Cell a => Cell (Formatted a) where
     dropLeft  i = snd . mapAccumL (dropTrackRemaining dropLeft) i
     dropRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
     visibleLength = sum . fmap visibleLength
-    measureAlignment p = foldl' (mergeAlign p) mempty
+    measureAlignment p = foldl' (alignFromState p) mempty
     buildCell = cataFormatted mempty mconcat buildCell (\p a s -> stringB p <> a <> stringB s)
 
 -- | Drop characters either from the right or left, while also tracking the
@@ -95,6 +96,6 @@ dropTrackRemaining dropF i a
   | otherwise = let l = visibleLength a in (max 0 $ i - l, dropF i a)
 
 -- | Run 'measureAlignment' with an initial state, as though we were measuring the alignment in chunks.
-mergeAlign :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo
-mergeAlign _ (AlignInfo l (Just r)) x = AlignInfo l (Just $ r + visibleLength x)
-mergeAlign p (AlignInfo l Nothing)  x = let AlignInfo l' r = measureAlignment p x in AlignInfo (l + l') r
+alignFromState :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo
+alignFromState _ (AlignInfo l (Just r)) x = AlignInfo l (Just $ r + visibleLength x)
+alignFromState p (AlignInfo l Nothing)  x = let AlignInfo l' r = measureAlignment p x in AlignInfo (l + l') r
