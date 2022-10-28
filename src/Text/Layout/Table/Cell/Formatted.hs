@@ -16,6 +16,7 @@ module Text.Layout.Table.Cell.Formatted
     , cataFormatted
     ) where
 
+import Control.Monad (join)
 import Data.List (foldl', mapAccumL, mapAccumR)
 import Data.String
 
@@ -81,18 +82,30 @@ instance Monoid (Formatted a) where
     mempty = Empty
 
 instance Cell a => Cell (Formatted a) where
-    dropLeft  i = snd . mapAccumL (dropTrackRemaining dropLeft) i
-    dropRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
     visibleLength = sum . fmap visibleLength
     measureAlignment p = foldl' (mergeAlign p) mempty
-    emptyCell = mempty
-    buildCell = cataFormatted mempty mconcat buildCell (\p a s -> stringB p <> a <> stringB s)
+    emptyCell = plain emptyCell
+    buildCell = buildFormatted buildCell
+    buildCellView = buildCellViewHelper
+        (buildFormatted buildCell)
+        (buildFormatted buildCellView)
+        (buildFormatted buildCellView)
+        trimLeft
+        trimRight
+        (\l r -> trimLeft l . trimRight r)
+      where
+        trimLeft i = snd . mapAccumL (dropTrackRemaining dropLeft) i
+        trimRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
+
+-- | Build 'Formatted' using a given constructor.
+buildFormatted :: StringBuilder b => (a -> b) -> Formatted a -> b
+buildFormatted build = cataFormatted mempty mconcat build (\p a s -> stringB p <> a <> stringB s)
 
 -- | Drop characters either from the right or left, while also tracking the
 -- remaining number of characters to drop.
-dropTrackRemaining :: Cell a => (Int -> a -> a) -> Int -> a -> (Int, a)
+dropTrackRemaining :: Cell a => (Int -> a -> CellView a) -> Int -> a -> (Int, CellView a)
 dropTrackRemaining dropF i a
-  | i <= 0    = (0, a)
+  | i <= 0    = (0, pure a)
   | otherwise = let l = visibleLength a in (max 0 $ i - l, dropF i a)
 
 -- | Run 'measureAlignment' with an initial state, as though we were measuring the alignment in chunks.

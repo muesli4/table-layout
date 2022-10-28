@@ -115,6 +115,7 @@ module Text.Layout.Table
     , trimOrPadBetween
     , align
     , alignFixed
+    , adjustCell
 
       -- * Column modifaction primitives
       -- | These functions are provided to be reused. For example if someone

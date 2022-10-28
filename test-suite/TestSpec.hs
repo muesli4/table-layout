@@ -14,7 +14,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Text.Layout.Table
-import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, viewRange)
+import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, dropLeft, dropRight, viewRange)
 import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
 import Text.Layout.Table.Spec.AlignSpec
 import Text.Layout.Table.Spec.CutMark
@@ -304,21 +304,21 @@ spec = do
             it "detects zero width after" $ measureAlignmentAt 'n' narrow `shouldBe` AlignInfo 3 (Just 5)
             it "detects zero width before" $ measureAlignmentAt 'r' narrow `shouldBe` AlignInfo 7 (Just 1)
         describe "dropLeft" $ do
-            prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropLeft n (WideString x)) `shouldBe` dropLeft n x
+            prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropLeft n (WideString x)) `shouldBe` (buildCell (dropLeft n x) :: String)
             describe "on wide characters" $ do
-                it "drops 1 character of double width" $ dropLeft 2 wide `shouldBe` WideString "㐁㐂"
-                it "drops 2 characters of double width and adds a space" $ dropLeft 3 wide `shouldBe` WideString " 㐂"
+                it "drops 1 character of double width" $ buildCell (dropLeft 2 wide) `shouldBe` "㐁㐂"
+                it "drops 2 characters of double width and adds a space" $ buildCell (dropLeft 3 wide) `shouldBe` " 㐂"
             describe "on narrow characters" $ do
-                it "drops combining characters with their previous" $ dropLeft 7 narrow `shouldBe` WideString "r!"
-                it "drops combining characters after a dropped wide character which overshoots" $ dropLeft 1 (WideString "㐀̈㐁") `shouldBe` WideString " 㐁"
+                it "drops combining characters with their previous" $ buildCell (dropLeft 7 narrow) `shouldBe` "r!"
+                it "drops combining characters after a dropped wide character which overshoots" $ buildCell (dropLeft 1 (WideString "㐀̈㐁")) `shouldBe` " 㐁"
         describe "dropRight" $ do
-            prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropRight n (WideString x)) `shouldBe` dropRight n x
+            prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropRight n (WideString x)) `shouldBe` (buildCell (dropRight n x) :: String)
             describe "on wide characters" $ do
-                it "drops 1 character of double width" $ dropRight 2 wide `shouldBe` WideString "㐀㐁"
-                it "drops 2 characters of double width and adds a space" $ dropRight 3 wide `shouldBe` WideString "㐀 "
+                it "drops 1 character of double width" $ buildCell (dropRight 2 wide) `shouldBe` "㐀㐁"
+                it "drops 2 characters of double width and adds a space" $ buildCell (dropRight 3 wide) `shouldBe` "㐀 "
             describe "on narrow characters" $ do
-                it "drops a combining character for free" $ dropRight 3 narrow `shouldBe` WideString "Bien s"
-                it "does not drop a combining character without their previous" $ dropRight 2 narrow `shouldBe` WideString "Bien sû"
+                it "drops a combining character for free" $ buildCell (dropRight 3 narrow) `shouldBe` "Bien s"
+                it "does not drop a combining character without their previous" $ buildCell (dropRight 2 narrow) `shouldBe` "Bien sû"
 
     describe "wide text" $ do
         describe "buildCell" $ do
