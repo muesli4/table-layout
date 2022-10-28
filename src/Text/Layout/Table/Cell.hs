@@ -1,6 +1,9 @@
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE FlexibleInstances #-}
+
 module Text.Layout.Table.Cell where
 
+import Control.Monad (join)
 import Data.Bifunctor (bimap)
 import qualified Data.Text as T
 
@@ -10,30 +13,47 @@ import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.StringBuilder
 
+
+-- | An object along with the amount that its length should be adjusted on both the left and right.
+-- Positive numbers are padding and negative numbers are trimming.
+data CellView a =
+    CellView
+    { baseCell :: a
+    , leftAdjustment :: Int
+    , rightAdjustment :: Int
+    } deriving (Eq, Ord, Show, Functor)
+
+instance Applicative CellView where
+  pure x = CellView x 0 0
+  (CellView f l r) <*> (CellView x l' r') = CellView (f x) (l + l') (r + r')
+
+instance Monad CellView where
+  (CellView x l r) >>= f = let CellView y l' r' = f x in CellView y (l + l') (r + r')
+
+-- | Add an adjustment to the left and right of a 'Cell'.
+-- Positive numbers are padding and negative numbers are trimming.
+adjustCell :: Int -> Int -> a -> CellView a
+adjustCell l r a = CellView a l r
+
+-- | The total amount of adjustment in 'CellView'.
+totalAdjustment :: CellView a -> Int
+totalAdjustment a = leftAdjustment a + rightAdjustment a
+
+-- | Redistribute padding or trimming using a given ratio.
+redistributeAdjustment :: Int -> Int -> CellView a -> CellView a
+redistributeAdjustment l r a = CellView (baseCell a) lAdjustment rAdjustment
+  where
+    lAdjustment = (totalAdjustment a * l) `div` (l + r)
+    rAdjustment = totalAdjustment a - lAdjustment
+
 -- | Types that can be shortened, measured for visible characters, and turned
 -- into a 'StringBuilder'.
 class Cell a where
-    -- Preprocessing functions:
-
-    -- | Drop a number of characters from the left side. Treats negative numbers
-    -- as zero.
-    dropLeft :: Int -> a -> a
-    dropLeft n = dropBoth n 0
-
-    -- | Drop a number of characters from the right side. Treats negative
-    -- numbers as zero.
-    dropRight :: Int -> a -> a
-    dropRight = dropBoth 0
-
-    -- | Drop characters from both sides. Treats negative numbers as zero.
-    dropBoth :: Int -> Int -> a -> a
-    dropBoth l r = dropRight r . dropLeft l
-
     -- | Returns the length of the visible characters as displayed on the
     -- output medium.
     visibleLength :: a -> Int
 
-    -- | Measure the preceeding and following characters for a position where
+    -- | Measure the preceding and following characters for a position where
     -- the predicate matches.
     measureAlignment :: (Char -> Bool) -> a -> AlignInfo
 
@@ -43,41 +63,124 @@ class Cell a where
 
     -- | Insert the contents into a 'StringBuilder'.
     buildCell :: StringBuilder b => a -> b
+    buildCell = buildCellView . pure
 
-    {-# MINIMAL visibleLength, measureAlignment, emptyCell, buildCell, (dropBoth | (dropLeft, dropRight))  #-}
+    -- | Insert the contents into a 'StringBuilder', padding or trimming as
+    -- necessary.
+    --
+    -- The 'Cell' instance of 'CellView a' means that this can usually be
+    -- substituted with 'buildCell', and is only needed for defining the
+    -- instance.
+    buildCellView :: StringBuilder b => CellView a -> b
+
+    {-# MINIMAL visibleLength, measureAlignment, emptyCell, buildCellView #-}
+
+instance Cell a => Cell (CellView a) where
+    visibleLength (CellView a l r) = visibleLength a + l + r
+    measureAlignment f (CellView a l r) = case mMatchRemaining of
+        -- No match
+        Nothing -> AlignInfo (max 0 $ matchAt + l + r) Nothing
+        -- There is a match, but it is cut off from the left or right
+        Just matchRemaining | matchAt < -l || matchRemaining < -r -> AlignInfo (max 0 $ matchAt + matchRemaining + 1 + l + r) Nothing
+        -- There is a match, and it is not cut off
+        Just matchRemaining -> AlignInfo (matchAt + l) (Just $ matchRemaining + r)
+      where
+        AlignInfo matchAt mMatchRemaining = measureAlignment f a
+    emptyCell = pure emptyCell
+    buildCell = buildCellView
+    buildCellView = buildCellView . join
 
 instance (Cell a, Cell b) => Cell (Either a b) where
-    dropLeft n = bimap (dropLeft n) (dropLeft n)
-    dropRight n = bimap (dropRight n) (dropRight n)
-    dropBoth l r = bimap (dropBoth l r) (dropBoth l r)
     visibleLength = either visibleLength visibleLength
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
     emptyCell = Right emptyCell
     buildCell = either buildCell buildCell
+    buildCellView (CellView a l r) = either go go a
+      where
+        go x = buildCellView $ CellView x l r
 
 instance Cell String where
-    dropLeft = drop
-    dropRight n s = zipWith const s (drop n s)
     visibleLength = length
     measureAlignment p xs = case break p xs of
         (ls, rs) -> AlignInfo (length ls) $ case rs of
             []      -> Nothing
             _ : rs' -> Just $ length rs'
-
     emptyCell = ""
     buildCell = stringB
+    buildCellView = buildCellViewLRHelper stringB drop (\n s -> zipWith const s $ drop n s)
 
 instance Cell T.Text where
-    dropLeft = T.drop
-    dropRight = T.dropEnd
     visibleLength = T.length
     measureAlignment p xs = case T.break p xs of
         (ls, rs) -> AlignInfo (T.length ls) $ if T.null rs
             then Nothing
             else Just $ T.length rs - 1
-
     emptyCell = T.pack ""
     buildCell = textB
+    buildCellView = buildCellViewLRHelper textB T.drop T.dropEnd
+
+-- | Construct 'buildCellView' from a builder function, a function for
+-- trimming from the left, and a function for trimming from the right.
+--
+-- Used to define instances of 'Cell'.
+buildCellViewLRHelper :: StringBuilder b
+                      => (a -> b)  -- ^ Builder function for 'a'.
+                      -> (Int -> a -> a)  -- ^ Function for trimming on the left.
+                      -> (Int -> a -> a)  -- ^ Function for trimming on the right.
+                      -> CellView a
+                      -> b
+buildCellViewLRHelper build trimL trimR =
+    buildCellViewHelper build build build trimL trimR (\l r -> trimL l . trimR r)
+
+-- | Construct 'buildCellView' from a builder function, and a function for
+-- trimming from the left and right simultaneously.
+--
+-- Used to define instanced of 'Cell'.
+buildCellViewBothHelper :: StringBuilder b
+                        => (a -> b)  -- ^ Builder function for 'a'.
+                        -> (Int -> Int -> a -> a)  -- ^ Function for trimming on the left and right simultaneously.
+                        -> CellView a
+                        -> b
+buildCellViewBothHelper build trimBoth =
+    buildCellViewHelper build build build (flip trimBoth 0) (trimBoth 0) trimBoth
+
+-- | Construct 'buildCellView' from builder functions, and trimming functions.
+--
+-- Used to define instances of 'Cell'.
+buildCellViewHelper :: StringBuilder b
+                    => (a -> b)  -- ^ Builder function for 'a'.
+                    -> (a' -> b)  -- ^ Builder function for the result of trimming 'a'.
+                    -> (a'' -> b)  -- ^ Builder function for the result of trimming 'a' twice.
+                    -> (Int -> a -> a')  -- ^ Function for trimming on the left.
+                    -> (Int -> a -> a')  -- ^ Function for trimming on the right.
+                    -> (Int -> Int -> a -> a'')  -- ^ Function for trimming on the left and right simultaneously.
+                    -> CellView a
+                    -> b
+buildCellViewHelper build build' build'' trimL trimR trimBoth (CellView a l r) =
+    case (compare l 0, compare r 0) of
+        (GT, GT) -> spacesB l <> build a <> spacesB r
+        (GT, LT) -> spacesB l <> build' (trimR (negate r) a)
+        (GT, EQ) -> spacesB l <> build a
+        (LT, GT) -> build' (trimL (negate l) a) <> spacesB r
+        (LT, LT) -> build'' $ trimBoth (negate l) (negate r) a
+        (LT, EQ) -> build' $ trimL (negate l) a
+        (EQ, GT) -> build a <> spacesB r
+        (EQ, LT) -> build' $ trimR (negate r) a
+        (EQ, EQ) -> build a
+
+-- | Drop a number of characters from the left side. Treats negative numbers
+-- as zero.
+dropLeft :: Int -> a -> CellView a
+dropLeft n = dropBoth n 0
+
+-- | Drop a number of characters from the right side. Treats negative
+-- numbers as zero.
+dropRight :: Int -> a -> CellView a
+dropRight = dropBoth 0
+
+-- | Drop characters from both sides. Treats negative numbers as zero.
+dropBoth :: Int -> Int -> a -> CellView a
+dropBoth l r = adjustCell (- max 0 l) (- max 0 r)
 
 remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c

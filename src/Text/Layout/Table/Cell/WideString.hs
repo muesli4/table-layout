@@ -18,12 +18,14 @@ newtype WideString = WideString String
     deriving (Eq, Ord, Show, Read, Semigroup, Monoid, IsString)
 
 instance Cell WideString where
-    dropLeft i (WideString s) = WideString $ dropWide True i s
-    dropRight i (WideString s) = WideString . reverse . dropWide False i $ reverse s
     visibleLength (WideString s) = realLength s
     measureAlignment p (WideString s) = measureAlignmentWide p s
     emptyCell = WideString ""
     buildCell (WideString s) = buildCell s
+    buildCellView = buildCellViewLRHelper
+      (\(WideString s) -> buildCell s)
+      (\i (WideString s) -> WideString $ dropWide True i s)
+      (\i (WideString s) -> WideString . reverse . dropWide False i $ reverse s)
 
 -- | Drop characters from the left side of a 'String' until at least the
 -- provided width has been removed.
@@ -51,12 +53,14 @@ newtype WideText = WideText T.Text
     deriving (Eq, Ord, Show, Read, Semigroup, Monoid, IsString)
 
 instance Cell WideText where
-    dropLeft i (WideText s) = WideText $ dropLeftWideT i s
-    dropRight i (WideText s) = WideText $ dropRightWideT i s
     visibleLength (WideText s) = realLength s
     measureAlignment p (WideText s) = measureAlignmentWideT p s
     emptyCell = WideText ""
     buildCell (WideText s) = buildCell s
+    buildCellView = buildCellViewLRHelper
+        (\(WideText s) -> buildCell s)
+        (\i (WideText s) -> WideText $ dropLeftWideT i s)
+        (\i (WideText s) -> WideText $ dropRightWideT i s)
 
 dropLeftWideT :: Int -> T.Text -> T.Text
 dropLeftWideT i txt = case T.uncons txt of
