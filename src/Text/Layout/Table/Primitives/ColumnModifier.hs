@@ -3,6 +3,7 @@ module Text.Layout.Table.Primitives.ColumnModifier where
 
 import Control.Arrow ((&&&))
 import Data.List
+import Data.Semigroup (Max(..))
 
 import Text.Layout.Table.Cell
 import Text.Layout.Table.Primitives.AlignInfo
@@ -96,15 +97,25 @@ columnModifier pos cms colModInfo = case colModInfo of
 -- | Derive the 'ColModInfo' for each column of a list of rows by using the
 -- corresponding specifications.  See 'deriveColModInfoFromColumn' for details.
 deriveColModInfos :: Cell a => [(LenSpec, AlignSpec)] -> [Row a] -> [ColModInfo]
-deriveColModInfos specs = zipWith ($) (fmap deriveColModInfoFromColumn specs) . transpose
+deriveColModInfos specs = deriveColModInfosFromColumns specs . transpose
+
+deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
+deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
+
+deriveColModInfosFromColumns :: (Foldable col, Cell a) => [(LenSpec, AlignSpec)] -> [col a] -> [ColModInfo]
+deriveColModInfosFromColumns specs = zipWith ($) (fmap deriveColModInfoFromColumn specs)
+
+-- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
+deriveAlignInfo :: Cell a => OccSpec -> a -> AlignInfo
+deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 
 -- | Derive the 'ColModInfo' of a single column by using the 'LenSpec' and the
 -- 'AlignSpec'.
-deriveColModInfoFromColumn :: Cell a => (LenSpec, AlignSpec) -> Col a -> ColModInfo
+deriveColModInfoFromColumn :: (Foldable col, Cell a) => (LenSpec, AlignSpec) -> col a -> ColModInfo
 deriveColModInfoFromColumn (lenS, alignS) = case alignS of
     NoAlign     -> let expandFun = FillTo
                        fixedFun i = const $ FitTo i Nothing
-                       measureMaximumWidth = maximum . map visibleLength
+                       measureMaximumWidth = getMax . foldMap (Max . visibleLength)
                        lengthFun = id
                     in go expandFun fixedFun measureMaximumWidth lengthFun
 
@@ -114,12 +125,12 @@ deriveColModInfoFromColumn (lenS, alignS) = case alignS of
                        lengthFun = widthAI
                     in go expandFun fixedFun measureMaximumWidth lengthFun
   where
-    go :: forall a w. Cell a
+    go :: forall a w col. (Cell a, Foldable col)
        => (w -> ColModInfo)
        -> (Int -> w -> ColModInfo)
-       -> (Col a -> w)
+       -> (col a -> w)
        -> (w -> Int)
-       -> Col a
+       -> col a
        -> ColModInfo
     go expandFun fixedFun measureMaximumWidth lengthFun =
         let expandBetween' i j widthInfo | lengthFun widthInfo > j = fixedFun j widthInfo
@@ -136,8 +147,8 @@ deriveColModInfoFromColumn (lenS, alignS) = case alignS of
                 ExpandBetween i j -> expandBetween' i j
         in interpretLenSpec . measureMaximumWidth
 
-deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
-deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
+deriveColModInfosFromColumns' :: (Foldable col, Cell a) => [ColSpec] -> [col a] -> [ColModInfo]
+deriveColModInfosFromColumns' = deriveColModInfosFromColumns . fmap (lenSpec &&& alignSpec)
 
 -- | Derive the 'ColModInfo' and generate functions without any intermediate
 -- steps.
@@ -150,8 +161,4 @@ deriveColMods specs tab =
     zipWith (uncurry columnModifier) (map (position &&& cutMark) specs) cmis
   where
     cmis = deriveColModInfos' specs tab
-
--- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
-deriveAlignInfo :: Cell a => OccSpec -> a -> AlignInfo
-deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 

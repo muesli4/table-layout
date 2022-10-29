@@ -57,10 +57,6 @@ class Cell a where
     -- the predicate matches.
     measureAlignment :: (Char -> Bool) -> a -> AlignInfo
 
-    -- | Create an empty cell.
-    -- This should satisfy `buildCell emptyCell = mempty`.
-    emptyCell :: a
-
     -- | Insert the contents into a 'StringBuilder'.
     buildCell :: StringBuilder b => a -> b
     buildCell = buildCellView . pure
@@ -73,7 +69,7 @@ class Cell a where
     -- instance.
     buildCellView :: StringBuilder b => CellView a -> b
 
-    {-# MINIMAL visibleLength, measureAlignment, emptyCell, buildCellView #-}
+    {-# MINIMAL visibleLength, measureAlignment, buildCellView #-}
 
 instance Cell a => Cell (CellView a) where
     visibleLength (CellView a l r) = visibleLength a + l + r
@@ -86,7 +82,6 @@ instance Cell a => Cell (CellView a) where
         Just matchRemaining -> AlignInfo (matchAt + l) (Just $ matchRemaining + r)
       where
         AlignInfo matchAt mMatchRemaining = measureAlignment f a
-    emptyCell = pure emptyCell
     buildCell = buildCellView
     buildCellView = buildCellView . join
 
@@ -95,12 +90,10 @@ instance Cell a => Cell (Maybe a) where
     measureAlignment p = maybe mempty (measureAlignment p)
     buildCell = maybe mempty buildCell
     buildCellView (CellView a l r) = maybe (spacesB $ l + r) (buildCellView . adjustCell l r) a
-    emptyCell = Nothing
 
 instance (Cell a, Cell b) => Cell (Either a b) where
     visibleLength = either visibleLength visibleLength
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
-    emptyCell = Right emptyCell
     buildCell = either buildCell buildCell
     buildCellView (CellView a l r) = either go go a
       where
@@ -112,7 +105,7 @@ instance Cell String where
         (ls, rs) -> AlignInfo (length ls) $ case rs of
             []      -> Nothing
             _ : rs' -> Just $ length rs'
-    emptyCell = ""
+
     buildCell = stringB
     buildCellView = buildCellViewLRHelper stringB drop (\n s -> zipWith const s $ drop n s)
 
@@ -122,7 +115,7 @@ instance Cell T.Text where
         (ls, rs) -> AlignInfo (T.length ls) $ if T.null rs
             then Nothing
             else Just $ T.length rs - 1
-    emptyCell = T.pack ""
+
     buildCell = textB
     buildCellView = buildCellViewLRHelper textB T.drop T.dropEnd
 
