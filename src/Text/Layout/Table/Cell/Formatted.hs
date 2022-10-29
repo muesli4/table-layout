@@ -84,7 +84,6 @@ instance Monoid (Formatted a) where
 instance Cell a => Cell (Formatted a) where
     visibleLength = sum . fmap visibleLength
     measureAlignment p = foldl' (mergeAlign p) mempty
-    emptyCell = plain emptyCell
     buildCell = buildFormatted buildCell
     buildCellView = buildCellViewHelper
         (buildFormatted buildCell)

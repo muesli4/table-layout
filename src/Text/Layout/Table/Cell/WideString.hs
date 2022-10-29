@@ -20,7 +20,6 @@ newtype WideString = WideString String
 instance Cell WideString where
     visibleLength (WideString s) = realLength s
     measureAlignment p (WideString s) = measureAlignmentWide p s
-    emptyCell = WideString ""
     buildCell (WideString s) = buildCell s
     buildCellView = buildCellViewLRHelper
       (\(WideString s) -> buildCell s)
@@ -55,7 +54,6 @@ newtype WideText = WideText T.Text
 instance Cell WideText where
     visibleLength (WideText s) = realLength s
     measureAlignment p (WideText s) = measureAlignmentWideT p s
-    emptyCell = WideText ""
     buildCell (WideText s) = buildCell s
     buildCellView = buildCellViewLRHelper
         (\(WideText s) -> buildCell s)

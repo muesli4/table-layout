@@ -18,21 +18,21 @@ import Text.Layout.Table.Primitives.Basic
 {- | Merges multiple columns together to a valid grid without holes. For example:
 
 >>> colsAsRowsAll top [justifyText 10 "This text will not fit on one line.", ["42", "23"]]
-[["This  text","42"],["will   not","23"],["fit on one",""],["line.",""]]
+[[Just "This  text",Just "42"],[Just "will   not",Just "23"],[Just "fit on one",Nothing],[Just "line.",Nothing]]
 
 The result is intended to be used with a grid layout function like 'Text.Layout.Table.grid'.
 -}
-colsAsRowsAll :: Cell a => Position V -> [Col a] -> [Row a]
-colsAsRowsAll ps = transpose . vPadAll emptyCell ps
+colsAsRowsAll :: Position V -> [Col a] -> [Row (Maybe a)]
+colsAsRowsAll p = transpose . vPadAll Nothing p . fmap (fmap Just)
 
 {- | Works like 'colsAsRowsAll' but every position can be specified on its
    own:
 
 >>> colsAsRows [top, center, bottom] [["a1"], ["b1", "b2", "b3"], ["c3"]]
-[["a1","b1",""],["","b2",""],["","b3","c3"]]
+[[Just "a1",Just "b1",Nothing],[Nothing,Just "b2",Nothing],[Nothing,Just "b3",Just "c3"]]
 -}
-colsAsRows :: Cell a => [Position V] -> [Col a] -> [Row a]
-colsAsRows ps = transpose . vPad emptyCell ps
+colsAsRows :: [Position V] -> [Col a] -> [Row (Maybe a)]
+colsAsRows ps = transpose . vPad Nothing ps . fmap (fmap Just)
 
 -- | Fill all columns to the same length by aligning at the given position.
 vPadAll :: a -> Position V -> [Col a] -> [Col a]
