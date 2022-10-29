@@ -2,7 +2,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [0.9.1.0] - 2020-12-21
+## [1.0.0.0] - 2023-11-17
+
+This release would not have been possible without the tireless work of Stephen
+Morgan.
+
+### Added
+
+- Add `asciiDoubleS` table style.
+- Add combinators for removing outer borders of tables.
+- Provide general versions of grid and table functions that generate output for
+  `StringBuilder` instances.
+- Add dependency to `doclayout` and `text`.
+- Add `WideString` and `WideText` to support multi-width character input. (#8)
+- Custom vertical separators can now be specified in the table header
+  specification in a hierarchic manner.
+- Add simplified table style specification with `LineStyle` and many new
+  combinators.
+- Add `Cell` instance for `Data.Text`, `Data.Either`, `Data.Maybe`.
+- Add versions of functions for tables and grids that return `ColModInfo`s.
+- Provide functions to work with `Formatted`.
+- Add safe versions of the `trim` function. (#35)
+- Add `expandBetween` `LenSpec` which provides a lower and an upper bound for
+  the width of a column. (#35)
+- Add explicit defaults for data types (#26).
+- Provide more functions to derive `ColModInfo`.
+- Add `TableSpec` to specify tables.
+
+### Changed
+
+- Changed version bounds of `base`, `QuickCheck`, and `data-default-class`.
+- Remove dependency on `data-default-instances-base`.
+- Improve performance of Cell and StringBuilder instances
+- Generalize `Formatted` to provide nested color formatting. (#11)
+- Change `TableStyle` to use `String` as basic building blocks of tables. (#17)
+- Add more separator types to `TableStyle`.
+- Accept arbitrary instances of `Cell` as header titles.
+- Lower requirements for `Cell` instances:  Cells no longer need to be able to
+  drop characters.
+- Drop `Monoid` requirement for vertical alignment.
+- Rendering functions for tables now use `TableSpec`.
+- Renamed functions to derive `ColModInfo`.
+
 
 ### Fixed
 
