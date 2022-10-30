@@ -149,6 +149,11 @@ arJoins _          _          NoLine     _          = "."
 -- Bottom joins
 arJoins _          _          DoubleLine NoLine     = "''"
 arJoins _          _          _          NoLine     = "'"
+-- T-joins
+arJoins NoLine     _          SingleLine SingleLine = ":"
+arJoins _          NoLine     SingleLine SingleLine = ":"
+arJoins NoLine     _          DoubleLine DoubleLine = "::"
+arJoins _          NoLine     DoubleLine DoubleLine = "::"
 -- Left joins
 arJoins NoLine     DoubleLine DoubleLine _          = "::"
 arJoins NoLine     DoubleLine _          _          = ":"
