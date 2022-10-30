@@ -4,7 +4,7 @@
 module Text.Layout.Table.Cell where
 
 import Control.Monad (join)
-import Data.Bifunctor (bimap)
+import Data.Functor.Identity (Identity(..))
 import qualified Data.Text as T
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -130,7 +130,7 @@ buildCellViewLRHelper :: StringBuilder b
                       -> CellView a
                       -> b
 buildCellViewLRHelper build trimL trimR =
-    buildCellViewHelper build build build trimL trimR (\l r -> trimL l . trimR r)
+    buildCellViewHelper build (\i -> build . trimL i) (\i -> build . trimR i) (\l r -> build . trimL l . trimR r)
 
 -- | Construct 'buildCellView' from a builder function, and a function for
 -- trimming from the left and right simultaneously.
@@ -143,32 +143,46 @@ buildCellViewBothHelper
     -> CellView a
     -> b
 buildCellViewBothHelper build trimBoth =
-    buildCellViewHelper build build build (flip trimBoth 0) (trimBoth 0) trimBoth
+    buildCellViewHelper build (\i -> build . trimBoth i 0) (\i -> build . trimBoth 0 i) (\l r -> build . trimBoth l r)
 
--- | Construct 'buildCellView' from builder functions, and trimming functions.
+-- | Construct 'buildCellView' from builder functions and trimming functions.
 --
 -- Used to define instances of 'Cell'.
 buildCellViewHelper
     :: StringBuilder b
-    => (a -> b) -- ^ Builder function for 'a'.
-    -> (trimSingle -> b) -- ^ Builder function for the result of trimming 'a'.
-    -> (trimBoth -> b) -- ^ Builder function for the result of trimming 'a' twice.
-    -> (Int -> a -> trimSingle) -- ^ Function for trimming on the left.
-    -> (Int -> a -> trimSingle) -- ^ Function for trimming on the right.
-    -> (Int -> Int -> a -> trimBoth) -- ^ Function for trimming on the left and right simultaneously.
+    => (a -> b)  -- ^ Builder function for 'a'.
+    -> (Int -> a -> b)  -- ^ Function for trimming on the left.
+    -> (Int -> a -> b)  -- ^ Function for trimming on the right.
+    -> (Int -> Int -> a -> b)  -- ^ Function for trimming on the left and right simultaneously.
     -> CellView a
     -> b
-buildCellViewHelper build buildSingleTrim buildTrimBoth trimL trimR trimBoth (CellView a l r) =
+buildCellViewHelper build trimL trimR trimBoth =
+    runIdentity . buildCellViewTightHelper build
+        (\i -> Identity . trimL i) (\i -> Identity . trimR i) (\l r -> Identity . trimBoth l r)
+
+-- | Construct 'buildCellViewTight' from builder functions and trimming functions.
+--
+-- This is used to define 'buildCellViewTight' in the 'Cell' typeclass, in
+-- which `f` will be 'CellView'.
+buildCellViewTightHelper
+    :: (StringBuilder b, Applicative f)
+    => (a -> b)  -- ^ Builder function for 'a'.
+    -> (Int -> a -> f b)  -- ^ Function for trimming on the left.
+    -> (Int -> a -> f b)  -- ^ Function for trimming on the right.
+    -> (Int -> Int -> a -> f b)  -- ^ Function for trimming on the left and right simultaneously.
+    -> CellView a
+    -> f b
+buildCellViewTightHelper build trimL trimR trimBoth (CellView a l r) =
     case (compare l 0, compare r 0) of
-        (GT, GT) -> spacesB l <> build a <> spacesB r
-        (GT, LT) -> spacesB l <> buildSingleTrim (trimR (negate r) a)
-        (GT, EQ) -> spacesB l <> build a
-        (LT, GT) -> buildSingleTrim (trimL (negate l) a) <> spacesB r
-        (LT, LT) -> buildTrimBoth $ trimBoth (negate l) (negate r) a
-        (LT, EQ) -> buildSingleTrim $ trimL (negate l) a
-        (EQ, GT) -> build a <> spacesB r
-        (EQ, LT) -> buildSingleTrim $ trimR (negate r) a
-        (EQ, EQ) -> build a
+        (GT, GT) -> pure $ spacesB l <> build a <> spacesB r
+        (GT, LT) -> (spacesB l <>) <$> trimR (negate r) a
+        (GT, EQ) -> pure $ spacesB l <> build a
+        (LT, GT) -> (<> spacesB r) <$> trimL (negate l) a
+        (LT, LT) -> trimBoth (negate l) (negate r) a
+        (LT, EQ) -> trimL (negate l) a
+        (EQ, GT) -> pure $ build a <> spacesB r
+        (EQ, LT) -> trimR (negate r) a
+        (EQ, EQ) -> pure $ build a
 
 -- | Drop a number of characters from the left side. Treats negative numbers
 -- as zero.

@@ -90,11 +90,9 @@ instance Cell a => Cell (Formatted a) where
     buildCell = buildFormatted buildCell
     buildCellView = buildCellViewHelper
         (buildFormatted buildCell)
-        (buildFormatted buildCellView)
-        (buildFormatted buildCellView)
-        trimLeft
-        trimRight
-        (\l r -> trimLeft l . trimRight r)
+        (\i -> buildFormatted buildCell . trimLeft i)
+        (\i -> buildFormatted buildCell . trimRight i)
+        (\l r -> buildFormatted buildCell . trimLeft l . trimRight r)
       where
         trimLeft i = snd . mapAccumL (dropTrackRemaining dropLeft) i
         trimRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
