@@ -90,6 +90,13 @@ instance Cell a => Cell (CellView a) where
     buildCell = buildCellView
     buildCellView = buildCellView . join
 
+instance Cell a => Cell (Maybe a) where
+    visibleLength = maybe 0 visibleLength
+    measureAlignment p = maybe mempty (measureAlignment p)
+    buildCell = maybe mempty buildCell
+    buildCellView (CellView a l r) = maybe (spacesB $ l + r) (buildCellView . adjustCell l r) a
+    emptyCell = Nothing
+
 instance (Cell a, Cell b) => Cell (Either a b) where
     visibleLength = either visibleLength visibleLength
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
