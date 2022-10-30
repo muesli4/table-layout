@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Text.Layout.Table.Primitives.ColumnModifier where
 
 import Control.Arrow ((&&&))
@@ -92,41 +93,48 @@ columnModifier pos cms colModInfo = case colModInfo of
     FitTo lim mT      ->
         maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
 
--- | Derive the 'ColModInfo' by using layout specifications and the actual cells
--- of a column. This function only needs to know about 'LenSpec' and 'AlignInfo'.
+-- | Derive the 'ColModInfo' for each column of a list of rows by using the
+-- corresponding specifications.  See 'deriveColModInfoFromColumn' for details.
 deriveColModInfos :: Cell a => [(LenSpec, AlignSpec)] -> [Row a] -> [ColModInfo]
-deriveColModInfos specs = zipWith ($) (fmap fSel specs) . transpose
+deriveColModInfos specs = zipWith ($) (fmap deriveColModInfoFromColumn specs) . transpose
+
+-- | Derive the 'ColModInfo' of a single column by using the 'LenSpec' and the
+-- 'AlignSpec'.
+deriveColModInfoFromColumn :: Cell a => (LenSpec, AlignSpec) -> Col a -> ColModInfo
+deriveColModInfoFromColumn (lenS, alignS) = case alignS of
+    NoAlign     -> let expandFun = FillTo
+                       fixedFun i = const $ FitTo i Nothing
+                       measureMaximumWidth = maximum . map visibleLength
+                       lengthFun = id
+                    in go expandFun fixedFun measureMaximumWidth lengthFun
+
+    AlignOcc oS -> let expandFun = FillAligned oS
+                       fixedFun i = FitTo i . Just . (,) oS
+                       measureMaximumWidth = foldMap $ deriveAlignInfo oS
+                       lengthFun = widthAI
+                    in go expandFun fixedFun measureMaximumWidth lengthFun
   where
-    fSel (lenS, alignS) = case alignS of
-        NoAlign     -> let fitTo i              = const $ FitTo i Nothing
-                           expandUntil' f i max' = if f (max' <= i)
-                                                   then FillTo max'
-                                                   else fitTo i max'
-                           expandBetween' i j max' | max' > j  = fitTo j max'
-                                                   | max' < i  = fitTo i max'
-                                                   | otherwise = FillTo max'
-                           fun                  = case lenS of
-                               Expand            -> FillTo
-                               Fixed i           -> fitTo i
-                               ExpandUntil i     -> expandUntil' id i
-                               FixedUntil i      -> expandUntil' not i
-                               ExpandBetween i j -> expandBetween' i j
-                       in fun . maximum . map visibleLength
-        AlignOcc oS -> let fitToAligned i      = FitTo i . Just . (,) oS
-                           fillAligned         = FillAligned oS
-                           expandUntil' f i ai = if f (widthAI ai <= i)
-                                                then fillAligned ai
-                                                else fitToAligned i ai
-                           expandBetween' i j ai | widthAI ai > j = fitToAligned j ai
-                                                 | widthAI ai < i = fitToAligned i ai
-                                                 | otherwise      = fillAligned ai
-                           fun                = case lenS of
-                               Expand            -> fillAligned
-                               Fixed i           -> fitToAligned i
-                               ExpandUntil i     -> expandUntil' id i
-                               FixedUntil i      -> expandUntil' not i
-                               ExpandBetween i j -> expandBetween' i j
-                        in fun . foldMap (deriveAlignInfo oS)
+    go :: forall a w. Cell a
+       => (w -> ColModInfo)
+       -> (Int -> w -> ColModInfo)
+       -> (Col a -> w)
+       -> (w -> Int)
+       -> Col a
+       -> ColModInfo
+    go expandFun fixedFun measureMaximumWidth lengthFun =
+        let expandBetween' i j widthInfo | lengthFun widthInfo > j = fixedFun j widthInfo
+                                         | lengthFun widthInfo < i = fixedFun i widthInfo
+                                         | otherwise               = expandFun widthInfo
+            expandUntil' f i widthInfo = if f (lengthFun widthInfo <= i)
+                                         then expandFun widthInfo
+                                         else fixedFun i widthInfo
+            interpretLenSpec = case lenS of
+                Expand            -> expandFun
+                Fixed i           -> fixedFun i
+                ExpandUntil i     -> expandUntil' id i
+                FixedUntil i      -> expandUntil' not i
+                ExpandBetween i j -> expandBetween' i j
+        in interpretLenSpec . measureMaximumWidth
 
 deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
 deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
