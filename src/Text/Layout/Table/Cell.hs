@@ -68,8 +68,19 @@ class Cell a where
     -- substituted with 'buildCell', and is only needed for defining the
     -- instance.
     buildCellView :: StringBuilder b => CellView a -> b
+    buildCellView x = padLeft $ padRight a
+      where
+        CellView a l r = buildCellViewTight x
+        padLeft  = if l > 0 then (spacesB l <>) else id
+        padRight = if r > 0 then (<> spacesB r) else id
 
-    {-# MINIMAL visibleLength, measureAlignment, buildCellView #-}
+    -- | Insert the contents into a 'StringBuilder', padding or trimming as
+    -- necessary. If extra padding is needed after trimming, for example with
+    -- wide characters, this is recorded in a 'CellView'.
+    buildCellViewTight :: StringBuilder b => CellView a -> CellView b
+    buildCellViewTight = pure . buildCellView
+
+    {-# MINIMAL visibleLength, measureAlignment, ( buildCellView | buildCellViewTight ) #-}
 
 instance Cell a => Cell (CellView a) where
     visibleLength (CellView a l r) = visibleLength a + l + r
@@ -84,12 +95,14 @@ instance Cell a => Cell (CellView a) where
         AlignInfo matchAt mMatchRemaining = measureAlignment f a
     buildCell = buildCellView
     buildCellView = buildCellView . join
+    buildCellViewTight = buildCellViewTight . join
 
 instance Cell a => Cell (Maybe a) where
     visibleLength = maybe 0 visibleLength
     measureAlignment p = maybe mempty (measureAlignment p)
     buildCell = maybe mempty buildCell
     buildCellView (CellView a l r) = maybe (spacesB $ l + r) (buildCellView . adjustCell l r) a
+    buildCellViewTight (CellView a l r) = maybe (pure . spacesB $ l + r) (buildCellViewTight . adjustCell l r) a
 
 instance (Cell a, Cell b) => Cell (Either a b) where
     visibleLength = either visibleLength visibleLength
@@ -98,6 +111,9 @@ instance (Cell a, Cell b) => Cell (Either a b) where
     buildCellView (CellView a l r) = either go go a
       where
         go x = buildCellView $ CellView x l r
+    buildCellViewTight (CellView a l r) = either go go a
+      where
+        go x = buildCellViewTight $ CellView x l r
 
 instance Cell String where
     visibleLength = length
