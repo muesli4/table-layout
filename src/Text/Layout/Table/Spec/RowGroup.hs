@@ -9,7 +9,8 @@ import Data.Functor (void)
 
 -- | Groups rows together which should not be visually seperated from each other.
 data RowGroup a
-    = MultiRowGroup [Row a]
+    = SingletonRowGroup (Row a)
+    | MultiRowGroup [Row a]
     | NullableRowGroup [Row (Maybe a)]
 
 -- | Group the given rows together.
@@ -18,7 +19,7 @@ rowsG = MultiRowGroup
 
 -- | Make a group of a single row.
 rowG :: Row a -> RowGroup a
-rowG = MultiRowGroup . (: [])
+rowG = SingletonRowGroup
 
 -- | Provide a 'RowGroup' where single cells may be missing.
 nullableRowsG :: [Row (Maybe a)] -> RowGroup a
@@ -27,6 +28,7 @@ nullableRowsG = NullableRowGroup
 -- | Extracts the shape of the 'RowGroup' from the first row.
 rowGroupShape :: RowGroup a -> [()]
 rowGroupShape rg = case rg of
+    SingletonRowGroup r  -> void r
     MultiRowGroup rs     -> firstSubListShape rs
     NullableRowGroup ors -> firstSubListShape ors
   where
@@ -35,7 +37,8 @@ rowGroupShape rg = case rg of
         []    -> []
 
 data ColumnSegment a
-    = ColumnSegment (Col a)
+    = SingleValueSegment a
+    | ColumnSegment (Col a)
     | NullableColumnSegment (Col (Maybe a))
     deriving (Functor, Foldable, Show)
 
@@ -48,6 +51,7 @@ transposeRowGroups = fmap SegmentedColumn . transpose . map transposeRowGroup
   where
     transposeRowGroup :: RowGroup a -> [ColumnSegment a]
     transposeRowGroup rg = case rg of
+        SingletonRowGroup row -> SingleValueSegment <$> row
         MultiRowGroup rows    -> ColumnSegment <$> transpose rows
         NullableRowGroup rows -> NullableColumnSegment <$> transpose rows
 
@@ -55,6 +59,7 @@ transposeRowGroups = fmap SegmentedColumn . transpose . map transposeRowGroup
 -- with the given value.
 mapRowGroupColumns :: [(b, (a -> b))] -> RowGroup a -> [[b]]
 mapRowGroupColumns mappers rg = case rg of
+    SingletonRowGroup row  -> pure $ zipWith snd mappers row
     MultiRowGroup rows     -> mapGrid snd rows
     NullableRowGroup orows -> mapGrid (uncurry maybe) orows
   where
