@@ -16,14 +16,12 @@ Typically cells are rendered as a grid, but it is also possible to render tables
 
 ## Tutorial
 
-### Grid layout
+### Grids
 
 Render some text rows as grid:
 ``` hs
-> putStrLn $ gridString [column expand left def def, column expand right def def]
-                        [ ["top left", "top right"]
-                        , ["bottom left", "bottom right"]
-                        ]
+> let g = [["top left", "top right"], ["bottom left", "bottom right"]]
+> putStrLn $ gridString [column expand left def def, column expand right def def] g
 ```
 `gridString` will join cells with a whitespace and rows with a newline character. The result is not spectacular but does look as expected:
 ```
@@ -32,7 +30,7 @@ bottom left bottom right
 ```
 There are sensible default values for all column specification types, even for columns. We could have used just `def` for the first column.
 
-### Number columns
+### Number Columns
 
 Additionally some common types are provided. A particularly useful one is `numCol`:
 ``` hs
@@ -48,7 +46,7 @@ This will display the given numbers as a dot-aligned single column:
 5000.00001
 ```
 
-### Improving readability of grids
+### Improving Readability of Grids
 
 Big grids are usually not that readable. To improve their readability, two functions are provided:
 
@@ -58,22 +56,20 @@ Big grids are usually not that readable. To improve their readability, two funct
 A good way to use this would be the [ansi-terminal package][], provided you are using a terminal to output your text. Another way to introduce color into cells is the `Formatted` type:
 ```
 > :set -XOverloadedStrings
-> let red s = formatted "\ESC[31m" s "\ESC[0m"
-> gridString [def, numCol] [["Jim", "1203"], ["Jane", "523"], ["Jack", red "-959000"]]
+> import Text.Layout.Table.Cell.Formatted
+> let red s = formatted "\ESC[31m" (plain s) "\ESC[0m"
+> let g = [["Jim", "1203"], ["Jane", "523"], ["Jack", red "-959000"]]
+> putStrLn $ gridString [def, numCol] g
 ```
 This way the color can depend on the cell content.
 
-### Table layout
+### Tables
 
 For more complex data, grids do not offer as much visibility. Sometimes we want to explicitly display a table, for example, as output in a database application. `tableLines` and `tableString` are used to create a table.
 
 ``` hs
-putStrLn $ tableString [def , numCol]
-                       unicodeRoundS
-                       def
-                       [ rowG ["Jack", "184.74"]
-                       , rowG ["Jane", "162.2"]
-                       ]
+> let t = headerlessTableS [def , numCol] unicodeRoundS [rowG ["Jack", "184.74"], rowG ["Jane", "162.2"]]
+> putStrLn $ tableString t
 ```
 A row group is a group of rows which are not visually separated from each other. Thus multiple rows form one cell.
 
@@ -86,17 +82,16 @@ In addition we specify the style and an optional header. By default the header i
 ╰──────┴────────╯
 ```
 
-### Table headers
+### Table Headers
 
 Optionally we can use table headers. `titlesH` will center titles, whereas `fullH` allows more control:
 
 ``` hs
-putStrLn $ tableString [fixedLeftCol 10, column (fixed 10) center dotAlign def]
-                       unicodeS
-                       (titlesH ["Text", "Number"])
-                       [ rowG ["A very long text", "0.42000000"]
-                       , rowG ["Short text", "100200.5"]
-                       ]
+> let cs = [fixedLeftCol 10, column (fixed 10) center dotAlign def]
+> let h = (titlesH ["Text", "Number"])
+> let rgs = [rowG ["A very long text", "0.42000000"], rowG ["Short text", "100200.5"]]
+> let t = columnHeaderTableS cs unicodeS h rgs
+> putStrLn $ tableString t
 ```
 Headers are always displayed with a different style than the other columns (centered by default). A maximum column width is respected, otherwise a header may acquire additional space.
 ```
@@ -109,16 +104,14 @@ Headers are always displayed with a different style than the other columns (cent
 └────────────┴────────────┘
 ```
 ### Vertical positioning and justified text
-Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we don't know how many lines there will be. The following piece of code will display a left-justified text alongside the length of the text:
+Because a row group consists of multiple lines, we may also want to align the content of cells vertically, especially when we do not know how many lines there will be.  The following piece of code will display a left-justified text alongside the length of the text:
 ``` hs
-let txt = "Lorem ipsum ..." 
-in putStrLn $ tableString [fixedLeftCol 50, numCol]
-                          asciiS
-                          (titlesH ["Text", "Length"])
-                          [ colsAllG center [ justifyText 50 txt
-                                            , [show $ length txt]
-                                            ]
-                          ]
+> let txt = "Lorem ipsum ..." 
+> let rgs = [colsAllG center [justifyText 50 txt, [show $ length txt]]]
+> let cs = [fixedLeftCol 50, numCol]
+> let h = titlesH ["Text", "Length"]
+> let t = columnHeaderTableS cs asciiS h rgs
+> putStrLn $ tableString t
 ```
 `colsAllG` will merge the given columns into a row group with the given positioning:
 ```
@@ -136,11 +129,11 @@ in putStrLn $ tableString [fixedLeftCol 50, numCol]
 | officia deserunt mollit anim id est laborum.       |        |
 +----------------------------------------------------+--------+
 ```
-Additionally, the positioning can be specified for each column with `colsG`. For grids `colsAsRows` and `colsAsRowsAll` are provided.
+Additionally, the positioning can be specified for each column with `colsG`.  For grids `colsAsRows` and `colsAsRowsAll` are provided.
 
-## Get in contact
+## Contact
 
-* Report issues and suggestions to the GitHub page.
+* Please report issues and suggestions to the GitHub page.
 * Any kind of feedback is welcome.
 * Contributions are much appreciated. Contact me first for bigger changes.
 
