@@ -57,32 +57,32 @@ import Text.Layout.Table.LineStyle
 --   3. 'unicodeTableStyleFromSpec'
 --   4. 'asciiTableStyleFromSpec'
 --   5. 'tableStyleFromSpec'
-data TableStyle hSep vSep
+data TableStyle rowSep colSep
     = TableStyle
     -- Within the column header but not the row header (11 cases)
     { headerSepH     :: String
     , headerSepLC    :: String
     , headerSepRC    :: String
-    , headerSepC     :: vSep -> vSep -> String
+    , headerSepC     :: colSep -> colSep -> String
     , headerTopH     :: String
     , headerTopL     :: String
     , headerTopR     :: String
-    , headerTopC     :: vSep -> String
+    , headerTopC     :: colSep -> String
     , headerL        :: String
     , headerR        :: String
-    , headerC        :: vSep -> String
+    , headerC        :: colSep -> String
     -- Within the row header but not the column header (11 cases)
     , rowHeaderSepV  :: String
     , rowHeaderSepTC :: String
     , rowHeaderSepBC :: String
-    , rowHeaderSepC  :: hSep -> hSep -> String
+    , rowHeaderSepC  :: rowSep -> rowSep -> String
     , rowHeaderLeftV :: String
     , rowHeaderLeftT :: String
     , rowHeaderLeftB :: String
-    , rowHeaderLeftC :: hSep -> String
+    , rowHeaderLeftC :: rowSep -> String
     , rowHeaderT     :: String
     , rowHeaderB     :: String
-    , rowHeaderC     :: hSep -> String
+    , rowHeaderC     :: rowSep -> String
     -- Within the intersection of the row and column headers (8 cases)
     , bothHeadersTL  :: String
     , bothHeadersTR  :: String
@@ -95,16 +95,16 @@ data TableStyle hSep vSep
     -- Main body of the table, in neither the row or column headers (15 cases)
     , groupL         :: String
     , groupR         :: String
-    , groupC         :: vSep -> String
-    , groupSepH      :: hSep -> String
-    , groupSepC      :: hSep -> vSep -> String
-    , groupSepLC     :: hSep -> String
-    , groupSepRC     :: hSep -> String
-    , groupTopC      :: vSep -> String
+    , groupC         :: colSep -> String
+    , groupSepH      :: rowSep -> String
+    , groupSepC      :: rowSep -> colSep -> String
+    , groupSepLC     :: rowSep -> String
+    , groupSepRC     :: rowSep -> String
+    , groupTopC      :: colSep -> String
     , groupTopL      :: String
     , groupTopR      :: String
     , groupTopH      :: String
-    , groupBottomC   :: vSep -> String
+    , groupBottomC   :: colSep -> String
     , groupBottomL   :: String
     , groupBottomR   :: String
     , groupBottomH   :: String
