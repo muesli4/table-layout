@@ -61,8 +61,8 @@ main = putStrLn $ tableString $ columnHeaderTableS
     columTs   = [ ( column l p a ellipsisCutMark
                   , ["len spec: " ++ dL, "position: " ++ pL, "alignment: " ++ aL]
                   )
-                | (l, dL) <- zip [expand, fixed 10, expandUntil 10, fixedUntil 10]
-                           ["expand", "fixed 10", "expand until 10", "fixed until 10"]
+                | (l, dL) <- zip [expand, fixed 10, expandUntil 10, fixedUntil 10, expandBetween 5 15]
+                           ["expand", "fixed 10", "expand until 10", "fixed until 10", "expand [5, 15]"]
                 , (p, pL) <- zip [left, right, center] ["left", "right", "center"]
                 , (a, aL) <- zip [noAlign, dotAlign] ["no align", "align at '.'"]
                 ]
