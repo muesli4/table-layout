@@ -1,16 +1,21 @@
--- | This module provides a primitive styling facility. To make your own style
--- have a look at <https://en.wikipedia.org/wiki/Box-drawing_character>.
+-- | This module provides predefined styles, combinators to modify them,
+-- abstract style descriptions, and combinators for quickly turning them into
+-- styles.
+--
+-- The following resource may be useful for constructing your own primitive
+-- styles: <https://en.wikipedia.org/wiki/Box-drawing_character>.
 
 {-# LANGUAGE RecordWildCards #-}
 
 module Text.Layout.Table.Style
-    ( -- * Pre-constructed 'TableStyle'
-      -- ** ASCII 'TableStyle'
+    ( -- * Pre-Constructed Table Styles
+      -- ** ASCII
+      -- These styles use only ASCII characters.
       asciiS
     , asciiRoundS
     , asciiDoubleS
 
-      -- ** Unicode 'TableStyle'
+      -- ** Unicode
     , unicodeS
     , unicodeBoldHeaderS
     , unicodeRoundS
@@ -18,7 +23,7 @@ module Text.Layout.Table.Style
     , unicodeBoldStripedS
     , unicodeDoubleFrameS
 
-      -- * Transform 'TableStyle'
+      -- * Combinators
     , withoutBorders
     , withoutTopBorder
     , withoutBottomBorder
@@ -28,18 +33,18 @@ module Text.Layout.Table.Style
     , inheritStyle
     , inheritStyleHeaderGroup
 
-      -- * Construct 'TableStyle' from 'TableStyleSpec'
+      -- * Construct Table Styles from an Abstract Specification
     , asciiTableStyleFromSpec
     , roundedAsciiTableStyleFromSpec
     , unicodeTableStyleFromSpec
     , tableStyleFromSpec
 
-      -- ** Construct 'TableStyleSpec'
+      -- ** Construct an Abstract Specifiction
     , TableStyleSpec(..)
     , simpleTableStyleSpec
     , setTableStyleSpecSeparator
 
-      -- * Low-level 'TableStyle' interface
+      -- * Low-Level Styling Facility
     , TableStyle(..)
     ) where
 

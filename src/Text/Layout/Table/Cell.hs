@@ -46,8 +46,8 @@ redistributeAdjustment l r a = CellView (baseCell a) lAdjustment rAdjustment
     lAdjustment = (totalAdjustment a * l) `div` (l + r)
     rAdjustment = totalAdjustment a - lAdjustment
 
--- | Types that can be shortened, measured for visible characters, and turned
--- into a 'StringBuilder'.
+-- | Types that can be measured for visible characters, define a sub-string
+-- operation and turned into a 'StringBuilder'.
 class Cell a where
     -- | Returns the length of the visible characters as displayed on the
     -- output medium.
@@ -136,36 +136,38 @@ buildCellViewLRHelper build trimL trimR =
 -- trimming from the left and right simultaneously.
 --
 -- Used to define instanced of 'Cell'.
-buildCellViewBothHelper :: StringBuilder b
-                        => (a -> b)  -- ^ Builder function for 'a'.
-                        -> (Int -> Int -> a -> a)  -- ^ Function for trimming on the left and right simultaneously.
-                        -> CellView a
-                        -> b
+buildCellViewBothHelper
+    :: StringBuilder b
+    => (a -> b)  -- ^ Builder function for 'a'.
+    -> (Int -> Int -> a -> a)  -- ^ Function for trimming on the left and right simultaneously.
+    -> CellView a
+    -> b
 buildCellViewBothHelper build trimBoth =
     buildCellViewHelper build build build (flip trimBoth 0) (trimBoth 0) trimBoth
 
 -- | Construct 'buildCellView' from builder functions, and trimming functions.
 --
 -- Used to define instances of 'Cell'.
-buildCellViewHelper :: StringBuilder b
-                    => (a -> b)  -- ^ Builder function for 'a'.
-                    -> (a' -> b)  -- ^ Builder function for the result of trimming 'a'.
-                    -> (a'' -> b)  -- ^ Builder function for the result of trimming 'a' twice.
-                    -> (Int -> a -> a')  -- ^ Function for trimming on the left.
-                    -> (Int -> a -> a')  -- ^ Function for trimming on the right.
-                    -> (Int -> Int -> a -> a'')  -- ^ Function for trimming on the left and right simultaneously.
-                    -> CellView a
-                    -> b
-buildCellViewHelper build build' build'' trimL trimR trimBoth (CellView a l r) =
+buildCellViewHelper
+    :: StringBuilder b
+    => (a -> b) -- ^ Builder function for 'a'.
+    -> (trimSingle -> b) -- ^ Builder function for the result of trimming 'a'.
+    -> (trimBoth -> b) -- ^ Builder function for the result of trimming 'a' twice.
+    -> (Int -> a -> trimSingle) -- ^ Function for trimming on the left.
+    -> (Int -> a -> trimSingle) -- ^ Function for trimming on the right.
+    -> (Int -> Int -> a -> trimBoth) -- ^ Function for trimming on the left and right simultaneously.
+    -> CellView a
+    -> b
+buildCellViewHelper build buildSingleTrim buildTrimBoth trimL trimR trimBoth (CellView a l r) =
     case (compare l 0, compare r 0) of
         (GT, GT) -> spacesB l <> build a <> spacesB r
-        (GT, LT) -> spacesB l <> build' (trimR (negate r) a)
+        (GT, LT) -> spacesB l <> buildSingleTrim (trimR (negate r) a)
         (GT, EQ) -> spacesB l <> build a
-        (LT, GT) -> build' (trimL (negate l) a) <> spacesB r
-        (LT, LT) -> build'' $ trimBoth (negate l) (negate r) a
-        (LT, EQ) -> build' $ trimL (negate l) a
+        (LT, GT) -> buildSingleTrim (trimL (negate l) a) <> spacesB r
+        (LT, LT) -> buildTrimBoth $ trimBoth (negate l) (negate r) a
+        (LT, EQ) -> buildSingleTrim $ trimL (negate l) a
         (EQ, GT) -> build a <> spacesB r
-        (EQ, LT) -> build' $ trimR (negate r) a
+        (EQ, LT) -> buildSingleTrim $ trimR (negate r) a
         (EQ, EQ) -> build a
 
 -- | Drop a number of characters from the left side. Treats negative numbers
@@ -182,10 +184,20 @@ dropRight = dropBoth 0
 dropBoth :: Int -> Int -> a -> CellView a
 dropBoth l r = adjustCell (- max 0 l) (- max 0 r)
 
-remSpacesB :: (Cell a, StringBuilder b) => Int -> a -> b
+-- | Creates a 'StringBuilder' with the amount of missing spaces.
+remSpacesB
+    :: (Cell a, StringBuilder b)
+    => Int -- ^ The expected length.
+    -> a -- ^ A cell.
+    -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c
 
-remSpacesB' :: StringBuilder b => Int -> Int -> b
+-- | Creates a 'StringBuilder' with the amount of missing spaces.
+remSpacesB'
+    :: StringBuilder b
+    => Int -- ^ The expected length.
+    -> Int -- ^ The actual length.
+    -> b
 remSpacesB' n k = spacesB $ n - k
 
 -- | Fill the right side with spaces if necessary.
@@ -194,6 +206,7 @@ fillRight n c = fillRight' n (visibleLength c) c
 
 -- | Fill the right side with spaces if necessary. Preconditions that are
 -- required to be met (otherwise the function will produce garbage):
+--
 -- prop> visibleLength c == k
 fillRight' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
 fillRight' n k c = buildCell c <> remSpacesB' n k
@@ -204,6 +217,7 @@ fillCenter n c = fillCenter' n (visibleLength c) c
 
 -- | Fill both sides with spaces if necessary. Preconditions that are
 -- required to be met (otherwise the function will produce garbage):
+--
 -- prop> visibleLength c == k
 fillCenter' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
 fillCenter' n k c = spacesB q <> buildCell c <> spacesB (q + r)
@@ -217,6 +231,7 @@ fillLeft n c = fillLeft' n (visibleLength c) c
 
 -- | Fill the left side with spaces if necessary. Preconditions that are
 -- required to be met (otherwise the function will produce garbage):
+--
 -- prop> visibleLength c == k
 fillLeft' :: (Cell a, StringBuilder b) => Int -> Int -> a -> b
 fillLeft' n k c = remSpacesB' n k <> buildCell c
@@ -229,8 +244,9 @@ pad :: (Cell a, StringBuilder b) => Position o -> Int -> a -> b
 pad p n c = pad' p n (visibleLength c) c
 
 -- | Pads the given cell accordingly using the position specification.
--- Preconditions that require to be met (otherwise the function will produce
--- garbage):
+-- Preconditions that are required to be met (otherwise the function will
+-- produce garbage):
+--
 -- prop> visibleLength c == k
 pad' :: (Cell a, StringBuilder b) => Position o -> Int -> Int -> a -> b
 pad' p n k = case p of
@@ -293,6 +309,7 @@ trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
 -- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 --
 -- Preconditions that require to be met (otherwise the function will produce garbage):
+--
 -- prop> visibleLength c > n
 -- prop> visibleLength c == k
 trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b

@@ -7,7 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 module Text.Layout.Table
-    ( -- * Layout combinators
+    ( -- * Column Layout
       -- | Specify how a column is rendered with the combinators in this
       -- section. Sensible default values are provided with 'def'.
 
@@ -20,34 +20,35 @@ module Text.Layout.Table
     , fixedCol
     , fixedLeftCol
     , defColSpec
-      -- ** Length of columns
+      -- ** Length of Columns
     , LenSpec
     , expand
     , fixed
     , expandUntil
     , fixedUntil
     , expandBetween
-      -- ** Positional alignment
+      -- ** Positional Alignment
     , Position
     , H
     , left
     , right
     , center
     , beginning
-      -- ** Alignment of cells at characters
+      -- ** Alignment of Cells at Characters
     , AlignSpec
     , noAlign
     , charAlign
     , predAlign
     , dotAlign
-      -- ** Cut marks
+      -- ** Cut Marks
     , CutMark
     , noCutMark
     , singleCutMark
     , doubleCutMark
     , ellipsisCutMark
 
-      -- * Basic grid layout
+      -- * Grids
+      -- ** Rendering
     , Row
     , grid
     , gridB
@@ -56,21 +57,44 @@ module Text.Layout.Table
     , gridLinesB
     , gridString
     , gridStringB
+
+      -- ** Concatenating
     , concatRow
     , concatLines
     , concatGrid
 
-      -- * Grid modification functions
+      -- ** Modification Functions
     , altLines
     , checkeredCells
 
-      -- * Table layout
-      -- ** Grouping rows
+      -- * Tables
+      -- ** Grouping Rows
+      -- | Rows in character-based tables are separated by separator lines.
+      -- This section provides the tools to decide when this separation is
+      -- happening.  Thus, several text rows may be in the same row of the
+      -- table.
     , RowGroup
     , rowsG
     , rowG
+
+    -- *** Columns as Row Groups
+    -- | [Text justification](#text) may be used to turn text into
+    -- length-limited columns. Such columns may be turned into a 'RowGroup'
+    -- with 'colsG' or 'colsAllG'.
     , colsG
     , colsAllG
+
+      -- ** Specifying Tables
+      -- | The most basic `TableSpec` may be constructed by using `simpleTableS`.
+    , module Text.Layout.Table.Spec.TableSpec
+
+      -- ** Rendering
+      -- | Render a 'TableSpec'.
+    , tableLines
+    , tableLinesB
+    , tableLinesBWithCMIs
+    , tableString
+    , tableStringB
 
       -- ** Headers
     , HeaderColSpec
@@ -84,38 +108,30 @@ module Text.Layout.Table
     , groupH
     , headerH
     , defHeaderColSpec
-    , zipHeader
-    , flattenHeader
-    , headerContents
 
-      -- ** Specifying tables
-    , module Text.Layout.Table.Spec.TableSpec
-
-      -- ** Layout
-    , tableLines
-    , tableLinesB
-    , tableLinesBWithCMIs
-    , tableString
-    , tableStringB
-
-      -- * Text justification
-      -- $justify
-    , justify
-    , justifyText
-
-      -- * Vertical column positioning
-    , Col
-    , colsAsRowsAll
-    , colsAsRows
-    , top
-    , bottom
-    , V
-
-      -- * Table styles
+      -- ** Styles
     , module Text.Layout.Table.Style
     , module Text.Layout.Table.LineStyle
 
-      -- * Column modification functions
+
+      -- * Multi-Row Cell Rendering
+      -- ** Text Justification
+      -- | #text# Split text and turn it into a column.  Such columns may be
+      -- combined with other columns.
+    , justify
+    , justifyText
+
+      -- ** Vertical Column Positioning
+      -- | Turn rows of columns into a grid by aligning the columns.
+    , V
+    , top
+    , bottom
+    , Col
+    , colsAsRowsAll
+    , colsAsRows
+
+      -- * Custom Layout Generation
+      -- ** Column Modification Functions
     , pad
     , trim
     , trimOrPad
@@ -124,7 +140,7 @@ module Text.Layout.Table
     , alignFixed
     , adjustCell
 
-      -- * Column modifaction primitives
+      -- ** Column Modifaction Primitives
       -- | These functions are provided to be reused. For example if someone
       -- wants to render their own kind of tables.
     , ColModInfo
@@ -138,10 +154,14 @@ module Text.Layout.Table
     , deriveColModInfos
     , deriveAlignInfo
     , OccSpec
+
+      -- ** Table Headers
+    , zipHeader
+    , flattenHeader
+    , headerContents
     ) where
 
 -- TODO AlignSpec:   multiple alignment points - useful?
--- TODO RowGroup:    optional: vertical group labels
 -- TODO RowGroup:    optional: provide extra layout for a RowGroup
 -- TODO ColSpec:     add some kind of combinator to construct ColSpec values (e.g. via Monoid, see optparse-applicative)
 
@@ -211,24 +231,23 @@ gridBWithCMIs specs tab = (zipWith4 columnModifier positions cms cMIs <$> tab, c
     positions = map position specs
     cms = map cutMark specs
 
--- | A version of 'gridB' specialised to produce 'String's.
+-- | A version of 'gridB' specialized to 'String'.
 grid :: Cell a => [ColSpec] -> [Row a] -> [Row String]
 grid = gridB
 
--- | Behaves like 'grid' but produces lines by joining with whitespace.
+-- | A version of 'gridB' that joins the cells of a row with one space.
 gridLinesB :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> [b]
-gridLinesB specs = fmap (mconcat . intersperse (charB ' ')). gridB specs
+gridLinesB specs = fmap (concatRow 1). gridB specs
 
--- | A version of 'gridLinesB' specialised to produce 'String's.
+-- | A version of 'gridLinesB' specialized to 'String'.
 gridLines :: Cell a => [ColSpec] -> [Row a] -> [String]
 gridLines = gridLinesB
 
--- | Behaves like 'gridLines' but produces a string by joining with the newline
--- character.
+-- | A version of 'gridLinesB' that also concatenates the lines.
 gridStringB :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> b
 gridStringB specs = concatLines . gridLinesB specs
 
--- | A version of 'gridStringB' specialised to produce 'String's.
+-- | A version of 'gridStringB' specialized to 'String'.
 gridString :: Cell a => [ColSpec] -> [Row a] -> String
 gridString = gridStringB
 
@@ -243,6 +262,8 @@ concatRow
     -> b
 concatRow n bs = mconcat $ intersperse (replicateCharB n ' ') bs
 
+-- | Concatenates a whole grid with the given amount of horizontal spaces
+-- between columns.
 concatGrid :: StringBuilder b => Int -> [Row b] -> b
 concatGrid n = concatLines . fmap (concatRow n)
 
@@ -271,21 +292,21 @@ colsG :: [Position V] -> [Col a] -> RowGroup a
 colsG ps = nullableRowsG . colsAsRows ps
 
 -- | Create a 'RowGroup' by aligning the columns vertically. Each column uses
--- the same vertical positioning.
+-- the same position.
 colsAllG :: Position V -> [Col a] -> RowGroup a
 colsAllG p = nullableRowsG . colsAsRowsAll p
 
--- | Layouts a pretty table with an optional header. Note that providing fewer
--- layout specifications than columns or vice versa will result in not showing
--- the redundant ones.
+-- | Renders a table as 'StringBuilder' lines. Note that providing fewer layout
+-- specifications than columns or vice versa will result in not showing the
+-- redundant ones.
 tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
             => TableSpec rowSep colSep r c a
             -> [b]
 tableLinesB = fst . tableLinesBWithCMIs
 
--- | Layouts a pretty table with an optional header. Note that providing fewer
--- layout specifications than columns or vice versa will result in not showing
--- the redundant ones.
+-- | Renders a table as 'StringBuilder' lines, providing the 'ColModInfo' for
+-- each column. Note that providing fewer layout specifications than columns or
+-- vice versa will result in not showing the redundant ones.
 tableLinesBWithCMIs :: forall rowSep r colSep c a b.
                        (Cell a, Cell r, Cell c, StringBuilder b)
                     => TableSpec rowSep colSep r c a
@@ -430,28 +451,21 @@ tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
         header cMI = fmap Just $ headerCellModifier hSpec noCutMark cMI r : repeat (emptyFromCMI cMI)
     applyRowMods (_, grp) = map (Nothing,) $ rowBody grp
 
--- | A version of 'tableLinesB' specialised to produce 'String's.
+-- | A version of 'tableLinesB' specialized to 'String'.
 tableLines :: (Cell a, Cell r, Cell c)
            => TableSpec rowSep colSep r c a
            -> [String]
 tableLines = tableLinesB
 
--- | Does the same as 'tableLines', but concatenates lines.
+-- | A version of 'tableLinesB' that also concatenates the lines.
 tableStringB :: (Cell a, Cell r, Cell c, StringBuilder b)
              => TableSpec rowSep colSep r c a
              -> b
 tableStringB = concatLines . tableLinesB
 
--- | A version of 'tableStringB' specialised to produce 'String's.
+-- | A version of 'tableStringB' specialized to 'String'.
 tableString :: (Cell a, Cell r, Cell c)
             => TableSpec rowSep colSep r c a
             -> String
 tableString = tableStringB
 
--------------------------------------------------------------------------------
--- Text justification
--------------------------------------------------------------------------------
-
--- $justify
--- Text can easily be justified and distributed over multiple lines. Such
--- columns can be combined with other columns.

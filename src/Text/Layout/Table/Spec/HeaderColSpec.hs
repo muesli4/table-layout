@@ -8,9 +8,9 @@ import Text.Layout.Table.Spec.CutMark
 -- | Specifies how a header is rendered.
 data HeaderColSpec = HeaderColSpec (Position H) (Maybe CutMark)
 
--- | Smart constructor for 'HeaderColSpec'. By omitting the cut mark it will use
--- the one specified in the 'Text.Layout.Primitives.Column.ColSpec' like the
--- other cells in that column.
+-- | Smart constructor for 'HeaderColSpec'. By omitting the cut mark, it will
+-- use the one specified in the 'Text.Layout.Primitives.Column.ColSpec' like
+-- the other cells in that column.
 headerColumn :: Position H -> Maybe CutMark -> HeaderColSpec
 headerColumn = HeaderColSpec
 
