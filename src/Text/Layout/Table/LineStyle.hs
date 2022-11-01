@@ -1,12 +1,12 @@
 module Text.Layout.Table.LineStyle
-    ( -- * Line styling
+    ( -- * Line Styling
       LineStyle(..)
     , makeLineBold
     , makeLineLight
     , makeLineDashed
     , makeLineSolid
 
-      -- * ASCII lines and joins
+      -- * ASCII Lines and Joins
     , asciiHorizontal
     , asciiVertical
     , asciiJoinString
@@ -14,7 +14,7 @@ module Text.Layout.Table.LineStyle
     , roundedAsciiJoinString
     , roundedAsciiJoinString4
 
-      -- * Unicode lines and joins
+      -- * Unicode Lines and Joins
     , unicodeHorizontal
     , unicodeVertical
     , unicodeJoinString

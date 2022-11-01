@@ -8,6 +8,9 @@
 -- Hello World!
 --
 -- The text then appears in dull red.
+--
+-- More complex nested formatting can be achieved by using the `Monoid`
+-- instance.
 module Text.Layout.Table.Cell.Formatted
     ( Formatted
     , plain

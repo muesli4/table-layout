@@ -11,8 +11,9 @@ module Text.Layout.Table.Spec.CutMark
 
 import Data.Default.Class
 
--- | Specifies how the place looks where a 'String' has been cut. Note that the
--- cut mark may be cut itself to fit into a column.
+-- | Specifies a cut mark that is used whenever content is cut to fit into a
+-- cell.  If the cut mark itself is too small to fit into a cell it may be cut
+-- as well.
 data CutMark
     = CutMark
     { leftMark  :: String
@@ -36,7 +37,7 @@ doubleCutMark = CutMark
 singleCutMark :: String -> CutMark
 singleCutMark l = doubleCutMark l (reverse l)
 
--- | Don't show any cut mark when text is cut.
+-- | Do not show any cut mark when content is cut.
 noCutMark :: CutMark
 noCutMark = singleCutMark ""
 

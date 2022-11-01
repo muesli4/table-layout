@@ -19,7 +19,7 @@ data AlignSpec
 instance Default AlignSpec where
     def = noAlign
 
--- | Don't align text.
+-- | Do not align text.
 noAlign :: AlignSpec
 noAlign = NoAlign
 
@@ -27,7 +27,7 @@ noAlign = NoAlign
 occSpecAlign :: OccSpec -> AlignSpec
 occSpecAlign = AlignOcc
 
--- | Align at the first match of a predicate.
+-- | Align text at the first match of a predicate.
 predAlign :: (Char -> Bool) -> AlignSpec
 predAlign = occSpecAlign . predOccSpec
 
