@@ -20,6 +20,7 @@ import Text.Layout.Table.Spec.AlignSpec
 import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Spec.Position
+import Text.Layout.Table.Spec.RowGroup
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
@@ -331,6 +332,35 @@ spec = do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropLeft n . WideText $ T.pack x) `shouldBe` (buildCell . dropLeft n $ WideString x :: String)
         describe "dropRight" $ do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropRight n . WideText $ T.pack x) `shouldBe` (buildCell . dropRight n $ WideString x :: String)
+
+    describe "row groups" $ do
+        describe "rowGroupShape" $ do
+            it "multi" $ rowGroupShape (MultiRowGroup [[0, 1], [2, 3]]) `shouldBe` [(), ()]
+            it "multi only first row 1" $ rowGroupShape (MultiRowGroup [[0, 1], [2, 3, 4]]) `shouldBe` [(), ()]
+            it "multi only first row 2" $ rowGroupShape (MultiRowGroup [[0, 1], []]) `shouldBe` [(), ()]
+            it "multi empty" $ rowGroupShape (MultiRowGroup []) `shouldBe` []
+            it "singleton empty" $ rowGroupShape (SingletonRowGroup []) `shouldBe` []
+            it "singleton" $ rowGroupShape (SingletonRowGroup [1, 2]) `shouldBe` [(), ()]
+            it "nullable empty" $ rowGroupShape (NullableRowGroup []) `shouldBe` []
+            it "nullable one element" $ rowGroupShape (NullableRowGroup [[Just 4]]) `shouldBe` [()]
+            it "nullable but no null" $ rowGroupShape (NullableRowGroup [[Just 1, Just 2]]) `shouldBe` [(), ()]
+            it "nullable mixed" $ rowGroupShape (NullableRowGroup [[Just 1, Nothing, Nothing]]) `shouldBe` [(), (), ()]
+
+        let rgs = [rg1, rg2, rg3] :: [RowGroup Int]
+            rg1 = MultiRowGroup [[0, 1, 2], [3, 4, 5]]
+            rg2 = SingletonRowGroup [6, 7, 8]
+            rg3 = NullableRowGroup [[Nothing, Just 9, Nothing]]
+        it "transposeRowGroups" $
+            transposeRowGroups rgs `shouldBe` [ SegmentedColumn [ColumnSegment [0, 3], SingleValueSegment 6, NullableColumnSegment [Nothing]]
+                                              , SegmentedColumn [ColumnSegment [1, 4], SingleValueSegment 7, NullableColumnSegment [Just 9]]
+                                              , SegmentedColumn [ColumnSegment [2, 5], SingleValueSegment 8, NullableColumnSegment [Nothing]]
+                                              ]
+        describe "mapRowGroupColumns" $ do
+            let mappers = [(negate 1, (+ 1)), (0, (* 2)), (negate 2, (`div` 2))]
+            it "multi" $ mapRowGroupColumns mappers rg1 `shouldBe` [[1, 2, 1], [4, 8, 2]]
+            it "singleton" $ mapRowGroupColumns mappers rg2 `shouldBe` [[7, 14, 4]]
+            it "nullable" $ mapRowGroupColumns mappers rg3 `shouldBe` [[negate 1, 18, negate 2]]
+
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"

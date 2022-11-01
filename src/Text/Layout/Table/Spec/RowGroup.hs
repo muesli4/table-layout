@@ -40,9 +40,9 @@ data ColumnSegment a
     = SingleValueSegment a
     | ColumnSegment (Col a)
     | NullableColumnSegment (Col (Maybe a))
-    deriving (Functor, Foldable, Show)
+    deriving (Functor, Foldable, Eq, Show)
 
-newtype SegmentedColumn a = SegmentedColumn [ColumnSegment a] deriving (Functor, Foldable, Show)
+newtype SegmentedColumn a = SegmentedColumn [ColumnSegment a] deriving (Functor, Foldable, Eq, Show)
 
 -- | Break down several 'RowGroups', which conceptually form a column by
 -- themselves, into a list of columns.
