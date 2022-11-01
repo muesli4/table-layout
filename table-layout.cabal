@@ -79,6 +79,7 @@ library
                        Text.Layout.Table.Spec.OccSpec,
                        Text.Layout.Table.Spec.Position,
                        Text.Layout.Table.Spec.RowGroup,
+                       Text.Layout.Table.Spec.TableSpec,
                        Text.Layout.Table.Spec.Util
   other-modules:
 
@@ -133,6 +134,7 @@ executable table-layout-test-styles
                        Text.Layout.Table.Spec.OccSpec,
                        Text.Layout.Table.Spec.Position,
                        Text.Layout.Table.Spec.RowGroup,
+                       Text.Layout.Table.Spec.TableSpec,
                        Text.Layout.Table.Spec.Util
 
   default-language:    Haskell2010
@@ -177,6 +179,7 @@ test-suite table-layout-tests
                        Text.Layout.Table.Spec.OccSpec,
                        Text.Layout.Table.Spec.Position,
                        Text.Layout.Table.Spec.RowGroup,
+                       Text.Layout.Table.Spec.TableSpec,
                        Text.Layout.Table.Spec.Util
 
   default-language:    Haskell2010
