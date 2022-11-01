@@ -28,7 +28,8 @@ instance Bifunctor HeaderSpec where
 instance Default sep => Default (HeaderSpec sep a) where
     def = defHeaderSpec
 
--- | The default 'HeaderSpec' does not display the header and uses the default separator.
+-- | The default 'HeaderSpec' does not display the header and uses the default
+-- separator.
 defHeaderSpec :: Default sep => HeaderSpec sep a
 defHeaderSpec = NoneHS def
 
@@ -40,11 +41,13 @@ noneSepH = NoneHS
 noneH :: Default sep => HeaderSpec sep String
 noneH = noneSepH def
 
--- | Specify a header column for every title, with a given separator.
+-- | Specify every header column in detail and separate them by the given
+-- separator.
 fullSepH :: sep -> [HeaderColSpec] -> [a] -> HeaderSpec sep a
 fullSepH sep specs = GroupHS sep . zipWith HeaderHS specs
 
--- | Specify a header column for every title, with a default separator.
+-- | Specify every header column in detail and separate them with the default
+-- separator.
 fullH :: Default sep => [HeaderColSpec] -> [a] -> HeaderSpec sep a
 fullH = fullSepH def
 
@@ -52,11 +55,12 @@ fullH = fullSepH def
 titlesH :: Default sep => [a] -> HeaderSpec sep a
 titlesH = fullH (repeat defHeaderColSpec)
 
--- | Use titles with the default header column specification.
+-- | Combine the header specification for multiple columns by separating the
+-- columns with a specific separator.
 groupH :: sep -> [HeaderSpec sep a] -> HeaderSpec sep a
 groupH = GroupHS
 
--- | Use titles with the default header column specification.
+-- | Specify the header for a single column.
 headerH :: HeaderColSpec -> a -> HeaderSpec sep a
 headerH = HeaderHS
 
