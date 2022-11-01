@@ -9,15 +9,15 @@ import Text.Layout.Table.Spec.RowGroup
 import Text.Layout.Table.Style
 
 -- | Type used to specify tables.
-data TableSpec hSep vSep r c a
+data TableSpec rowSep colSep r c a
     = TableSpec
     { colSpecs :: [ColSpec]
     -- ^ Layout specification of the columns
-    , tableStyle :: TableStyle hSep vSep
+    , tableStyle :: TableStyle rowSep colSep
     -- ^ The style of the table
-    , rowHeader :: HeaderSpec hSep r
+    , rowHeader :: HeaderSpec rowSep r
     -- ^ Specification of the row header
-    , colHeader :: HeaderSpec vSep c
+    , colHeader :: HeaderSpec colSep c
     -- ^ Specification of the column header
     , rowGroups :: [RowGroup a]
     -- ^ A list of visually separated rows
@@ -25,19 +25,19 @@ data TableSpec hSep vSep r c a
 
 -- | Specify a table with the style and the row groups.
 simpleTableS
-    :: (Default hSep, Default vSep)
-    => TableStyle hSep vSep
+    :: (Default rowSep, Default colSep)
+    => TableStyle rowSep colSep
     -> [RowGroup a]
-    -> TableSpec hSep vSep String String a
+    -> TableSpec rowSep colSep String String a
 simpleTableS = headerlessTableS $ repeat defColSpec
 
 -- | Specify a table with the columns, the style, and the row groups.
 headerlessTableS
-    :: (Default hSep, Default vSep)
+    :: (Default rowSep, Default colSep)
     => [ColSpec]
-    -> TableStyle hSep vSep
+    -> TableStyle rowSep colSep
     -> [RowGroup a]
-    -> TableSpec hSep vSep String String a
+    -> TableSpec rowSep colSep String String a
 headerlessTableS colSpecs tableStyle rowGroups = TableSpec { .. }
   where
     rowHeader = noneH
@@ -45,12 +45,12 @@ headerlessTableS colSpecs tableStyle rowGroups = TableSpec { .. }
 
 -- | Specify a table without a row header.
 columnHeaderTableS
-    :: Default hSep
+    :: Default rowSep
     => [ColSpec]
-    -> TableStyle hSep vSep
-    -> HeaderSpec vSep c
+    -> TableStyle rowSep colSep
+    -> HeaderSpec colSep c
     -> [RowGroup a]
-    -> TableSpec hSep vSep String c a
+    -> TableSpec rowSep colSep String c a
 columnHeaderTableS colSpecs tableStyle colHeader rowGroups = TableSpec { .. }
   where
     rowHeader = noneH
@@ -58,9 +58,9 @@ columnHeaderTableS colSpecs tableStyle colHeader rowGroups = TableSpec { .. }
 -- | Specify a table with everything.
 fullTableS
     :: [ColSpec]
-    -> TableStyle hSep vSep
-    -> HeaderSpec hSep r
-    -> HeaderSpec vSep c
+    -> TableStyle rowSep colSep
+    -> HeaderSpec rowSep r
+    -> HeaderSpec colSep c
     -> [RowGroup a]
-    -> TableSpec hSep vSep r c a
+    -> TableSpec rowSep colSep r c a
 fullTableS = TableSpec

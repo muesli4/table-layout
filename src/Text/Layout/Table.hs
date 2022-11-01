@@ -279,16 +279,16 @@ colsAllG p = nullableRowsG . colsAsRowsAll p
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
 tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
-            => TableSpec hSep vSep r c a
+            => TableSpec rowSep colSep r c a
             -> [b]
 tableLinesB = fst . tableLinesBWithCMIs
 
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
-tableLinesBWithCMIs :: forall hSep r vSep c a b.
+tableLinesBWithCMIs :: forall rowSep r colSep c a b.
                        (Cell a, Cell r, Cell c, StringBuilder b)
-                    => TableSpec hSep vSep r c a
+                    => TableSpec rowSep colSep r c a
                     -> ([b], [ColModInfo])
 tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
     ( maybe id (:) optTopLine . addColHeader $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
@@ -316,11 +316,11 @@ tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
     flattenWithContent h            _            r = flattenHeader . fmap fst $ zipHeader mempty r h
 
     -- | Intersperse a row with its rendered separators.
-    withRowSeparators :: (hSep -> Maybe b) -> [Row b] -> [Either (Maybe b) (Row b)]
+    withRowSeparators :: (rowSep -> Maybe b) -> [Row b] -> [Either (Maybe b) (Row b)]
     withRowSeparators renderDelimiter = map (first renderDelimiter) . flattenWithContent rowHeader rowGroups
 
     -- | Intersperse a column with its rendered separators, including an optional row header.
-    withColSeparators :: (vSep -> String) -> (Maybe b, Row b) -> (Maybe b, Row (Either String b))
+    withColSeparators :: (colSep -> String) -> (Maybe b, Row b) -> (Maybe b, Row (Either String b))
     withColSeparators renderDelimiter = second renderRow
       where
         renderRow = map (first renderIfDrawn) . flattenWithContent colHeader columns
@@ -432,19 +432,19 @@ tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
 
 -- | A version of 'tableLinesB' specialised to produce 'String's.
 tableLines :: (Cell a, Cell r, Cell c)
-           => TableSpec hSep vSep r c a
+           => TableSpec rowSep colSep r c a
            -> [String]
 tableLines = tableLinesB
 
 -- | Does the same as 'tableLines', but concatenates lines.
 tableStringB :: (Cell a, Cell r, Cell c, StringBuilder b)
-             => TableSpec hSep vSep r c a
+             => TableSpec rowSep colSep r c a
              -> b
 tableStringB = concatLines . tableLinesB
 
 -- | A version of 'tableStringB' specialised to produce 'String's.
 tableString :: (Cell a, Cell r, Cell c)
-            => TableSpec hSep vSep r c a
+            => TableSpec rowSep colSep r c a
             -> String
 tableString = tableStringB
 
