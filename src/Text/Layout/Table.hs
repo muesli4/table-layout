@@ -88,6 +88,9 @@ module Text.Layout.Table
     , flattenHeader
     , headerContents
 
+      -- ** Specifying tables
+    , module Text.Layout.Table.Spec.TableSpec
+
       -- ** Layout
     , tableLines
     , tableLinesB
@@ -164,6 +167,7 @@ import           Text.Layout.Table.Spec.LenSpec
 import           Text.Layout.Table.Spec.OccSpec
 import           Text.Layout.Table.Spec.Position
 import           Text.Layout.Table.Spec.RowGroup
+import           Text.Layout.Table.Spec.TableSpec
 import           Text.Layout.Table.Spec.Util
 import           Text.Layout.Table.StringBuilder
 import           Text.Layout.Table.Style
@@ -275,27 +279,18 @@ colsAllG p = nullableRowsG . colsAsRowsAll p
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
 tableLinesB :: (Cell a, Cell r, Cell c, StringBuilder b)
-            => [ColSpec]             -- ^ Layout specification of columns
-            -> TableStyle hSep vSep  -- ^ Visual table style
-            -> HeaderSpec hSep r     -- ^ Optional row header details
-            -> HeaderSpec vSep c     -- ^ Optional column header details
-            -> [RowGroup a]          -- ^ Rows which form a cell together
+            => TableSpec hSep vSep r c a
             -> [b]
-tableLinesB specs style rowHeader colHeader =
-    fst . tableLinesBWithCMIs specs style rowHeader colHeader
+tableLinesB = fst . tableLinesBWithCMIs
 
 -- | Layouts a pretty table with an optional header. Note that providing fewer
 -- layout specifications than columns or vice versa will result in not showing
 -- the redundant ones.
 tableLinesBWithCMIs :: forall hSep r vSep c a b.
                        (Cell a, Cell r, Cell c, StringBuilder b)
-                    => [ColSpec]             -- ^ Layout specification of columns
-                    -> TableStyle hSep vSep  -- ^ Visual table style
-                    -> HeaderSpec hSep r     -- ^ Optional row header details
-                    -> HeaderSpec vSep c     -- ^ Optional column header details
-                    -> [RowGroup a]          -- ^ Rows which form a cell together
+                    => TableSpec hSep vSep r c a
                     -> ([b], [ColModInfo])
-tableLinesBWithCMIs specs TableStyle { .. } rowHeader colHeader rowGroups =
+tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
     ( maybe id (:) optTopLine . addColHeader $ maybe id (\b -> (++[b])) optBottomLine rowGroupLines
     , cMIs
     )
@@ -418,9 +413,9 @@ tableLinesBWithCMIs specs TableStyle { .. } rowHeader colHeader rowGroups =
 
     emptyFromCMI = spacesB . widthCMI
 
-    cMSs      = map cutMark specs
-    posSpecs  = map position specs
-    cMIs      = fitHeaderIntoCMIs $ deriveColModInfosFromColumns' specs $ transposeRowGroups rowGroups
+    cMSs      = map cutMark colSpecs
+    posSpecs  = map position colSpecs
+    cMIs      = fitHeaderIntoCMIs $ deriveColModInfosFromColumns' colSpecs $ transposeRowGroups rowGroups
     rowMods   = zipWith3 (\p cm cmi -> (emptyFromCMI cmi, columnModifier p cm cmi)) posSpecs cMSs cMIs
 
     rowBody :: RowGroup a -> [[b]]
@@ -435,35 +430,21 @@ tableLinesBWithCMIs specs TableStyle { .. } rowHeader colHeader rowGroups =
         header cMI = fmap Just $ headerCellModifier hSpec noCutMark cMI r : repeat (emptyFromCMI cMI)
     applyRowMods (_, grp) = map (Nothing,) $ rowBody grp
 
-
 -- | A version of 'tableLinesB' specialised to produce 'String's.
 tableLines :: (Cell a, Cell r, Cell c)
-           => [ColSpec]
-           -> TableStyle hSep vSep
-           -> HeaderSpec hSep r
-           -> HeaderSpec vSep c
-           -> [RowGroup a]
+           => TableSpec hSep vSep r c a
            -> [String]
 tableLines = tableLinesB
 
 -- | Does the same as 'tableLines', but concatenates lines.
 tableStringB :: (Cell a, Cell r, Cell c, StringBuilder b)
-             => [ColSpec]             -- ^ Layout specification of columns
-             -> TableStyle hSep vSep  -- ^ Visual table style
-             -> HeaderSpec hSep r     -- ^ Optional row header details
-             -> HeaderSpec vSep c     -- ^ Optional column header details
-             -> [RowGroup a]          -- ^ Rows which form a cell together
+             => TableSpec hSep vSep r c a
              -> b
-tableStringB specs style rowHeader colHeader rowGroups =
-    concatLines $ tableLinesB specs style rowHeader colHeader rowGroups
+tableStringB = concatLines . tableLinesB
 
 -- | A version of 'tableStringB' specialised to produce 'String's.
 tableString :: (Cell a, Cell r, Cell c)
-            => [ColSpec]
-            -> TableStyle hSep vSep
-            -> HeaderSpec hSep r
-            -> HeaderSpec vSep c
-            -> [RowGroup a]
+            => TableSpec hSep vSep r c a
             -> String
 tableString = tableStringB
 

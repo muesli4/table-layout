@@ -12,37 +12,38 @@ inheritMyStyle = inheritStyleHeaderGroup makeLineSolid id (fst . style) (snd . s
     style TinySep  = (SingleLine, NoLine)
 
 main :: IO ()
-main = putStrLn $ tableString [ column (expandUntil 30) left (charAlign ':') ellipsisCutMark
-                              , column expand center noAlign noCutMark
-                              ]
-                              unicodeRoundS
-                              noneH
-                              (titlesH ["Layout", "Result"])
-                              rowGroups
+main = putStrLn $ tableString $ columnHeaderTableS
+                                [ column (expandUntil 30) left (charAlign ':') ellipsisCutMark
+                                , column expand center noAlign noCutMark
+                                ]
+                                unicodeRoundS
+                                (titlesH ["Layout", "Result"])
+                                rowGroups
   where
     rowGroups    = flip concatMap styles $ \style ->
         flip map columTs $ \(cSpec, is) ->
             colsAllG center [ is
                             , genTable cSpec style
                             ]
-    genTable c s = tableLines (repeat c)
-                              s
-                              (fullSepH DashLine (repeat $ headerColumn right Nothing) ["1", "Two"])
-                              (groupH BigSep
-                                  [ fullSepH SmallSep (repeat defHeaderColSpec) ["Some text", "Some numbers", "X"]
-                                  , groupH SmallSep
-                                      [ fullSepH TinySep (repeat defHeaderColSpec) ["Z", "W"]
-                                      , fullSepH TinySep (repeat defHeaderColSpec) ["A", "B"]
-                                      ]
-                                  , fullSepH TinySep  (repeat defHeaderColSpec) ["Text", "Y"]
-                                  ]
-                              )
-                              [ rowsG [ [longText, smallNum, "foo", "blah", "bloo", "blop", "blog", shortText, "baz"]
-                                      , [shortText, bigNum, "bar", "yadda", "yoda", "yeeda", "york", shortText, "wibble"]
-                                      ]
-                              , rowsG [ [longText, smallNum, "foo", "bibbidy", "babbidy", "boo", "blue", shortText, "wobble" ]
-                                      ]
-                              ]
+    genTable c s = tableLines $ fullTableS
+                                (repeat c)
+                                s
+                                (fullSepH DashLine (repeat $ headerColumn right Nothing) ["1", "Two"])
+                                (groupH BigSep
+                                    [ fullSepH SmallSep (repeat defHeaderColSpec) ["Some text", "Some numbers", "X"]
+                                    , groupH SmallSep
+                                        [ fullSepH TinySep (repeat defHeaderColSpec) ["Z", "W"]
+                                        , fullSepH TinySep (repeat defHeaderColSpec) ["A", "B"]
+                                        ]
+                                    , fullSepH TinySep  (repeat defHeaderColSpec) ["Text", "Y"]
+                                    ]
+                                )
+                                [ rowsG [ [longText, smallNum, "foo", "blah", "bloo", "blop", "blog", shortText, "baz"]
+                                        , [shortText, bigNum, "bar", "yadda", "yoda", "yeeda", "york", shortText, "wibble"]
+                                        ]
+                                , rowsG [ [longText, smallNum, "foo", "bibbidy", "babbidy", "boo", "blue", shortText, "wobble" ]
+                                        ]
+                                ]
     longText  = "This is long text"
     shortText = "Short"
     bigNum    = "200300400500600.2"
