@@ -46,7 +46,7 @@ pandocPipeTableLines specs h tab =
     fmap (intercalate "|" . ("" :) . (++ [""])) $ consHeaderRow . (vSeparators :) $ zipWith ($) cmfs <$> tab
   where
     cmfs = zipWith (\spec cmi -> columnModifier (position spec) (cutMark spec) cmi) specs cmis
-    cmis = zipWith (ensureWidthCMI 2) posSpecs $ fitHeaderIntoCMIs $ deriveColModInfos' specs tab
+    cmis = zipWith (ensureWidthCMI 2) posSpecs $ fitHeaderIntoCMIs $ deriveColModInfosFromGrid specs tab
 
     posSpecs = fmap position specs
 

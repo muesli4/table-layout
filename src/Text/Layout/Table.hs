@@ -151,7 +151,8 @@ module Text.Layout.Table
     , columnModifier
     , AlignInfo
     , widthAI
-    , deriveColModInfos
+    , deriveColModInfosFromGrid
+    , deriveColModInfosFromColumns
     , deriveAlignInfo
     , OccSpec
 
@@ -227,7 +228,7 @@ gridB specs = fst . gridBWithCMIs specs
 gridBWithCMIs :: (Cell a, StringBuilder b) => [ColSpec] -> [Row a] -> ([Row b], [ColModInfo])
 gridBWithCMIs specs tab = (zipWith4 columnModifier positions cms cMIs <$> tab, cMIs)
   where
-    cMIs = deriveColModInfos' specs tab
+    cMIs = deriveColModInfosFromGrid specs tab
     positions = map position specs
     cms = map cutMark specs
 
@@ -391,7 +392,7 @@ tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
         _ ->
             let attachRowHeader grps = map (\(hSpec, (grp, r)) -> (Just (hSpec, r), grp))
                                      . headerContents $ zipHeader (rowG []) grps rowHeader
-                singleColCMI = listToMaybe . deriveColModInfos [(expand, noAlign)] . map pure
+                singleColCMI = Just . deriveColModInfoFromColumnLA (expand, noAlign)
             in
             ( attachRowHeader
             , singleColCMI . map snd $ headerContents rowHeader
@@ -436,7 +437,7 @@ tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
 
     cMSs      = map cutMark colSpecs
     posSpecs  = map position colSpecs
-    cMIs      = fitHeaderIntoCMIs $ deriveColModInfosFromColumns' colSpecs $ transposeRowGroups rowGroups
+    cMIs      = fitHeaderIntoCMIs $ deriveColModInfosFromColumns colSpecs $ transposeRowGroups rowGroups
     rowMods   = zipWith3 (\p cm cmi -> (emptyFromCMI cmi, columnModifier p cm cmi)) posSpecs cMSs cMIs
 
     rowBody :: RowGroup a -> [[b]]
