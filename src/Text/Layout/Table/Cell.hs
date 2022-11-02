@@ -260,16 +260,33 @@ trimOrPad p cm n c = case compare k n of
   where
     k = visibleLength c
 
--- | If the given text is longer than the second 'Int' argument, it will be
--- trimmed to that length according to the position specification. Adds cut
--- marks to indicate that the column has been trimmed in length. Otherwise, if
--- it is shorter than the first 'Int' argument, it will be padded to that
--- length.
+-- | If the given text is too long, it will be trimmed to length `upper`
+-- according to the position specification, and cut marks will be added to
+-- indicate that the column has been trimmed in length. Otherwise, if
+-- the given text is too short, it will be padded to length `lower`.
 --
-trimOrPadBetween :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
-trimOrPadBetween p cm s l c
-    | k > l     = trim' p cm l k c
-    | k < s     = pad' p s k c
+-- >>> trimOrPadBetween left (singleCutMark "..") 7 10 "A longer text." :: String
+-- "A longer.."
+-- >>> trimOrPadBetween left (singleCutMark "..") 7 10 "Short" :: String
+-- "Short  "
+-- >>> trimOrPadBetween left (singleCutMark "..") 7 10 "A medium" :: String
+-- "A medium"
+--
+-- Preconditions that are required to be met (otherwise the output will be
+-- counterintuitive):
+--
+-- prop> lower <= upper
+trimOrPadBetween
+    :: (Cell a, StringBuilder b)
+    => Position o
+    -> CutMark
+    -> Int  -- ^ The length `lower` to pad to if too short
+    -> Int  -- ^ The length `upper` to trim to if too long
+    -> a
+    -> b
+trimOrPadBetween p cm lower upper c
+    | k > lower = trim' p cm upper k c
+    | k < upper = pad' p lower k c
     | otherwise = buildCell c
   where
     k = visibleLength c
