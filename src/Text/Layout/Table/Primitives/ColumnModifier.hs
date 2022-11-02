@@ -17,9 +17,9 @@ import Text.Layout.Table.Spec.Util
 import Text.Layout.Table.StringBuilder
 
 -- | Specifies how a column should be modified. Values of this type are derived
--- in a traversal over the input columns by using 'deriveColModInfos'. Finally,
--- 'columnModifier' will interpret them and apply the appropriate modification
--- function to the cells of the column.
+-- in a traversal over the input columns by using 'deriveColModInfosFromGrid'.
+-- Finally, 'columnModifier' will interpret them and apply the appropriate
+-- modification function to the cells of the column.
 data ColModInfo
     = FillAligned OccSpec AlignInfo
     | FillTo Int
@@ -94,25 +94,27 @@ columnModifier pos cms colModInfo = case colModInfo of
     FitTo lim mT      ->
         maybe (trimOrPad pos cms lim) (uncurry $ alignFixed pos cms lim) mT
 
--- | Derive the 'ColModInfo' for each column of a list of rows by using the
--- corresponding specifications.  See 'deriveColModInfoFromColumn' for details.
-deriveColModInfos :: Cell a => [(LenSpec, AlignSpec)] -> [Row a] -> [ColModInfo]
-deriveColModInfos specs = deriveColModInfosFromColumns specs . transpose
-
-deriveColModInfos' :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
-deriveColModInfos' = deriveColModInfos . fmap (lenSpec &&& alignSpec)
-
-deriveColModInfosFromColumns :: (Foldable col, Cell a) => [(LenSpec, AlignSpec)] -> [col a] -> [ColModInfo]
-deriveColModInfosFromColumns specs = zipWith ($) (fmap deriveColModInfoFromColumn specs)
-
 -- | Generate the 'AlignInfo' of a cell by using the 'OccSpec'.
 deriveAlignInfo :: Cell a => OccSpec -> a -> AlignInfo
 deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 
+unpackColSpecs :: [ColSpec] -> [(LenSpec, AlignSpec)]
+unpackColSpecs = fmap $ lenSpec &&& alignSpec
+
+-- | Derive the 'ColModInfo' for each column of a list of rows by using the
+-- corresponding specifications.
+deriveColModInfosFromGridLA :: Cell a => [(LenSpec, AlignSpec)] -> [Row a] -> [ColModInfo]
+deriveColModInfosFromGridLA specs = deriveColModInfosFromColumnsLA specs . transpose
+
+-- | Derive the 'ColModInfo' for each column of a list of rows by using the
+-- corresponding 'ColSpec'.
+deriveColModInfosFromGrid :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
+deriveColModInfosFromGrid = deriveColModInfosFromGridLA . unpackColSpecs
+
 -- | Derive the 'ColModInfo' of a single column by using the 'LenSpec' and the
 -- 'AlignSpec'.
-deriveColModInfoFromColumn :: (Foldable col, Cell a) => (LenSpec, AlignSpec) -> col a -> ColModInfo
-deriveColModInfoFromColumn (lenS, alignS) = case alignS of
+deriveColModInfoFromColumnLA :: (Foldable col, Cell a) => (LenSpec, AlignSpec) -> col a -> ColModInfo
+deriveColModInfoFromColumnLA (lenS, alignS) = case alignS of
     NoAlign     -> let expandFun = FillTo
                        fixedFun i = const $ FitTo i Nothing
                        measureMaximumWidth = getMax . foldMap (Max . visibleLength)
@@ -147,18 +149,25 @@ deriveColModInfoFromColumn (lenS, alignS) = case alignS of
                 ExpandBetween i j -> expandBetween' i j
         in interpretLenSpec . measureMaximumWidth
 
-deriveColModInfosFromColumns' :: (Foldable col, Cell a) => [ColSpec] -> [col a] -> [ColModInfo]
-deriveColModInfosFromColumns' = deriveColModInfosFromColumns . fmap (lenSpec &&& alignSpec)
+-- | Derive the 'ColModInfo' for each column of a list of columns by using the
+-- corresponding specifications.
+deriveColModInfosFromColumnsLA :: (Foldable col, Cell a) => [(LenSpec, AlignSpec)] -> [col a] -> [ColModInfo]
+deriveColModInfosFromColumnsLA specs = zipWith ($) (fmap deriveColModInfoFromColumnLA specs)
+
+-- | Derive the 'ColModInfo' for each column of a list of columns by using the
+-- corresponding 'ColSpec'.
+deriveColModInfosFromColumns :: (Foldable col, Cell a) => [ColSpec] -> [col a] -> [ColModInfo]
+deriveColModInfosFromColumns = deriveColModInfosFromColumnsLA . unpackColSpecs
 
 -- | Derive the 'ColModInfo' and generate functions without any intermediate
 -- steps.
-deriveColMods
+deriveColumnModifiers
     :: (Cell a, StringBuilder b)
     => [ColSpec]
     -> [Row a]
     -> [a -> b]
-deriveColMods specs tab =
+deriveColumnModifiers specs tab =
     zipWith (uncurry columnModifier) (map (position &&& cutMark) specs) cmis
   where
-    cmis = deriveColModInfos' specs tab
+    cmis = deriveColModInfosFromGrid specs tab
 
