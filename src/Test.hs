@@ -18,9 +18,9 @@ main = putStrLn $ tableString $ columnHeaderTableS
                                 ]
                                 unicodeRoundS
                                 (titlesH ["Layout", "Result"])
-                                rowGroups
+                                testRowGroups
   where
-    rowGroups    = flip concatMap styles $ \style ->
+    testRowGroups = flip concatMap styles $ \style ->
         flip map columTs $ \(cSpec, is) ->
             colsAllG center [ is
                             , genTable cSpec style
