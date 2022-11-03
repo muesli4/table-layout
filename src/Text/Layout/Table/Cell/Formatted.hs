@@ -19,7 +19,6 @@ module Text.Layout.Table.Cell.Formatted
     , cataFormatted
     ) where
 
-import Control.Monad (join)
 import Data.List (foldl', mapAccumL, mapAccumR)
 import Data.String
 

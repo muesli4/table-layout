@@ -57,7 +57,7 @@ transposeRowGroups = fmap SegmentedColumn . transpose . map transposeRowGroup
 
 -- | Map each column with the corresponding function and replace empty inputs
 -- with the given value.
-mapRowGroupColumns :: [(b, (a -> b))] -> RowGroup a -> [[b]]
+mapRowGroupColumns :: [(b, a -> b)] -> RowGroup a -> [[b]]
 mapRowGroupColumns mappers rg = case rg of
     SingletonRowGroup row  -> pure $ zipWith snd mappers row
     MultiRowGroup rows     -> mapGrid snd rows
