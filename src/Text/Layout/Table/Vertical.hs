@@ -10,7 +10,6 @@ module Text.Layout.Table.Vertical
 
 import Data.List
 
-import Text.Layout.Table.Cell
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Spec.Util
 import Text.Layout.Table.Primitives.Basic
