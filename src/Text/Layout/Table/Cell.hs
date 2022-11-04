@@ -46,6 +46,13 @@ redistributeAdjustment l r a = CellView (baseCell a) lAdjustment rAdjustment
     lAdjustment = (totalAdjustment a * l) `div` (l + r)
     rAdjustment = totalAdjustment a - lAdjustment
 
+-- | Add any padding in 'CellView' to a 'StringBuilder'. Any trimming will be discarded.
+cellViewToPadding :: StringBuilder b => CellView b -> b
+cellViewToPadding (CellView a l r) = padLeft $ padRight a
+  where
+    padLeft  = if l > 0 then (spacesB l <>) else id
+    padRight = if r > 0 then (<> spacesB r) else id
+
 -- | Types that can be measured for visible characters, define a sub-string
 -- operation and turned into a 'StringBuilder'.
 class Cell a where
@@ -68,11 +75,7 @@ class Cell a where
     -- substituted with 'buildCell', and is only needed for defining the
     -- instance.
     buildCellView :: StringBuilder b => CellView a -> b
-    buildCellView x = padLeft $ padRight a
-      where
-        CellView a l r = buildCellViewTight x
-        padLeft  = if l > 0 then (spacesB l <>) else id
-        padRight = if r > 0 then (<> spacesB r) else id
+    buildCellView = cellViewToPadding . buildCellViewTight
 
     -- | Insert the contents into a 'StringBuilder', padding or trimming as
     -- necessary. If extra padding is needed after trimming, for example with
@@ -295,7 +298,7 @@ trimOrPad :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
 trimOrPad p cm n c = case compare k n of
     LT -> pad' p n k c
     EQ -> buildCell c
-    GT -> trim' p cm n k c
+    GT -> cellViewToPadding $ trim' p cm n k c
   where
     k = visibleLength c
 
@@ -324,7 +327,7 @@ trimOrPadBetween
     -> a
     -> b
 trimOrPadBetween p cm lower upper c
-    | k > lower = trim' p cm upper k c
+    | k > lower = cellViewToPadding $ trim' p cm upper k c
     | k < upper = pad' p lower k c
     | otherwise = buildCell c
   where
@@ -332,32 +335,31 @@ trimOrPadBetween p cm lower upper c
 
 -- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
-trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
+trim p cm n c = if k <= n then buildCell c else cellViewToPadding $ trim' p cm n k c
   where
     k = visibleLength c
 
 -- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 --
+-- If extra padding is needed, it is recorded.
+--
 -- Preconditions that require to be met (otherwise the function will produce garbage):
 --
 -- prop> visibleLength c > n
 -- prop> visibleLength c == k
-trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
+trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> CellView b
 trim' p cm n k c = case p of
-    Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (drop (rightLen - n) $ rightMark cm)
+    Start  -> (<> buildCell (drop (rightLen - n) $ rightMark cm)) <$> buildCellViewTight (dropRight (cutLen + rightLen) c)
+    End    -> (buildCell (take n $ leftMark cm) <>) <$> buildCellViewTight (dropLeft (cutLen + leftLen) c)
     Center -> case cutLen `divMod` 2 of
-        (0, 1) -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
+        (0, 1) -> (buildCell (take n $ leftMark cm) <>) <$> buildCellViewTight (dropLeft (1 + leftLen) c)
         (q, r) -> if n >= leftLen + rightLen
-                  then buildCell (leftMark cm) <> buildCell (dropBoth (leftLen + q + r) (rightLen + q) c)
-                       <> buildCell (rightMark cm)
+                  then (buildCell (leftMark cm) <>) . (<> buildCell (rightMark cm)) <$> buildCellViewTight (dropBoth (leftLen + q + r) (rightLen + q) c)
                   else case n `divMod` 2 of
-                      (qn, rn) -> buildCell (take qn $ leftMark cm)
-                                  <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
-    End    -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
+                      (qn, rn) -> pure $ buildCell (take qn $ leftMark cm) <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
   where
     leftLen = length $ leftMark cm
     rightLen = length $ rightMark cm
-
     cutLen = k - n
 
 -- | Align a cell by first locating the position to align with and then padding

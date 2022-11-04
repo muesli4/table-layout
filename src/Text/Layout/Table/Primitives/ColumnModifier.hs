@@ -97,18 +97,10 @@ columnModifier pos cms colModInfo = case colModInfo of
 deriveAlignInfo :: Cell a => OccSpec -> a -> AlignInfo
 deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 
-unpackColSpecs :: [ColSpec] -> [(LenSpec, Position H, AlignSpec)]
-unpackColSpecs = fmap $ \c -> (lenSpec c, position c, alignSpec c)
-
--- | Derive the 'ColModInfo' for each column of a list of rows by using the
--- corresponding specifications.
-deriveColModInfosFromGridLPA :: Cell a => [(LenSpec, Position H, AlignSpec)] -> [Row a] -> [ColModInfo]
-deriveColModInfosFromGridLPA specs = deriveColModInfosFromColumnsLPA specs . transpose
-
 -- | Derive the 'ColModInfo' for each column of a list of rows by using the
 -- corresponding 'ColSpec'.
 deriveColModInfosFromGrid :: Cell a => [ColSpec] -> [Row a] -> [ColModInfo]
-deriveColModInfosFromGrid = deriveColModInfosFromGridLPA . unpackColSpecs
+deriveColModInfosFromGrid specs = deriveColModInfosFromColumns specs . transpose
 
 data RequestedLength = RequestedLength { originalLength :: Int, fittedLength :: Int }
 
@@ -118,10 +110,9 @@ instance Semigroup RequestedLength where
 instance Monoid RequestedLength where
     mempty = RequestedLength minBound minBound
 
--- | Derive the 'ColModInfo' of a single column by using the 'LenSpec' and the
--- 'AlignSpec'.
-deriveColModInfoFromColumnLPA :: (Foldable col, Cell a) => (LenSpec, Position H, AlignSpec) -> col a -> ColModInfo
-deriveColModInfoFromColumnLPA (lenS, posS, alignS) = case alignS of
+-- | Derive the 'ColModInfo' of a single column by using the 'ColSpec'.
+deriveColModInfoFromColumn :: (Foldable col, Cell a) => ColSpec -> col a -> ColModInfo
+deriveColModInfoFromColumn colS = case alignS of
     NoAlign     -> let expandFun = FillTo . originalLength
                        fixedFun _ widthInfo = FitTo (fittedLength widthInfo) Nothing
                        measureMaximumWidth = foldMap requestedLength
@@ -159,29 +150,27 @@ deriveColModInfoFromColumnLPA (lenS, posS, alignS) = case alignS of
     -- Both the original length and requested length of an object
     requestedLength a = RequestedLength l $ case lenS of
         Fixed i                   -> i
-        ExpandUntil i | l > i     -> i - paddingNeeded i a
+        ExpandUntil i | l > i     -> i - trimAdjustment i a
         FixedUntil i              -> max i l
-        ExpandBetween i j | l > j -> max i $ j - paddingNeeded i a
+        ExpandBetween i j | l > j -> max i $ j - trimAdjustment j a
         ExpandBetween i _ | l < i -> i
         _                         -> l
       where
         l = visibleLength a
+        trimAdjustment n
+            | l > n = (totalAdjustment :: CellView String -> Int) . trim' posS cutM n l
+            | otherwise = const 0
 
-        paddingNeeded i = totalAdjustment' . buildCellViewTight . case posS of
-            Start  -> dropRight (l - i)
-            End    -> dropLeft (l - i)
-            Center -> let (q, r) = (l - i) `divMod` 2 in dropBoth q (q + r)
-        totalAdjustment' = totalAdjustment :: CellView String -> Int
+    lenS = lenSpec colS
+    posS = position colS
+    alignS = alignSpec colS
+    cutM = cutMark colS
 
--- | Derive the 'ColModInfo' for each column of a list of columns by using the
--- corresponding specifications.
-deriveColModInfosFromColumnsLPA :: (Foldable col, Cell a) => [(LenSpec, Position H, AlignSpec)] -> [col a] -> [ColModInfo]
-deriveColModInfosFromColumnsLPA specs = zipWith ($) (fmap deriveColModInfoFromColumnLPA specs)
 
 -- | Derive the 'ColModInfo' for each column of a list of columns by using the
 -- corresponding 'ColSpec'.
 deriveColModInfosFromColumns :: (Foldable col, Cell a) => [ColSpec] -> [col a] -> [ColModInfo]
-deriveColModInfosFromColumns = deriveColModInfosFromColumnsLPA . unpackColSpecs
+deriveColModInfosFromColumns specs = zipWith ($) (fmap deriveColModInfoFromColumn specs)
 
 -- | Derive the 'ColModInfo' and generate functions without any intermediate
 -- steps.
