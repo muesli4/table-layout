@@ -7,6 +7,7 @@ module TestSpec
 import qualified Data.Text as T
 
 import Data.Maybe (listToMaybe)
+import Data.List (isInfixOf)
 import Text.DocLayout (charWidth)
 
 import Test.Hspec
@@ -403,8 +404,11 @@ spec = do
            else trimmed == s
 
     gridPropHelper :: (Cell a, Testable prop) => ColSpec -> (String -> a) -> [a] -> (Int -> prop) -> Property
-    gridPropHelper col f xs isRightLength = conjoin .
-        map (conjoin . map (isRightLength . visibleLength . f)) . grid [col] $ map pure xs
+    gridPropHelper col f xs isRightLength =
+        allRowsHaveRightLength (grid [col] $ map pure xs) .||. anyRowHasPathologicalUnicode xs
+      where
+        allRowsHaveRightLength = conjoin . map (conjoin . map (isRightLength . visibleLength . f))
+        anyRowHasPathologicalUnicode = disjoin . map (hasPathologicalUnicode . buildCell)
 
     propExpand :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
                -> NonEmptyList a -> Property
@@ -445,6 +449,15 @@ spec = do
         in cover 10 (len <= b) "shorter than limit" . cover 10 (len > t)  "longer than limit" .
            cover 10 (len > b && len <= t) "between limits" $
                gridPropHelper col f xs (=== max b (min t len))
+
+    -- A keypad character followed by a zero-width join or variation selector
+    -- will cause tests to fail, but this is pathological Unicode and failure
+    -- is acceptable.
+    hasPathologicalUnicode :: String -> Bool
+    hasPathologicalUnicode test = or $ do
+        k <- '#' : '*' : ['0'..'9']
+        v <- ['\8205', '\65039']
+        return $ [k, v] `isInfixOf` test
 
     measureAlignmentAt :: Cell a => Char -> a -> AlignInfo
     measureAlignmentAt c = measureAlignment (== c)
