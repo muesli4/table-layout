@@ -57,7 +57,8 @@ A good way to use this would be the [ansi-terminal package][], provided you are 
 ```
 > :set -XOverloadedStrings
 > import Text.Layout.Table.Cell.Formatted
-> let red s = formatted "\ESC[31m" (plain s) "\ESC[0m"
+> import System.Console.ANSI.Codes
+> let red s = formatted (setSGRCode [SetColor Foreground Dull Red]) (plain s) (setSGRCode [Reset])
 > let g = [["Jim", "1203"], ["Jane", "523"], ["Jack", red "-959000"]]
 > putStrLn $ gridString [def, numCol] g
 ```
