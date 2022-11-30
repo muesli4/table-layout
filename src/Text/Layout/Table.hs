@@ -392,7 +392,7 @@ tableLinesBWithCMIs TableSpec { tableStyle = TableStyle { .. }, ..  } =
         _ ->
             let attachRowHeader grps = map (\(hSpec, (grp, r)) -> (Just (hSpec, r), grp))
                                      . headerContents $ zipHeader (rowG []) grps rowHeader
-                singleColCMI = Just . deriveColModInfoFromColumnLA (expand, noAlign)
+                singleColCMI = Just . deriveColModInfoFromColumn defColSpec
             in
             ( attachRowHeader
             , singleColCMI . map snd $ headerContents rowHeader

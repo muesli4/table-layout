@@ -15,13 +15,15 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Text.Layout.Table
-import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, dropLeft, dropRight, viewRange)
+import Text.Layout.Table.Cell (Cell(..), CellView(..), CutAction(..), CutInfo(..), applyCutInfo,
+  determineCutAction, determineCuts, dropLeft, dropRight, dropBoth, viewRange)
 import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
 import Text.Layout.Table.Spec.AlignSpec
 import Text.Layout.Table.Spec.CutMark
 import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.Spec.RowGroup
+import Text.Layout.Table.StringBuilder (spacesB)
 import Text.Layout.Table.Primitives.Basic
 import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Justify
@@ -243,6 +245,8 @@ spec = do
     describe "grid" . modifyMaxSuccess (const 1000) $ do
         let wide   = "A long string"
             narrow = "Short"
+            wideW   = WideString "a㐀b㐁c㐂d"
+            narrowW = WideString "ab"
         describe "expand" $ do
             prop "for String"     $ propExpand id noAlign
             prop "for WideString" $ propExpand WideString noAlign
@@ -250,22 +254,32 @@ spec = do
             prop "for String"     $ propFixed id noAlign
             prop "for WideString" $ propFixed WideString noAlign
         describe "expandUntil" $ do
-            prop "for String"     $ propExpandUntil id noAlign
-            prop "for WideString" $ propExpandUntil WideString noAlign
-            let col pos i = column (expandUntil i) pos noAlign noCutMark
-            it "when dropping from the right" $
-                grid [col left 8]  [[wide], [narrow]] `shouldBe` [["A long s"], ["Short   "]]
-            it "when dropping from the left" $
-                grid [col right 8] [[wide], [narrow]] `shouldBe` [["g string"], ["   Short"]]
+            prop "for String"     $ propExpandUntil id [0] noAlign
+            prop "for WideString" $ propExpandUntil WideString [0, 1] noAlign
+            let col pos = column (expandUntil 8) pos noAlign noCutMark
+            describe "when dropping from the right" $ do
+                it "for String"     $ grid [col left]  [[wide],  [narrow]]  `shouldBe` [["A long s"], ["Short   "]]
+                it "for WideString" $ grid [col left]  [[wideW], [narrowW]] `shouldBe` [["a㐀b㐁c"],  ["ab     "]]
+            describe "when dropping from the left" $ do
+                it "for String"     $ grid [col right] [[wide],  [narrow]]  `shouldBe` [["g string"], ["   Short"]]
+                it "for WideString" $ grid [col right] [[wideW], [narrowW]] `shouldBe` [["b㐁c㐂d"],  ["     ab"]]
         describe "fixedUntil" $ do
             prop "for String"     $ propFixedUntil id noAlign
             prop "for WideString" $ propFixedUntil WideString noAlign
         describe "expandBetween" $ do
-            prop "for String"     $ propExpandBetween id noAlign
-            prop "for WideString" $ propExpandBetween WideString noAlign
+            prop "for String"     $ propExpandBetween id [0] noAlign
+            prop "for WideString" $ propExpandBetween WideString [0, 1] noAlign
+            let col pos = column (expandBetween 2 8) pos noAlign noCutMark
+            describe "when dropping from the right" $ do
+                it "for String"     $ grid [col left]  [[wide],  [narrow]]  `shouldBe` [["A long s"], ["Short   "]]
+                it "for WideString" $ grid [col left]  [[wideW], [narrowW]] `shouldBe` [["a㐀b㐁c"],  ["ab     "]]
+            describe "when dropping from the left" $ do
+                it "for String"     $ grid [col right] [[wide],  [narrow]]  `shouldBe` [["g string"], ["   Short"]]
+                it "for WideString" $ grid [col right] [[wideW], [narrowW]] `shouldBe` [["b㐁c㐂d"],  ["     ab"]]
 
     describe "formatted text" $ do
         let exampleF = formatted "XXX" (plain "Hello" <> formatted "Z" (plain "there") "W") "YYY"
+            exampleWideF = WideString <$> formatted "XXX" (plain "㐀㐁㐂" <> formatted "Z" (plain "㐀㐁㐂") "W") "YYY"
         describe "rendering" $ do
             it "plain" $ buildCell (plain "Hello") `shouldBe` "Hello"
             it "formatted" $ buildCell (formatted "XXX" (plain "Hello") "YYY") `shouldBe` "XXXHelloYYY"
@@ -274,12 +288,12 @@ spec = do
             it "drops 0" $ buildCell (dropLeft 0 exampleF) `shouldBe` "XXXHelloZthereWYYY"
             it "drops 3" $ buildCell (dropLeft 3 exampleF) `shouldBe` "XXXloZthereWYYY"
             it "drops 8" $ buildCell (dropLeft 8 exampleF) `shouldBe` "XXXZreWYYY"
-            it "drops 20" $ buildCell (dropLeft 20 exampleF) `shouldBe` "XXXZWYYY"
+            it "drops 20" $ buildCell (dropLeft 20 exampleF) `shouldBe` ""
         describe "dropRight" $ do
             it "drops 0" $ buildCell (dropRight 0 exampleF) `shouldBe` "XXXHelloZthereWYYY"
             it "drops 3" $ buildCell (dropRight 3 exampleF) `shouldBe` "XXXHelloZthWYYY"
-            it "drops 8" $ buildCell (dropRight 8 exampleF) `shouldBe` "XXXHeZWYYY"
-            it "drops 20" $ buildCell (dropRight 20 exampleF) `shouldBe` "XXXZWYYY"
+            it "drops 8" $ buildCell (dropRight 8 exampleF) `shouldBe` "XXXHeYYY"
+            it "drops 20" $ buildCell (dropRight 20 exampleF) `shouldBe` ""
         describe "visibleLength" $ do
             it "plain" $ visibleLength (plain "Hello") `shouldBe` 5
             it "formatted" $ visibleLength exampleF `shouldBe` 10
@@ -287,6 +301,11 @@ spec = do
             it "finds e" $ measureAlignmentAt 'e' exampleF `shouldBe` AlignInfo 1 (Just 8)
             it "finds h" $ measureAlignmentAt 'h' exampleF `shouldBe` AlignInfo 6 (Just 3)
             it "doesn't find q" $ measureAlignmentAt 'q' exampleF `shouldBe` AlignInfo 10 Nothing
+        describe "with wide string" $ do
+            describe "buildCellViewTight" $ do
+                it "drops 1 from the left"  $ buildCellViewTight (dropLeft  1 exampleWideF) `shouldBe` CellView "XXX㐁㐂Z㐀㐁㐂WYYY" 1 0
+                it "drops 1 from the right" $ buildCellViewTight (dropRight 1 exampleWideF) `shouldBe` CellView "XXX㐀㐁㐂Z㐀㐁WYYY" 0 1
+                it "drops a whole section"  $ buildCellViewTight (dropRight 7 exampleWideF) `shouldBe` CellView "XXX㐀㐁YYY" 0 1
 
     describe "wide string" $ do
         let wide = WideString "㐀㐁㐂"
@@ -321,6 +340,14 @@ spec = do
             describe "on narrow characters" $ do
                 it "drops a combining character for free" $ buildCell (dropRight 3 narrow) `shouldBe` "Bien s"
                 it "does not drop a combining character without their previous" $ buildCell (dropRight 2 narrow) `shouldBe` "Bien sû"
+        describe "buildCellViewTight" $ do
+            prop "agrees with buildCellView" $ propBuildCellViewTight WideString
+            describe "records extra padding needed" $ do
+              it "on the left"   $ buildCellViewTight (dropLeft  1  $ WideString "㐀㐁")  `shouldBe` CellView "㐁" 1 0
+              it "on the right"  $ buildCellViewTight (dropRight 1  $ WideString "㐀㐁")  `shouldBe` CellView "㐀" 0 1
+              it "on both sides" $ buildCellViewTight (dropBoth 1 1 $ WideString "㐀㐁a") `shouldBe` CellView "㐁" 1 0
+              it "drops less on the left if possible" $
+                                   buildCellViewTight (dropBoth 1 1 $ WideString "㐀㐁")  `shouldBe` CellView "㐀" 0 0
 
     describe "wide text" $ do
         describe "buildCell" $ do
@@ -333,6 +360,9 @@ spec = do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropLeft n . WideText $ T.pack x) `shouldBe` (buildCell . dropLeft n $ WideString x :: String)
         describe "dropRight" $ do
             prop "gives the same result as wide string" $ \(Small n) x -> buildCell (dropRight n . WideText $ T.pack x) `shouldBe` (buildCell . dropRight n $ WideString x :: String)
+        describe "buildCellViewTight" $ do
+            prop "gives the same result as wide string" $ \(Small l) (Small r) x ->
+                buildCellViewTight (dropBoth l r . WideText $ T.pack x) `shouldBe` (buildCellViewTight . dropBoth l r $ WideString x :: CellView String)
 
     describe "row groups" $ do
         describe "rowGroupShape" $ do
@@ -361,7 +391,6 @@ spec = do
             it "multi" $ mapRowGroupColumns mappers rg1 `shouldBe` [[1, 2, 1], [4, 8, 2]]
             it "singleton" $ mapRowGroupColumns mappers rg2 `shouldBe` [[7, 14, 4]]
             it "nullable" $ mapRowGroupColumns mappers rg3 `shouldBe` [[negate 1, 18, negate 2]]
-
   where
     customCM = doubleCutMark "<.." "..>"
     unevenCM = doubleCutMark "<" "-->"
@@ -423,13 +452,13 @@ spec = do
         let col = column (fixed n) pos align cm
         in gridPropHelper col f xs (=== n)
 
-    propExpandUntil :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+    propExpandUntil :: Cell a => (String -> a) -> [Int] -> AlignSpec -> Position H -> CutMark
                     -> Positive (Small Int) -> NonEmptyList a -> Property
-    propExpandUntil f align pos cm (Positive (Small n)) (NonEmpty xs) =
+    propExpandUntil f offsets align pos cm (Positive (Small n)) (NonEmpty xs) =
         let col = column (expandUntil n) pos align cm
             len = maximum $ map visibleLength xs
         in cover 10 (len <= n) "shorter than limit" . cover 10 (len > n)  "longer than limit" $
-               gridPropHelper col f xs (=== min len n)
+               gridPropHelper col f xs (\a -> disjoin $ map (\i -> a === min (n - i) len) offsets)
 
     propFixedUntil :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
                    -> Positive (Small Int) -> NonEmptyList a -> Property
@@ -439,16 +468,22 @@ spec = do
         in cover 10 (len <= n) "shorter than limit" . cover 10 (len > n)  "longer than limit" $
                gridPropHelper col f xs (=== max len n)
 
-    propExpandBetween :: Cell a => (String -> a) -> AlignSpec -> Position H -> CutMark
+    propExpandBetween :: Cell a => (String -> a) -> [Int] -> AlignSpec -> Position H -> CutMark
                       -> Positive (Small Int) -> Positive (Small Int) -> NonEmptyList a -> Property
-    propExpandBetween f align pos cm (Positive (Small m)) (Positive (Small n)) (NonEmpty xs) =
+    propExpandBetween f offsets align pos cm (Positive (Small m)) (Positive (Small n)) (NonEmpty xs) =
         let col = column (expandBetween (min m n) (max m n)) pos align cm
             len = maximum $ map visibleLength xs
             b = min m n
             t = max m n
         in cover 10 (len <= b) "shorter than limit" . cover 10 (len > t)  "longer than limit" .
            cover 10 (len > b && len <= t) "between limits" $
-               gridPropHelper col f xs (=== max b (min t len))
+               gridPropHelper col f xs (\a -> disjoin $ map (\i -> a === max b (min (max b $ t - i) len)) offsets)
+
+    propBuildCellViewTight :: Cell a => (String -> a) -> Positive (Small Int) -> Positive (Small Int) -> a -> Property
+    propBuildCellViewTight _ (Positive (Small l)) (Positive (Small r)) a =
+        buildCell (adjustCell l r a) === spacesB lp <> b <> spaces rp
+      where
+        CellView b lp rp = buildCellViewTight $ adjustCell l r a
 
     -- A keypad character followed by a zero-width join or variation selector
     -- will cause tests to fail, but this is pathological Unicode and failure

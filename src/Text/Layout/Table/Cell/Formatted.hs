@@ -19,7 +19,6 @@ module Text.Layout.Table.Cell.Formatted
     , cataFormatted
     ) where
 
-import Control.Monad (join)
 import Data.List (foldl', mapAccumL, mapAccumR)
 import Data.String
 
@@ -90,25 +89,54 @@ instance Cell a => Cell (Formatted a) where
     buildCell = buildFormatted buildCell
     buildCellView = buildCellViewHelper
         (buildFormatted buildCell)
-        (buildFormatted buildCellView)
-        (buildFormatted buildCellView)
-        trimLeft
-        trimRight
-        (\l r -> trimLeft l . trimRight r)
-      where
-        trimLeft i = snd . mapAccumL (dropTrackRemaining dropLeft) i
-        trimRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
+        (\i -> buildFormatted buildCell . trimLeft i)
+        (\i -> buildFormatted buildCell . trimRight i)
+        (\l r -> buildFormatted buildCell . trimLeft l . trimRight r)
+    buildCellViewTight = buildCellViewTightHelper
+        (buildFormatted buildCell)
+        (\i -> buildFormattedA buildCellViewTight . trimLeft i)
+        (\i -> buildFormattedA buildCellViewTight . trimRight i)
+        (\l r -> buildFormattedA buildCellViewTight . trimLeft l . trimRight r)
 
 -- | Build 'Formatted' using a given constructor.
 buildFormatted :: StringBuilder b => (a -> b) -> Formatted a -> b
 buildFormatted build = cataFormatted mempty mconcat build (\p a s -> stringB p <> a <> stringB s)
 
+-- | Build 'Formatted' using a given constructor which returns a 'CellView'.
+buildFormattedA :: StringBuilder b => (a -> CellView b) -> Formatted a -> CellView b
+buildFormattedA build = cataFormatted (pure mempty) (fmap mconcat . sequenceA) build (\p a s -> (stringB p <>) . (<> stringB s) <$> a)
+
+trimLeft :: Cell a => Int -> Formatted a -> Formatted (CellView a)
+trimLeft i = simplifyFormatted . snd . mapAccumL (dropTrackRemaining dropLeft) i
+
+trimRight :: Cell a => Int -> Formatted a -> Formatted (CellView a)
+trimRight i = simplifyFormatted . snd . mapAccumR (dropTrackRemaining dropRight) i
+
+-- | Remove 'Nothing', empty 'Concat', and empty 'Format'.
+simplifyFormatted :: Formatted (Maybe a) -> Formatted a
+simplifyFormatted = cataFormatted Empty simplifyConcat (maybe Empty Plain) simplifyFormat
+  where
+    simplifyConcat xs = if null ys then Empty else Concat ys
+      where
+        ys = filter isNonEmpty xs
+    simplifyFormat p x s = if isNonEmpty x then Format p x s else Empty
+
+    isNonEmpty Empty = False
+    isNonEmpty _     = True
+
 -- | Drop characters either from the right or left, while also tracking the
--- remaining number of characters to drop.
-dropTrackRemaining :: Cell a => (Int -> a -> CellView a) -> Int -> a -> (Int, CellView a)
+-- remaining number of characters to drop. If all characters are dropped,
+-- return 'Nothing'.
+dropTrackRemaining :: Cell a => (Int -> a -> CellView a) -> Int -> a -> (Int, Maybe (CellView a))
 dropTrackRemaining dropF i a
-  | i <= 0    = (0, pure a)
-  | otherwise = let l = visibleLength a in (max 0 $ i - l, dropF i a)
+    -- If there is nothing left to drop, return unmodified
+    | i <= 0    = (i, Just $ pure a)
+    -- If dropping more than requested, return Nothing
+    | i >= l    = (i - l, Nothing)
+    -- Otherwise, drop what is necessary, and record the padding needed
+    | otherwise = (0, Just $ dropF i a)
+  where
+    l = visibleLength a
 
 -- | Run 'measureAlignment' with an initial state, as though we were measuring the alignment in chunks.
 mergeAlign :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo

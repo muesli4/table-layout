@@ -4,7 +4,7 @@
 module Text.Layout.Table.Cell where
 
 import Control.Monad (join)
-import Data.Bifunctor (bimap)
+import Data.Functor.Identity (Identity(..))
 import qualified Data.Text as T
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -46,6 +46,13 @@ redistributeAdjustment l r a = CellView (baseCell a) lAdjustment rAdjustment
     lAdjustment = (totalAdjustment a * l) `div` (l + r)
     rAdjustment = totalAdjustment a - lAdjustment
 
+-- | Add any padding in 'CellView' to a 'StringBuilder'. Any trimming will be discarded.
+cellViewToPadding :: StringBuilder b => CellView b -> b
+cellViewToPadding (CellView a l r) = padLeft $ padRight a
+  where
+    padLeft  = if l > 0 then (spacesB l <>) else id
+    padRight = if r > 0 then (<> spacesB r) else id
+
 -- | Types that can be measured for visible characters, define a sub-string
 -- operation and turned into a 'StringBuilder'.
 class Cell a where
@@ -68,8 +75,15 @@ class Cell a where
     -- substituted with 'buildCell', and is only needed for defining the
     -- instance.
     buildCellView :: StringBuilder b => CellView a -> b
+    buildCellView = cellViewToPadding . buildCellViewTight
 
-    {-# MINIMAL visibleLength, measureAlignment, buildCellView #-}
+    -- | Insert the contents into a 'StringBuilder', padding or trimming as
+    -- necessary. If extra padding is needed after trimming, for example with
+    -- wide characters, this is recorded in a 'CellView'.
+    buildCellViewTight :: StringBuilder b => CellView a -> CellView b
+    buildCellViewTight = pure . buildCellView
+
+    {-# MINIMAL visibleLength, measureAlignment, ( buildCellView | buildCellViewTight ) #-}
 
 instance Cell a => Cell (CellView a) where
     visibleLength (CellView a l r) = visibleLength a + l + r
@@ -84,12 +98,14 @@ instance Cell a => Cell (CellView a) where
         AlignInfo matchAt mMatchRemaining = measureAlignment f a
     buildCell = buildCellView
     buildCellView = buildCellView . join
+    buildCellViewTight = buildCellViewTight . join
 
 instance Cell a => Cell (Maybe a) where
     visibleLength = maybe 0 visibleLength
     measureAlignment p = maybe mempty (measureAlignment p)
     buildCell = maybe mempty buildCell
     buildCellView (CellView a l r) = maybe (spacesB $ l + r) (buildCellView . adjustCell l r) a
+    buildCellViewTight (CellView a l r) = maybe (pure . spacesB $ l + r) (buildCellViewTight . adjustCell l r) a
 
 instance (Cell a, Cell b) => Cell (Either a b) where
     visibleLength = either visibleLength visibleLength
@@ -98,6 +114,9 @@ instance (Cell a, Cell b) => Cell (Either a b) where
     buildCellView (CellView a l r) = either go go a
       where
         go x = buildCellView $ CellView x l r
+    buildCellViewTight (CellView a l r) = either go go a
+      where
+        go x = buildCellViewTight $ CellView x l r
 
 instance Cell String where
     visibleLength = length
@@ -130,7 +149,7 @@ buildCellViewLRHelper :: StringBuilder b
                       -> CellView a
                       -> b
 buildCellViewLRHelper build trimL trimR =
-    buildCellViewHelper build build build trimL trimR (\l r -> trimL l . trimR r)
+    buildCellViewHelper build (\i -> build . trimL i) (\i -> build . trimR i) (\l r -> build . trimL l . trimR r)
 
 -- | Construct 'buildCellView' from a builder function, and a function for
 -- trimming from the left and right simultaneously.
@@ -143,32 +162,46 @@ buildCellViewBothHelper
     -> CellView a
     -> b
 buildCellViewBothHelper build trimBoth =
-    buildCellViewHelper build build build (flip trimBoth 0) (trimBoth 0) trimBoth
+    buildCellViewHelper build (\i -> build . trimBoth i 0) (\i -> build . trimBoth 0 i) (\l r -> build . trimBoth l r)
 
--- | Construct 'buildCellView' from builder functions, and trimming functions.
+-- | Construct 'buildCellView' from builder functions and trimming functions.
 --
 -- Used to define instances of 'Cell'.
 buildCellViewHelper
     :: StringBuilder b
-    => (a -> b) -- ^ Builder function for 'a'.
-    -> (trimSingle -> b) -- ^ Builder function for the result of trimming 'a'.
-    -> (trimBoth -> b) -- ^ Builder function for the result of trimming 'a' twice.
-    -> (Int -> a -> trimSingle) -- ^ Function for trimming on the left.
-    -> (Int -> a -> trimSingle) -- ^ Function for trimming on the right.
-    -> (Int -> Int -> a -> trimBoth) -- ^ Function for trimming on the left and right simultaneously.
+    => (a -> b)  -- ^ Builder function for 'a'.
+    -> (Int -> a -> b)  -- ^ Function for trimming on the left.
+    -> (Int -> a -> b)  -- ^ Function for trimming on the right.
+    -> (Int -> Int -> a -> b)  -- ^ Function for trimming on the left and right simultaneously.
     -> CellView a
     -> b
-buildCellViewHelper build buildSingleTrim buildTrimBoth trimL trimR trimBoth (CellView a l r) =
+buildCellViewHelper build trimL trimR trimBoth =
+    runIdentity . buildCellViewTightHelper build
+        (\i -> Identity . trimL i) (\i -> Identity . trimR i) (\l r -> Identity . trimBoth l r)
+
+-- | Construct 'buildCellViewTight' from builder functions and trimming functions.
+--
+-- This is used to define 'buildCellViewTight' in the 'Cell' typeclass, in
+-- which `f` will be 'CellView'.
+buildCellViewTightHelper
+    :: (StringBuilder b, Applicative f)
+    => (a -> b)  -- ^ Builder function for 'a'.
+    -> (Int -> a -> f b)  -- ^ Function for trimming on the left.
+    -> (Int -> a -> f b)  -- ^ Function for trimming on the right.
+    -> (Int -> Int -> a -> f b)  -- ^ Function for trimming on the left and right simultaneously.
+    -> CellView a
+    -> f b
+buildCellViewTightHelper build trimL trimR trimBoth (CellView a l r) =
     case (compare l 0, compare r 0) of
-        (GT, GT) -> spacesB l <> build a <> spacesB r
-        (GT, LT) -> spacesB l <> buildSingleTrim (trimR (negate r) a)
-        (GT, EQ) -> spacesB l <> build a
-        (LT, GT) -> buildSingleTrim (trimL (negate l) a) <> spacesB r
-        (LT, LT) -> buildTrimBoth $ trimBoth (negate l) (negate r) a
-        (LT, EQ) -> buildSingleTrim $ trimL (negate l) a
-        (EQ, GT) -> build a <> spacesB r
-        (EQ, LT) -> buildSingleTrim $ trimR (negate r) a
-        (EQ, EQ) -> build a
+        (GT, GT) -> pure $ spacesB l <> build a <> spacesB r
+        (GT, LT) -> (spacesB l <>) <$> trimR (negate r) a
+        (GT, EQ) -> pure $ spacesB l <> build a
+        (LT, GT) -> (<> spacesB r) <$> trimL (negate l) a
+        (LT, LT) -> trimBoth (negate l) (negate r) a
+        (LT, EQ) -> trimL (negate l) a
+        (EQ, GT) -> pure $ build a <> spacesB r
+        (EQ, LT) -> trimR (negate r) a
+        (EQ, EQ) -> pure $ build a
 
 -- | Drop a number of characters from the left side. Treats negative numbers
 -- as zero.
@@ -265,7 +298,7 @@ trimOrPad :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
 trimOrPad p cm n c = case compare k n of
     LT -> pad' p n k c
     EQ -> buildCell c
-    GT -> trim' p cm n k c
+    GT -> cellViewToPadding $ trim' p cm n k c
   where
     k = visibleLength c
 
@@ -294,7 +327,7 @@ trimOrPadBetween
     -> a
     -> b
 trimOrPadBetween p cm lower upper c
-    | k > lower = trim' p cm upper k c
+    | k > lower = cellViewToPadding $ trim' p cm upper k c
     | k < upper = pad' p lower k c
     | otherwise = buildCell c
   where
@@ -302,32 +335,31 @@ trimOrPadBetween p cm lower upper c
 
 -- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 trim :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> a -> b
-trim p cm n c = if k <= n then buildCell c else trim' p cm n k c
+trim p cm n c = if k <= n then buildCell c else cellViewToPadding $ trim' p cm n k c
   where
     k = visibleLength c
 
 -- | Trim a cell based on the position. Cut marks may be trimmed if necessary.
 --
+-- If extra padding is needed, it is recorded.
+--
 -- Preconditions that require to be met (otherwise the function will produce garbage):
 --
 -- prop> visibleLength c > n
 -- prop> visibleLength c == k
-trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> b
+trim' :: (Cell a, StringBuilder b) => Position o -> CutMark -> Int -> Int -> a -> CellView b
 trim' p cm n k c = case p of
-    Start  -> buildCell (dropRight (cutLen + rightLen) c) <> buildCell (drop (rightLen - n) $ rightMark cm)
+    Start  -> (<> buildCell (drop (rightLen - n) $ rightMark cm)) <$> buildCellViewTight (dropRight (cutLen + rightLen) c)
+    End    -> (buildCell (take n $ leftMark cm) <>) <$> buildCellViewTight (dropLeft (cutLen + leftLen) c)
     Center -> case cutLen `divMod` 2 of
-        (0, 1) -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (1 + leftLen) c)
+        (0, 1) -> (buildCell (take n $ leftMark cm) <>) <$> buildCellViewTight (dropLeft (1 + leftLen) c)
         (q, r) -> if n >= leftLen + rightLen
-                  then buildCell (leftMark cm) <> buildCell (dropBoth (leftLen + q + r) (rightLen + q) c)
-                       <> buildCell (rightMark cm)
+                  then (buildCell (leftMark cm) <>) . (<> buildCell (rightMark cm)) <$> buildCellViewTight (dropBoth (leftLen + q + r) (rightLen + q) c)
                   else case n `divMod` 2 of
-                      (qn, rn) -> buildCell (take qn $ leftMark cm)
-                                  <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
-    End    -> buildCell (take n $ leftMark cm) <> buildCell (dropLeft (leftLen + cutLen) c)
+                      (qn, rn) -> pure $ buildCell (take qn $ leftMark cm) <> buildCell (drop (rightLen - qn - rn) $ rightMark cm)
   where
     leftLen = length $ leftMark cm
     rightLen = length $ rightMark cm
-
     cutLen = k - n
 
 -- | Align a cell by first locating the position to align with and then padding

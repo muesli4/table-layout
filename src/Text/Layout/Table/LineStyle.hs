@@ -21,7 +21,6 @@ module Text.Layout.Table.LineStyle
     , unicodeJoinString4
     ) where
 
-import Data.Default.Class (Default(..))
 import Data.Default.Class
 
 -- | The line styles supported by the Unicode Box-Drawing block.

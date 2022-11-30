@@ -21,25 +21,43 @@ instance Cell WideString where
     visibleLength (WideString s) = realLength s
     measureAlignment p (WideString s) = measureAlignmentWide p s
     buildCell (WideString s) = buildCell s
-    buildCellView = buildCellViewLRHelper
-      (\(WideString s) -> buildCell s)
-      (\i (WideString s) -> WideString $ dropWide True i s)
-      (\i (WideString s) -> WideString . reverse . dropWide False i $ reverse s)
+    buildCellViewTight = buildCellViewTightHelper
+        (\(WideString s) -> buildCell s)
+        (\i (WideString s) -> buildCell <$> trimLeft i s)
+        (\i (WideString s) -> buildCell <$> trimRight i s)
+        (\l r (WideString s) ->
+            -- First try to trim from the right.
+            let CellView a _ rightAdj = trimRight r s in
+            -- If there is extra padding, trim less on the left.
+            buildCell <$> trimLeft (l - rightAdj) a
+        )
 
 -- | Drop characters from the left side of a 'String' until at least the
 -- provided width has been removed.
 --
 -- The provided `Bool` determines whether to continue dropping zero-width
 -- characters after the requested width has been dropped.
-dropWide :: Bool -> Int -> String -> String
-dropWide _ _ [] = []
+dropWide :: Bool -> Int -> String -> CellView String
+dropWide _ _ [] = pure ""
 dropWide gobbleZeroWidth i l@(x : xs)
     | gobbleZeroWidth && i == 0 && charLen == 0 = dropWide gobbleZeroWidth i xs
-    | i <= 0       = l
+    | i <= 0       = pure l
     | charLen <= i = dropWide gobbleZeroWidth (i - charLen) xs
-    | otherwise    = replicate (charLen - i) ' ' ++ dropWide gobbleZeroWidth 0 xs
+    | otherwise    = adjustCell (charLen - i) 0 =<< dropWide gobbleZeroWidth 0 xs
   where
     charLen = charWidth x
+
+-- | Drop characters from the left side of a 'String', recording how much padding
+-- is needed to have dropped the requested width.
+trimLeft :: Int -> String -> CellView String
+trimLeft = dropWide True
+
+-- | Drop characters from the right side of a 'String', recording how much padding
+-- is needed to have dropped the requested width.
+trimRight :: Int -> String -> CellView String
+trimRight i = swapAdjustment . fmap reverse . dropWide False i . reverse
+  where
+    swapAdjustment (CellView a l r) = CellView a r l
 
 measureAlignmentWide :: (Char -> Bool) -> String -> AlignInfo
 measureAlignmentWide p xs = case break p xs of
@@ -55,27 +73,33 @@ instance Cell WideText where
     visibleLength (WideText s) = realLength s
     measureAlignment p (WideText s) = measureAlignmentWideT p s
     buildCell (WideText s) = buildCell s
-    buildCellView = buildCellViewLRHelper
+    buildCellViewTight = buildCellViewTightHelper
         (\(WideText s) -> buildCell s)
-        (\i (WideText s) -> WideText $ dropLeftWideT i s)
-        (\i (WideText s) -> WideText $ dropRightWideT i s)
+        (\i (WideText s) -> buildCell <$> dropLeftWideT i s)
+        (\i (WideText s) -> buildCell <$> dropRightWideT i s)
+        (\l r (WideText s) ->
+            -- First try to trim from the right.
+            let CellView a _ rightAdj = dropRightWideT r s in
+            -- If there is extra padding, trim less on the left.
+            buildCell <$> dropLeftWideT (l - rightAdj) a
+        )
 
-dropLeftWideT :: Int -> T.Text -> T.Text
+dropLeftWideT :: Int -> T.Text -> CellView T.Text
 dropLeftWideT i txt = case T.uncons txt of
-    Nothing -> txt
+    Nothing -> pure txt
     Just (x, xs) -> let l = charWidth x in if
         | i == 0 && l == 0 -> dropLeftWideT i xs
-        | i <= 0    -> txt
+        | i <= 0    -> pure txt
         | l <= i    -> dropLeftWideT (i - l) xs
-        | otherwise -> T.replicate (l - i) " " <> dropLeftWideT 0 xs
+        | otherwise -> adjustCell (l - i) 0 =<< dropLeftWideT 0 xs
 
-dropRightWideT :: Int -> T.Text -> T.Text
+dropRightWideT :: Int -> T.Text -> CellView T.Text
 dropRightWideT i txt = case T.unsnoc txt of
-    Nothing -> txt
+    Nothing -> pure txt
     Just (xs, x) -> let l = charWidth x in if
-        | i <= 0    -> txt
+        | i <= 0    -> pure txt
         | l <= i    -> dropRightWideT (i - l) xs
-        | otherwise -> xs <> T.replicate (l - i) " "
+        | otherwise -> adjustCell 0 (l - i) xs
 
 measureAlignmentWideT :: (Char -> Bool) -> T.Text -> AlignInfo
 measureAlignmentWideT p xs = case T.break p xs of
