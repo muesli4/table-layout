@@ -117,6 +117,11 @@ spec = do
         prop "center" $ propTrim center noCutMark
         prop "center with cut mark" $ propTrim center customCM
 
+        describe "trimmed cut mark" $ do
+            let trim' p = buildCellMod customCM $ trim p customCM 1 "aa"
+            it "right" $ trim' left  `shouldBe` ">"
+            it "left" $ trim' right `shouldBe` "<"
+
     describe "trimOrPad" $ do
         let trimOrPad' p cm n s = buildCellMod cm $ trimOrPad p cm n s
         let pad' p n s = buildCellMod noCutMark $ pad p n s
