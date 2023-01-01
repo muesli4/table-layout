@@ -12,7 +12,6 @@ import Text.Layout.Table.Spec.OccSpec
 import Text.Layout.Table.Spec.Position
 import Text.Layout.Table.StringBuilder
 
-
 -- | An object along with the amount that its length should be adjusted on both the left and right.
 -- Positive numbers are padding and negative numbers are trimming.
 data CellView a =
@@ -22,17 +21,31 @@ data CellView a =
     , rightAdjustment :: Int
     } deriving (Eq, Ord, Show, Functor)
 
+-- | Add an adjustment to the left and right of a 'Cell'.
+-- Positive numbers are padding and negative numbers are trimming.
+adjustCell :: Int -> Int -> a -> CellView a
+adjustCell l r a = CellView a l r
+
+-- | Drop a number of characters from the left side. Treats negative numbers
+-- as zero.
+dropLeft :: Int -> a -> CellView a
+dropLeft n = dropBoth n 0
+
+-- | Drop a number of characters from the right side. Treats negative
+-- numbers as zero.
+dropRight :: Int -> a -> CellView a
+dropRight = dropBoth 0
+
+-- | Drop characters from both sides. Treats negative numbers as zero.
+dropBoth :: Int -> Int -> a -> CellView a
+dropBoth l r = adjustCell (negate $ truncateNegative l) (negate $ truncateNegative r)
+
 instance Applicative CellView where
   pure x = CellView x 0 0
   (CellView f l r) <*> (CellView x l' r') = CellView (f x) (l + l') (r + r')
 
 instance Monad CellView where
   (CellView x l r) >>= f = let CellView y l' r' = f x in CellView y (l + l') (r + r')
-
--- | Add an adjustment to the left and right of a 'Cell'.
--- Positive numbers are padding and negative numbers are trimming.
-adjustCell :: Int -> Int -> a -> CellView a
-adjustCell l r a = CellView a l r
 
 -- | The total amount of adjustment in 'CellView'.
 totalAdjustment :: CellView a -> Int
@@ -167,19 +180,8 @@ buildCellViewHelper build trimL trimR trimBoth (CellView a l r) =
         (EQ, LT) -> trimR (negate r) a
         (EQ, EQ) -> build a
 
--- | Drop a number of characters from the left side. Treats negative numbers
--- as zero.
-dropLeft :: Int -> a -> CellView a
-dropLeft n = dropBoth n 0
 
--- | Drop a number of characters from the right side. Treats negative
--- numbers as zero.
-dropRight :: Int -> a -> CellView a
-dropRight = dropBoth 0
 
--- | Drop characters from both sides. Treats negative numbers as zero.
-dropBoth :: Int -> Int -> a -> CellView a
-dropBoth l r = adjustCell (- max 0 l) (- max 0 r)
 
 -- | Creates a 'StringBuilder' with the amount of missing spaces.
 remSpacesB
