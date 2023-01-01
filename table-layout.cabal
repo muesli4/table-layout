@@ -67,6 +67,7 @@ library
                        -- Will be moved into another package in the future.
                        Text.Layout.Table.Primitives.AlignInfo,
                        Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.CellMod,
                        Text.Layout.Table.Primitives.ColumnModifier,
                        Text.Layout.Table.Primitives.Header,
                        Text.Layout.Table.Primitives.Table,
@@ -120,6 +121,7 @@ executable table-layout-test-styles
 
                        Text.Layout.Table.Primitives.AlignInfo,
                        Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.CellMod,
                        Text.Layout.Table.Primitives.ColumnModifier,
                        Text.Layout.Table.Primitives.Header,
                        Text.Layout.Table.Primitives.Table,
@@ -165,6 +167,7 @@ test-suite table-layout-tests
 
                        Text.Layout.Table.Primitives.AlignInfo,
                        Text.Layout.Table.Primitives.Basic,
+                       Text.Layout.Table.Primitives.CellMod,
                        Text.Layout.Table.Primitives.ColumnModifier,
                        Text.Layout.Table.Primitives.Header,
                        Text.Layout.Table.Primitives.Table,

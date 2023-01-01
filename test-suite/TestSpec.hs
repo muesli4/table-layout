@@ -15,7 +15,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Text.Layout.Table
-import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, dropLeft, dropRight, viewRange)
+import Text.Layout.Table.Cell (Cell(..), CutAction(..), CutInfo(..), applyCutInfo, determineCutAction, determineCuts, dropLeft, dropRight, viewRange, buildCellMod)
 import Text.Layout.Table.Cell.WideString (WideString(..), WideText(..))
 import Text.Layout.Table.Spec.AlignSpec
 import Text.Layout.Table.Spec.CutMark
@@ -118,18 +118,21 @@ spec = do
         prop "center with cut mark" $ propTrim center customCM
 
     describe "trimOrPad" $ do
+        let trimOrPad' p cm n s = buildCellMod cm $ trimOrPad p cm n s
+        let pad' p n s = buildCellMod noCutMark $ pad p n s
         prop "pad" $ forAll hposG $ \p s (Positive (Small n)) ->
-            length (s :: String) > n || trimOrPad p noCutMark n s == (pad p n s :: String)
-        it "left" $ trimOrPad left customCM 5 "1234567890" `shouldBe` "12..>"
-        it "right" $ trimOrPad right customCM 5 "1234567890" `shouldBe` "<..90"
-        it "center" $ trimOrPad center customCM 8 "1234567890" `shouldBe` "<..56..>"
-        it "center one sided" $ trimOrPad center customCM 9 "1234567890" `shouldBe` "<..567890"
+            length (s :: String) > n || trimOrPad' p noCutMark n s == (pad' p n s :: String)
+        it "left" $ trimOrPad' left customCM 5 "1234567890" `shouldBe` "12..>"
+        it "right" $ trimOrPad' right customCM 5 "1234567890" `shouldBe` "<..90"
+        it "center" $ trimOrPad' center customCM 8 "1234567890" `shouldBe` "<..56..>"
+        it "center one sided" $ trimOrPad' center customCM 9 "1234567890" `shouldBe` "<..567890"
 
     describe "align" $ do
         let ai = deriveAlignInfo occS "abc:42"
-        it "ex1" $ align occS ai "c:4" `shouldBe` "  c:4 "
-        it "ex2" $ align occS ai "x" `shouldBe`   "  x   "
-        it "ex3" $ align occS ai ":x" `shouldBe`  "   :x "
+        let align' s = buildCellMod noCutMark (align occS ai s) :: String
+        it "ex1" $ align' "c:4" `shouldBe` "  c:4 "
+        it "ex2" $ align' "x" `shouldBe`   "  x   "
+        it "ex3" $ align' ":x" `shouldBe`  "   :x "
 
     describe "determineCuts" $ do
         describe "cases" $ do
@@ -150,9 +153,10 @@ spec = do
         it "actual width has more than required" $ determineCutAction 4 6 `shouldBe` CutCA 2
 
     describe "applyCutInfo" $ do
-        let apply ci = applyCutInfo ci customCM 5 11 "abcde:12345" :: String
-            apply2 ci s = applyCutInfo ci customCM 5 (length s) s :: String
-            apply3 ci n s = applyCutInfo ci customCM n (length s) s :: String
+        let apply ci = buildCellMod customCM (applyCutInfo ci customCM 5 11 "abcde:12345") :: String
+            apply2 ci s = buildCellMod customCM (applyCutInfo ci customCM 5 (length s) s) :: String
+            apply3 ci n s = buildCellMod customCM (applyCutInfo ci customCM n (length s) s) :: String
+            apply4 ca s = buildCellMod unevenCM (applyCutInfo ca unevenCM 5 (length s) s) :: String
         --                                     "<...>"
         it "double cut" $ apply (SidesCI (CutCA 3) (CutCA 3)) `shouldBe` "<...>"
         it "left cut" $ apply (SidesCI (CutCA 6) NoneCA) `shouldBe` "<..45"
@@ -168,8 +172,8 @@ spec = do
         it "mark left 2" $ apply3 MarkLeftCI 2 "" `shouldBe` "<."
         it "mark left 3" $ apply3 MarkLeftCI 4 "a" `shouldBe` "<.. "
 
-        it "uneven mark left" $ applyCutInfo MarkLeftCI unevenCM 5 5 "12345" `shouldBe` "<    "
-        it "uneven mark right" $ applyCutInfo MarkRightCI unevenCM 5 5 "12345" `shouldBe` "  -->"
+        it "uneven mark left" $ apply4 MarkLeftCI "12345" `shouldBe` "<    "
+        it "uneven mark right" $ apply4 MarkRightCI "12345" `shouldBe` "  -->"
 
     describe "viewRange" $ do
         -- "     :     "
@@ -189,9 +193,9 @@ spec = do
     describe "alignFixed" $ do
         -- 5 spaces on each side.
         let ai               = deriveAlignInfo occS "     :     "
-            alignFixed' p l  = alignFixed p customCM l occS ai
+            alignFixed' p l  = buildCellMod customCM . alignFixed p customCM l occS ai
             ai2              = deriveAlignInfo occS "       :   "
-            alignFixed2' p l = alignFixed p customCM l occS ai2
+            alignFixed2' p l = buildCellMod customCM . alignFixed p customCM l occS ai2
         it "left 1" $ alignFixed' left 6 "ab:42" `shouldBe` "   ..>"
         it "left 2" $ alignFixed' left 6 "abcd:42" `shouldBe` " ab..>"
 
@@ -372,20 +376,20 @@ spec = do
     propPadLeft :: String -> Positive (Small Int) -> Bool
     propPadLeft s (Positive (Small n)) =
         let len    = length s
-            padded = pad left n s
+            padded = buildCellMod noCutMark $ pad left n s
         in len >= n || (take len padded == s && all (== ' ') (drop len padded))
 
     propPadRight :: String -> Positive (Small Int) -> Bool
     propPadRight s (Positive (Small n)) =
         let len    = length s
-            padded = pad right n s
+            padded = buildCellMod noCutMark $ pad right n s
         in len >= n || (drop (n - len) padded == s
                         && all (== ' ') (take (n - len) padded))
 
     propPadCenter :: String -> Positive (Small Int) -> Bool
     propPadCenter s (Positive (Small n)) =
         let len      = length s
-            padded   = pad center n s
+            padded   = buildCellMod noCutMark $ pad center n s
             (q, r)   = (n - len) `divMod` 2
             trimLeft = drop q padded
         in len >= n || (all (== ' ') (take q padded) && take len trimLeft == s
@@ -394,7 +398,7 @@ spec = do
     propTrim :: Position o -> CutMark -> String -> Positive (Small Int) -> Bool
     propTrim pos cm s (Positive (Small n)) =
         let len = length s
-            trimmed = trim pos cm n s :: String
+            trimmed = buildCellMod cm (trim pos cm n s) :: String
             cutMarkTooLong = case pos of
                 Start  -> n < length (rightMark cm)
                 End    -> n < length (leftMark cm)

@@ -138,6 +138,7 @@ module Text.Layout.Table
     , trimOrPadBetween
     , align
     , alignFixed
+    , buildCellMod
     , adjustCell
 
       -- ** Column Modifaction Primitives

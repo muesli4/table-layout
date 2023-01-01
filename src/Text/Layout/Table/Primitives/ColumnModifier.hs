@@ -88,7 +88,7 @@ columnModifier
     -> CutMark
     -> ColModInfo
     -> (a -> b)
-columnModifier pos cms colModInfo = case colModInfo of
+columnModifier pos cms colModInfo = buildCellMod cms . case colModInfo of
     FillAligned oS ai -> align oS ai
     FillTo maxLen     -> pad pos maxLen
     FitTo lim mT      ->
