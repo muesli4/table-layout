@@ -191,14 +191,6 @@ remSpacesB
     -> b
 remSpacesB n c = remSpacesB' n $ visibleLength c
 
--- | Creates a 'StringBuilder' with the amount of missing spaces.
-remSpacesB'
-    :: StringBuilder b
-    => Int -- ^ The expected length.
-    -> Int -- ^ The actual length.
-    -> b
-remSpacesB' n k = spacesB $ n - k
-
 -- | Fill the right side with spaces if necessary.
 fillRight :: (Cell a, StringBuilder b) => Int -> a -> b
 fillRight n c = fillRight' n (visibleLength c) c

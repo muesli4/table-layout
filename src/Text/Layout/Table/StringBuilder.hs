@@ -28,6 +28,14 @@ class Monoid a => StringBuilder a where
 spacesB :: StringBuilder a => Int -> a
 spacesB k = replicateCharB k ' '
 
+-- | Creates a 'StringBuilder' with the amount of missing spaces.
+remSpacesB'
+    :: StringBuilder b
+    => Int -- ^ The expected length.
+    -> Int -- ^ The actual length.
+    -> b
+remSpacesB' n k = spacesB $ n - k
+
 instance StringBuilder String where
     stringB = id
     charB = (: [])
