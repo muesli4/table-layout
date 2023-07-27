@@ -92,20 +92,32 @@ instance Cell a => Cell (Formatted a) where
         (\i -> buildFormatted buildCell . trimLeft i)
         (\i -> buildFormatted buildCell . trimRight i)
         (\l r -> buildFormatted buildCell . trimLeft l . trimRight r)
-      where
-        trimLeft i = snd . mapAccumL (dropTrackRemaining dropLeft) i
-        trimRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
 
 -- | Build 'Formatted' using a given constructor.
 buildFormatted :: StringBuilder b => (a -> b) -> Formatted a -> b
 buildFormatted build = cataFormatted mempty mconcat build (\p a s -> stringB p <> a <> stringB s)
 
+-- | Trim from the left, recording how much to trim the contents of 'Formatted'.
+trimLeft :: Cell a => Int -> Formatted a -> Formatted (Maybe (CellView a))
+trimLeft i = snd . mapAccumL (dropTrackRemaining dropLeft) i
+
+-- | Trim from the right, recording how much to trim the contents of 'Formatted'.
+trimRight :: Cell a => Int -> Formatted a -> Formatted (Maybe (CellView a))
+trimRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
+
 -- | Drop characters either from the right or left, while also tracking the
--- remaining number of characters to drop.
-dropTrackRemaining :: Cell a => (Int -> a -> CellView a) -> Int -> a -> (Int, CellView a)
+-- remaining number of characters to drop. If all characters are dropped,
+-- return 'Nothing'
+dropTrackRemaining :: Cell a => (Int -> a -> CellView a) -> Int -> a -> (Int, Maybe (CellView a))
 dropTrackRemaining dropF i a
-  | i <= 0    = (0, pure a)
-  | otherwise = let l = visibleLength a in (max 0 $ i - l, dropF i a)
+    -- If there is nothing left to drop, return unmodified
+    | i <= 0    = (0, Just $ pure a)
+    -- If dropping more than requested, return 'Nothing'
+    | i >= l    = (i - l, Nothing)
+    -- Otherwise, drop what is necessary, and record the padding needed
+    | otherwise = (0, Just $ dropF i a)
+  where
+    l = visibleLength a
 
 -- | Run 'measureAlignment' with an initial state, as though we were measuring the alignment in chunks.
 mergeAlign :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo
