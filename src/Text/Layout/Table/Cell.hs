@@ -1,10 +1,15 @@
 {-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Text.Layout.Table.Cell where
 
-import Control.Monad (join)
+import Data.Bifunctor (Bifunctor(..))
+import Data.Kind (Type)
 import qualified Data.Text as T
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -48,10 +53,20 @@ dropBoth l r = adjustCell (negate $ truncateNegative l) (negate $ truncateNegati
 
 instance Applicative CellView where
   pure x = CellView x 0 0
-  (CellView f l r) <*> (CellView x l' r') = CellView (f x) (l + l') (r + r')
+  CellView f l r <*> CellView x l' r' = CellView (f x) (l + l') (r + r')
 
 instance Monad CellView where
-  (CellView x l r) >>= f = let CellView y l' r' = f x in CellView y (l + l') (r + r')
+  CellView x l r >>= f = let CellView y l' r' = f x in CellView y (l + l') (r + r')
+
+instance Semigroup a => Semigroup (CellView a) where
+  CellView a l r <> CellView b l' r' = CellView (a <> b) (l + l') (r + r')
+
+instance Monoid a => Monoid (CellView a) where
+  mempty = pure mempty
+
+-- | Build the contents of a 'CellView' and add padding.
+buildCellView :: StringBuilder b => (a -> b) -> CellView a -> b
+buildCellView build (CellView a l r) = spacesB l <> build a <> spacesB r
 
 -- | The total amount of adjustment in 'CellView'.
 totalAdjustment :: CellView a -> Int
@@ -64,33 +79,41 @@ redistributeAdjustment l r a = CellView (baseCell a) lAdjustment rAdjustment
     lAdjustment = (totalAdjustment a * l) `div` (l + r)
     rAdjustment = totalAdjustment a - lAdjustment
 
+
 -- | Types that can be measured for visible characters, define a sub-string
 -- operation and turned into a 'StringBuilder'.
-class Cell a where
+class Monoid (DropAction a) => Cell a where
+    -- | Describes the action necessary to drop width elements.
+    type DropAction a :: Type
+
     -- | Returns the length of the visible characters as displayed on the
     -- output medium.
     visibleLength :: a -> Int
+
+    -- | Determine the final visible length after requesting to drop width
+    -- units, along with the action needed to accomplish that.
+    dropLengthUnits :: Int -> Int -> a -> (Int, DropAction a)
 
     -- | Measure the preceding and following characters for a position where
     -- the predicate matches.
     measureAlignment :: (Char -> Bool) -> a -> AlignInfo
 
+    -- | Evaluate a 'DropAction' and build the result.
+    applyDropAction :: StringBuilder b => DropAction a -> a -> b
+
     -- | Insert the contents into a 'StringBuilder'.
     buildCell :: StringBuilder b => a -> b
-    buildCell = buildCellView . pure
+    buildCell = applyDropAction mempty
 
-    -- | Insert the contents into a 'StringBuilder', padding or trimming as
-    -- necessary.
-    --
-    -- The 'Cell' instance of 'CellView a' means that this can usually be
-    -- substituted with 'buildCell', and is only needed for defining the
-    -- instance.
-    buildCellView :: StringBuilder b => CellView a -> b
-
-    {-# MINIMAL visibleLength, measureAlignment, buildCellView #-}
+    {-# MINIMAL visibleLength, dropLengthUnits, measureAlignment, applyDropAction #-}
 
 instance Cell a => Cell (CellView a) where
+    type DropAction (CellView a) = CellView (DropAction a)
     visibleLength (CellView a l r) = visibleLength a + l + r
+    dropLengthUnits l r (CellView a l' r') =
+        -- Asking to drop more than the padding which exists: adjust the amount dropped
+        -- Asking to drop less than the padding: just reduce the padding
+        second (adjustCell (max 0 $ l' - l) (max 0 $ r' - r)) $ dropLengthUnits (max 0 $ l - l') (max 0 $ r - r') a
     measureAlignment f (CellView a l r) = case mMatchRemaining of
         -- No match
         Nothing -> AlignInfo (truncateNegative $ matchAt + l + r) Nothing
@@ -100,91 +123,89 @@ instance Cell a => Cell (CellView a) where
         Just matchRemaining -> AlignInfo (matchAt + l) (Just $ matchRemaining + r)
       where
         AlignInfo matchAt mMatchRemaining = measureAlignment f a
-    buildCell = buildCellView
-    buildCellView = buildCellView . join
+
+    applyDropAction action a = buildCellView id $ applyDropAction <$> action <*> a
+    buildCell (CellView a l r) =
+      case (compare l 0, compare r 0) of
+          (GT, GT) -> spacesB l <> buildCell a <> spacesB r
+          (GT, LT) -> spacesB l <> applyDropAction (snd (dropLengthUnits 0 (negate r) a)) a
+          (GT, EQ) -> spacesB l <> buildCell a
+          (LT, GT) -> applyDropAction (snd (dropLengthUnits (negate l) 0 a)) a <> spacesB r
+          (LT, LT) -> applyDropAction (snd (dropLengthUnits (negate l) (negate r) a)) a
+          (LT, EQ) -> applyDropAction (snd (dropLengthUnits (negate l) 0 a)) a
+          (EQ, GT) -> buildCell a <> spacesB r
+          (EQ, LT) -> applyDropAction (snd (dropLengthUnits 0 (negate r) a)) a
+          (EQ, EQ) -> buildCell a
 
 instance Cell a => Cell (Maybe a) where
+    type DropAction (Maybe a) = DropAction a
     visibleLength = maybe 0 visibleLength
+    dropLengthUnits l r (Just a) = dropLengthUnits l r a
+    dropLengthUnits _ _ Nothing = (0, mempty)
     measureAlignment p = maybe mempty (measureAlignment p)
+
+    applyDropAction action = maybe mempty (applyDropAction action)
     buildCell = maybe mempty buildCell
-    buildCellView (CellView a l r) = maybe (spacesB $ l + r) (buildCellView . adjustCell l r) a
 
 instance (Cell a, Cell b) => Cell (Either a b) where
+    type DropAction (Either a b) = (DropAction a, DropAction b)
     visibleLength = either visibleLength visibleLength
+    dropLengthUnits l r (Left a)  = second (,mempty) $ dropLengthUnits l r a
+    dropLengthUnits l r (Right a) = second (mempty,) $ dropLengthUnits l r a
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
+
+    applyDropAction = uncurry either . bimap applyDropAction applyDropAction
     buildCell = either buildCell buildCell
-    buildCellView (CellView a l r) = either go go a
-      where
-        go x = buildCellView $ CellView x l r
+
+-- | How to drop width units from many common types.
+data DefaultDropAction
+  = DropAll
+  | Drop Int Int
+  deriving (Show)
+
+instance Semigroup DefaultDropAction where
+  DropAll <> _ = DropAll
+  _ <> DropAll = DropAll
+  Drop l r <> Drop l' r' = Drop (l + l') (r + r')
+
+instance Monoid DefaultDropAction where
+  mempty = Drop 0 0
+
+-- | Construct a drop specification when every unit has width exactly one.
+--
+-- This can be used for 'dropLengthUnits' in most cases.
+defaultDropLengthUnits :: Cell a => Int -> Int -> a -> (Int, DefaultDropAction)
+defaultDropLengthUnits (truncateNegative -> l) (truncateNegative -> r) a
+    | l + r >= n = (0, DropAll)
+    | otherwise  = (n - l - r, Drop l r)
+  where
+    n = visibleLength a
 
 instance Cell String where
+    type DropAction String = DefaultDropAction
     visibleLength = length
+    dropLengthUnits = defaultDropLengthUnits
     measureAlignment p xs = case break p xs of
         (ls, rs) -> AlignInfo (length ls) $ case rs of
             []      -> Nothing
             _ : rs' -> Just $ length rs'
 
+    applyDropAction DropAll    _ = mempty
+    applyDropAction (Drop l r) a = stringB . drop l $ zipWith const a (drop r a)
     buildCell = stringB
-    buildCellView = buildCellViewLRHelper stringB drop (\n s -> zipWith const s $ drop n s)
 
 instance Cell T.Text where
+    type DropAction T.Text = DefaultDropAction
     visibleLength = T.length
+    dropLengthUnits = defaultDropLengthUnits
     measureAlignment p xs = case T.break p xs of
         (ls, rs) -> AlignInfo (T.length ls) $ if T.null rs
             then Nothing
             else Just $ T.length rs - 1
 
+    applyDropAction DropAll = const mempty
+    applyDropAction (Drop l r) = textB . T.drop l . T.dropEnd r
     buildCell = textB
-    buildCellView = buildCellViewLRHelper textB T.drop T.dropEnd
-
--- | Construct 'buildCellView' from a builder function, a function for
--- trimming from the left, and a function for trimming from the right.
---
--- Used to define instances of 'Cell'.
-buildCellViewLRHelper :: StringBuilder b
-                      => (a -> b)  -- ^ Builder function for 'a'.
-                      -> (Int -> a -> a)  -- ^ Function for trimming on the left.
-                      -> (Int -> a -> a)  -- ^ Function for trimming on the right.
-                      -> CellView a
-                      -> b
-buildCellViewLRHelper build trimL trimR =
-    buildCellViewHelper build (\i -> build . trimL i) (\i -> build . trimR i) (\l r -> build . trimL l . trimR r)
-
--- | Construct 'buildCellView' from a builder function, and a function for
--- trimming from the left and right simultaneously.
---
--- Used to define instanced of 'Cell'.
-buildCellViewBothHelper
-    :: StringBuilder b
-    => (a -> b)  -- ^ Builder function for 'a'.
-    -> (Int -> Int -> a -> a)  -- ^ Function for trimming on the left and right simultaneously.
-    -> CellView a
-    -> b
-buildCellViewBothHelper build trimBoth =
-    buildCellViewHelper build (\i -> build . trimBoth i 0) (\i -> build . trimBoth 0 i) (\l r -> build . trimBoth l r)
-
--- | Construct 'buildCellView' from builder functions and trimming functions.
---
--- Used to define instances of 'Cell'.
-buildCellViewHelper
-    :: StringBuilder b
-    => (a -> b)  -- ^ Builder function for 'a'.
-    -> (Int -> a -> b)  -- ^ Function for trimming on the left.
-    -> (Int -> a -> b)  -- ^ Function for trimming on the right.
-    -> (Int -> Int -> a -> b)  -- ^ Function for trimming on the left and right simultaneously.
-    -> CellView a
-    -> b
-buildCellViewHelper build trimL trimR trimBoth (CellView a l r) =
-    case (compare l 0, compare r 0) of
-        (GT, GT) -> spacesB l <> build a <> spacesB r
-        (GT, LT) -> spacesB l <> trimR (negate r) a
-        (GT, EQ) -> spacesB l <> build a
-        (LT, GT) -> trimL (negate l) a <> spacesB r
-        (LT, LT) -> trimBoth (negate l) (negate r) a
-        (LT, EQ) -> trimL (negate l) a
-        (EQ, GT) -> build a <> spacesB r
-        (EQ, LT) -> trimR (negate r) a
-        (EQ, EQ) -> build a
 
 -- | Creates a 'StringBuilder' with the amount of missing spaces.
 remSpacesB
@@ -477,9 +498,9 @@ buildCellMod
     -> CellMod c
     -> s
 buildCellMod cutMark CellMod {..} =
-    -- 'buildCellView' takes care of padding and trimming.
+    -- 'buildCell' takes care of padding and trimming.
     applyMarkOrEmpty applyLeftMark leftCutMarkLenCM
-    <> buildCellView (CellView baseCellCM leftAdjustmentCM rightAdjustmentCM)
+    <> buildCell (CellView baseCellCM leftAdjustmentCM rightAdjustmentCM)
     <> applyMarkOrEmpty applyRightMark rightCutMarkLenCM
   where
     applyMarkOrEmpty applyMark k = if k > 0 then applyMark k else mempty
