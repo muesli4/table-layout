@@ -61,31 +61,31 @@ measureAlignmentWideT p xs = case T.break p xs of
 -- measure width, measure number of characters, and drop characters from the
 -- left and right.
 dropWideLengthUnits :: HasChars a => (a -> a) -> (a -> Maybe (Char, a)) -> (a -> Maybe (a, Char))
-                    -> Int -> Int -> a -> (Int, DefaultDropAction)
+                    -> Int -> Int -> a -> DropResult DefaultDropAction
 dropWideLengthUnits preprocessRight unconsF unsnocF (truncateNegative -> l) (truncateNegative -> r) s
-    | l == 0 && r == 0    = (fullLength, Drop 0 0)
-    | l + r >= fullLength = (0, DropAll)
-    | r == 0              = second (\n -> Drop n 0) left
-    | l == 0              = second (\n -> Drop 0 n) right
-    | otherwise           = (fst left + fst right - fullLength, Drop (snd left) (snd right))
+    | l == 0 && r == 0    = DropResult fullLength 0 0 0 $ Drop 0 0
+    | l + r >= fullLength = DropResult 0 fullLength 0 0 DropAll
+    | r == 0              = left
+    | l == 0              = right
+    | otherwise           = combineLRDropResult fullLength left right
   where
-    left = go 0 0 l s
+    left = go 0 0 0 l s
       where
-        go droppedLength droppedChars i txt = case unconsF txt of
-            Nothing -> (droppedLength, droppedChars)
+        go droppedLength padding droppedChars i txt = case unconsF txt of
+            Nothing -> DropResult (fullLength - droppedLength) droppedLength padding 0 (Drop droppedChars 0)
             Just (x, xs) -> let w = charWidth x in if
-                | i == 0 && w == 0 -> go droppedLength (droppedChars + 1) i xs
-                | i <= 0           -> (droppedLength, droppedChars)
-                | w <= i           -> go (droppedLength + w) (droppedChars + 1) (i - w) xs
-                | otherwise        -> go (droppedLength + w) (droppedChars + 1) 0 xs
+                | i == 0 && w == 0 -> go droppedLength padding (droppedChars + 1) i xs
+                | i <= 0           -> DropResult (fullLength - droppedLength) droppedLength padding 0 (Drop droppedChars 0)
+                | w <= i           -> go (droppedLength + w) padding (droppedChars + 1) (i - w) xs
+                | otherwise        -> go (droppedLength + w) (padding + w - i) (droppedChars + 1) 0 xs
 
-    right = go 0 0 r $ preprocessRight s
+    right = go 0 0 0 r $ preprocessRight s
       where
-        go droppedLength droppedChars i txt = case unsnocF txt of
-            Nothing -> (droppedLength, droppedChars)
+        go droppedLength padding droppedChars i txt = case unsnocF txt of
+            Nothing -> DropResult (fullLength - droppedLength) droppedLength 0 padding (Drop 0 droppedChars)
             Just (xs, x) -> let w = charWidth x in if
-                | i <= 0    -> (droppedLength, droppedChars)
-                | w <= i    -> go (droppedLength + w) (droppedChars + 1) (i - w) xs
-                | otherwise -> (droppedLength + w, droppedChars + 1)
+                | i <= 0    -> DropResult (fullLength - droppedLength) droppedLength 0 padding (Drop 0 droppedChars)
+                | w <= i    -> go (droppedLength + w) padding (droppedChars + 1) (i - w) xs
+                | otherwise -> DropResult (fullLength - droppedLength - w) (droppedLength + w) 0 (padding + w - i) (Drop 0 (droppedChars + 1))
 
     fullLength = realLength s

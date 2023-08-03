@@ -79,6 +79,37 @@ redistributeAdjustment l r a = CellView (baseCell a) lAdjustment rAdjustment
     lAdjustment = (totalAdjustment a * l) `div` (l + r)
     rAdjustment = totalAdjustment a - lAdjustment
 
+data DropResult a = DropResult
+  { dropResultLength        :: Int
+  , dropResultAmountDropped :: Int
+  , dropResultLeftPadding   :: Int
+  , dropResultRightPadding  :: Int
+  , dropResultAction        :: a
+  } deriving (Show, Eq, Ord, Functor)
+
+-- | The original length of a 'DropResult'.
+dropResultOriginalLength :: DropResult a -> Int
+dropResultOriginalLength x = dropResultLength x + dropResultAmountDropped x
+
+-- | The length requested from a 'DropResult'.
+dropResultRequestedLength :: DropResult a -> Int
+dropResultRequestedLength x = dropResultLength x + dropResultLeftPadding x + dropResultRightPadding x
+
+-- | Combine two drop results when they commute, as in a left drop followed by a right drop.
+combineLRDropResult :: Semigroup a => Int -> DropResult a -> DropResult a -> DropResult a
+combineLRDropResult fullLength (DropResult f d pl pr a) (DropResult f' d' pl' pr' a') =
+    DropResult (truncateNegative $ f + f' - fullLength) (min fullLength $ d + d') (pl + pl') (pr + pr') (a <> a')
+
+-- | Combine a traversable of 'DropResult's into a 'DropResult' of 'Traversable's.
+dropResultTraversable :: Traversable t => t (DropResult a) -> DropResult (t a)
+dropResultTraversable xs = DropResult l d pl pr a
+  where
+    l = sum $ fmap dropResultLength xs
+    d = sum $ fmap dropResultAmountDropped xs
+    pl = sum $ fmap dropResultLeftPadding xs
+    pr = sum $ fmap dropResultRightPadding xs
+    a = fmap dropResultAction xs
+
 
 -- | Types that can be measured for visible characters, define a sub-string
 -- operation and turned into a 'StringBuilder'.
@@ -92,7 +123,7 @@ class Monoid (DropAction a) => Cell a where
 
     -- | Determine the final visible length after requesting to drop width
     -- units, along with the action needed to accomplish that.
-    dropLengthUnits :: Int -> Int -> a -> (Int, DropAction a)
+    dropLengthUnits :: Int -> Int -> a -> DropResult (DropAction a)
 
     -- | Measure the preceding and following characters for a position where
     -- the predicate matches.
@@ -113,7 +144,7 @@ instance Cell a => Cell (CellView a) where
     dropLengthUnits l r (CellView a l' r') =
         -- Asking to drop more than the padding which exists: adjust the amount dropped
         -- Asking to drop less than the padding: just reduce the padding
-        second (adjustCell (max 0 $ l' - l) (max 0 $ r' - r)) $ dropLengthUnits (max 0 $ l - l') (max 0 $ r - r') a
+        adjustCell (max 0 $ l' - l) (max 0 $ r' - r) <$> dropLengthUnits (max 0 $ l - l') (max 0 $ r - r') a
     measureAlignment f (CellView a l r) = case mMatchRemaining of
         -- No match
         Nothing -> AlignInfo (truncateNegative $ matchAt + l + r) Nothing
@@ -128,20 +159,20 @@ instance Cell a => Cell (CellView a) where
     buildCell (CellView a l r) =
       case (compare l 0, compare r 0) of
           (GT, GT) -> spacesB l <> buildCell a <> spacesB r
-          (GT, LT) -> spacesB l <> applyDropAction (snd (dropLengthUnits 0 (negate r) a)) a
+          (GT, LT) -> spacesB l <> applyDropAction (dropResultAction $ dropLengthUnits 0 (negate r) a) a
           (GT, EQ) -> spacesB l <> buildCell a
-          (LT, GT) -> applyDropAction (snd (dropLengthUnits (negate l) 0 a)) a <> spacesB r
-          (LT, LT) -> applyDropAction (snd (dropLengthUnits (negate l) (negate r) a)) a
-          (LT, EQ) -> applyDropAction (snd (dropLengthUnits (negate l) 0 a)) a
+          (LT, GT) -> applyDropAction (dropResultAction $ dropLengthUnits (negate l) 0 a) a <> spacesB r
+          (LT, LT) -> applyDropAction (dropResultAction $ dropLengthUnits (negate l) (negate r) a) a
+          (LT, EQ) -> applyDropAction (dropResultAction $ dropLengthUnits (negate l) 0 a) a
           (EQ, GT) -> buildCell a <> spacesB r
-          (EQ, LT) -> applyDropAction (snd (dropLengthUnits 0 (negate r) a)) a
+          (EQ, LT) -> applyDropAction (dropResultAction $ dropLengthUnits 0 (negate r) a) a
           (EQ, EQ) -> buildCell a
 
 instance Cell a => Cell (Maybe a) where
     type DropAction (Maybe a) = DropAction a
     visibleLength = maybe 0 visibleLength
     dropLengthUnits l r (Just a) = dropLengthUnits l r a
-    dropLengthUnits _ _ Nothing = (0, mempty)
+    dropLengthUnits _ _ Nothing = DropResult 0 0 0 0 mempty
     measureAlignment p = maybe mempty (measureAlignment p)
 
     applyDropAction action = maybe mempty (applyDropAction action)
@@ -150,8 +181,8 @@ instance Cell a => Cell (Maybe a) where
 instance (Cell a, Cell b) => Cell (Either a b) where
     type DropAction (Either a b) = (DropAction a, DropAction b)
     visibleLength = either visibleLength visibleLength
-    dropLengthUnits l r (Left a)  = second (,mempty) $ dropLengthUnits l r a
-    dropLengthUnits l r (Right a) = second (mempty,) $ dropLengthUnits l r a
+    dropLengthUnits l r (Left a)  = (,mempty) <$> dropLengthUnits l r a
+    dropLengthUnits l r (Right a) = (mempty,) <$> dropLengthUnits l r a
     measureAlignment p = either (measureAlignment p) (measureAlignment p)
 
     applyDropAction = uncurry either . bimap applyDropAction applyDropAction
@@ -174,10 +205,10 @@ instance Monoid DefaultDropAction where
 -- | Construct a drop specification when every unit has width exactly one.
 --
 -- This can be used for 'dropLengthUnits' in most cases.
-defaultDropLengthUnits :: Cell a => Int -> Int -> a -> (Int, DefaultDropAction)
+defaultDropLengthUnits :: Cell a => Int -> Int -> a -> DropResult DefaultDropAction
 defaultDropLengthUnits (truncateNegative -> l) (truncateNegative -> r) a
-    | l + r >= n = (0, DropAll)
-    | otherwise  = (n - l - r, Drop l r)
+    | l + r >= n = DropResult 0 n 0 0 DropAll
+    | otherwise  = DropResult (n - l - r) (l + r) 0 0 $ Drop l r
   where
     n = visibleLength a
 
@@ -498,13 +529,16 @@ buildCellMod
     -> CellMod c
     -> s
 buildCellMod cutMark CellMod {..} =
-    -- 'buildCell' takes care of padding and trimming.
-    applyMarkOrEmpty applyLeftMark leftCutMarkLenCM
-    <> buildCell (CellView baseCellCM leftAdjustmentCM rightAdjustmentCM)
+    -- 'dropResultAction takes care of trimming.
+    spacesB (truncateNegative leftAdjustmentCM + dropResultLeftPadding)
+    <> applyMarkOrEmpty applyLeftMark leftCutMarkLenCM
+    <> applyDropAction dropResultAction baseCellCM
     <> applyMarkOrEmpty applyRightMark rightCutMarkLenCM
+    <> spacesB (truncateNegative rightAdjustmentCM + dropResultRightPadding)
   where
+    DropResult {..} = dropLengthUnits (negate leftAdjustmentCM) (negate rightAdjustmentCM) baseCellCM
+
     applyMarkOrEmpty applyMark k = if k > 0 then applyMark k else mempty
 
     applyLeftMark k  = stringB $ take k $ leftMark cutMark
     applyRightMark k = stringB . reverse . take k . reverse $ rightMark cutMark
-

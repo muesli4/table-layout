@@ -108,20 +108,19 @@ buildFormatted :: StringBuilder b => (a -> b) -> Formatted a -> b
 buildFormatted build = cataFormatted mempty mconcat build (\p a s -> stringB p <> a <> stringB s)
 
 -- | Drop width units from 'Formatted'.
-dropFormattedLengthUnits :: forall a. Cell a => Int -> Int -> Formatted a -> (Int, DropAction (Formatted a))
-dropFormattedLengthUnits l r = extract . dropFromLeft . dropFromRight . fmap tagLength
+dropFormattedLengthUnits :: forall a. Cell a => Int -> Int -> Formatted a -> DropResult (DropAction (Formatted a))
+dropFormattedLengthUnits l r = toZipList . dropResultTraversable . fmap fst . dropFromLeft . dropFromRight . fmap tagLength
   where
-    extract = bimap sum (Ap . ZipList) . unzip . map fst . toList
-    dropFromLeft = snd . mapAccumL (\n -> dropTrackActions n 0) l
-    dropFromRight = snd . mapAccumR (dropTrackActions 0) r
-    tagLength x = let v = visibleLength x in ((v, mempty) , (v, x))
+    toZipList     = fmap (Ap . ZipList . toList)
+    dropFromLeft  = snd . mapAccumL (\n -> dropTrackActions n 0) l
+    dropFromRight = snd . mapAccumR (\n -> dropTrackActions 0 n) r
+    tagLength x = let v = visibleLength x in (DropResult v 0 0 0 mempty, (v, x))
 
-    dropTrackActions :: Int -> Int -> ((Int, DropAction a), (Int, a)) -> (Int, ((Int, DropAction a), (Int, a)))
-    dropTrackActions l' r' ((oldDroppedLength, oldAction), (fullLength, x)) =
-        (remainingToDrop, ((truncateNegative $ oldDroppedLength + newDroppedLength - fullLength, oldAction <> newAction), (fullLength, x)))
+    dropTrackActions :: Int -> Int -> (DropResult (DropAction a), (Int, a)) -> (Int, (DropResult (DropAction a), (Int, a)))
+    dropTrackActions l' r' (old, (fullLength, x)) =
+        (l' + r' - dropResultAmountDropped new, (combineLRDropResult fullLength old new, (fullLength, x)))
       where
-        remainingToDrop = l' + r' - (fullLength - newDroppedLength)
-        (newDroppedLength, newAction) = dropLengthUnits l' r' x
+        new = dropLengthUnits l' r' x
 
 -- | Run 'measureAlignment' with an initial state, as though we were measuring the alignment in chunks.
 mergeAlign :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo
