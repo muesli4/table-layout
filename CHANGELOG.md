@@ -2,6 +2,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.0.1] - 2024-07-20
+
+### Changed
+
+- Changed version bounds of `base` and `QuickCheck`.
+
 ## [1.0.0.0] - 2023-11-17
 
 This release would not have been possible without the tireless work of Stephen
