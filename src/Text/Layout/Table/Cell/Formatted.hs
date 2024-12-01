@@ -1,5 +1,8 @@
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 -- | Provides formatting to an instance of 'Cell'. For example, in a unix
 -- terminal one could use the following:
@@ -19,7 +22,11 @@ module Text.Layout.Table.Cell.Formatted
     , cataFormatted
     ) where
 
+import Control.Applicative (ZipList(..))
+import Data.Bifunctor (Bifunctor(..))
+import Data.Foldable (toList)
 import Data.List (foldl', mapAccumL, mapAccumR)
+import Data.Monoid (Ap(..))
 import Data.String
 
 import Text.Layout.Table.Primitives.AlignInfo
@@ -84,28 +91,36 @@ instance Monoid (Formatted a) where
     mempty = Empty
 
 instance Cell a => Cell (Formatted a) where
+    -- Use Ap ZipList so it has the correct Monoid instance
+    type DropAction (Formatted a) = Ap ZipList (DropAction a)
     visibleLength = sum . fmap visibleLength
+    dropLengthUnits = dropFormattedLengthUnits
     measureAlignment p = foldl' (mergeAlign p) mempty
-    buildCell = buildFormatted buildCell
-    buildCellView = buildCellViewHelper
-        (buildFormatted buildCell)
-        (\i -> buildFormatted buildCell . trimLeft i)
-        (\i -> buildFormatted buildCell . trimRight i)
-        (\l r -> buildFormatted buildCell . trimLeft l . trimRight r)
+
+    applyDropAction (Ap (ZipList actions)) = buildFormatted id . snd . mapAccumL tagDropAction actions
       where
-        trimLeft i = snd . mapAccumL (dropTrackRemaining dropLeft) i
-        trimRight i = snd . mapAccumR (dropTrackRemaining dropRight) i
+        tagDropAction (d:ds) x = (ds, applyDropAction d x)
+        tagDropAction []     x = ([], buildCell x)
+    buildCell = buildFormatted buildCell
 
 -- | Build 'Formatted' using a given constructor.
 buildFormatted :: StringBuilder b => (a -> b) -> Formatted a -> b
 buildFormatted build = cataFormatted mempty mconcat build (\p a s -> stringB p <> a <> stringB s)
 
--- | Drop characters either from the right or left, while also tracking the
--- remaining number of characters to drop.
-dropTrackRemaining :: Cell a => (Int -> a -> CellView a) -> Int -> a -> (Int, CellView a)
-dropTrackRemaining dropF i a
-  | i <= 0    = (0, pure a)
-  | otherwise = let l = visibleLength a in (max 0 $ i - l, dropF i a)
+-- | Drop width units from 'Formatted'.
+dropFormattedLengthUnits :: forall a. Cell a => Int -> Int -> Formatted a -> DropResult (DropAction (Formatted a))
+dropFormattedLengthUnits l r = toZipList . dropResultTraversable . fmap fst . dropFromLeft . dropFromRight . fmap tagLength
+  where
+    toZipList     = fmap (Ap . ZipList . toList)
+    dropFromLeft  = snd . mapAccumL (\n -> dropTrackActions n 0) l
+    dropFromRight = snd . mapAccumR (\n -> dropTrackActions 0 n) r
+    tagLength x = let v = visibleLength x in (DropResult v 0 0 0 mempty, (v, x))
+
+    dropTrackActions :: Int -> Int -> (DropResult (DropAction a), (Int, a)) -> (Int, (DropResult (DropAction a), (Int, a)))
+    dropTrackActions l' r' (old, (fullLength, x)) =
+        (l' + r' - dropResultAmountDropped new, (combineLRDropResult fullLength old new, (fullLength, x)))
+      where
+        new = dropLengthUnits l' r' x
 
 -- | Run 'measureAlignment' with an initial state, as though we were measuring the alignment in chunks.
 mergeAlign :: Cell a => (Char -> Bool) -> AlignInfo -> a -> AlignInfo
