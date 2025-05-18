@@ -2,6 +2,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+## [1.0.0.2] - 2025-05-18
+
+- Change version bounds of `base`, `data-default-class` and `doclayout`.
+
 ## [1.0.0.1] - 2024-07-20
 
 ### Changed
