@@ -1,45 +1,37 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ViewPatterns               #-}
+
 module Text.Layout.Table.Cell.WideString
     ( WideString(..)
     , WideText(..)
     ) where
 
-import Data.String
+import Data.Bifunctor(Bifunctor(..))
+import Data.List (uncons)
+import Data.String (IsString)
+import Data.Tuple (swap)
 import qualified Data.Text as T
 import Text.DocLayout
 
 import Text.Layout.Table.Cell
 import Text.Layout.Table.Primitives.AlignInfo
 
+
 -- | A newtype for String in which characters can be wider than one space.
 newtype WideString = WideString String
     deriving (Eq, Ord, Show, Read, Semigroup, Monoid, IsString)
 
 instance Cell WideString where
+    type DropAction WideString = DefaultDropAction
     visibleLength (WideString s) = realLength s
+    dropLengthUnits l r (WideString s) = dropWideLengthUnits reverse uncons (fmap swap . uncons) l r s
     measureAlignment p (WideString s) = measureAlignmentWide p s
+    applyDropAction action (WideString s) = applyDropAction action s
     buildCell (WideString s) = buildCell s
-    buildCellView = buildCellViewLRHelper
-      (\(WideString s) -> buildCell s)
-      (\i (WideString s) -> WideString $ dropWide True i s)
-      (\i (WideString s) -> WideString . reverse . dropWide False i $ reverse s)
 
--- | Drop characters from the left side of a 'String' until at least the
--- provided width has been removed.
---
--- The provided `Bool` determines whether to continue dropping zero-width
--- characters after the requested width has been dropped.
-dropWide :: Bool -> Int -> String -> String
-dropWide _ _ [] = []
-dropWide gobbleZeroWidth i l@(x : xs)
-    | gobbleZeroWidth && i == 0 && charLen == 0 = dropWide gobbleZeroWidth i xs
-    | i <= 0       = l
-    | charLen <= i = dropWide gobbleZeroWidth (i - charLen) xs
-    | otherwise    = replicate (charLen - i) ' ' ++ dropWide gobbleZeroWidth 0 xs
-  where
-    charLen = charWidth x
 
 measureAlignmentWide :: (Char -> Bool) -> String -> AlignInfo
 measureAlignmentWide p xs = case break p xs of
@@ -52,33 +44,48 @@ newtype WideText = WideText T.Text
     deriving (Eq, Ord, Show, Read, Semigroup, Monoid, IsString)
 
 instance Cell WideText where
+    type DropAction WideText = DefaultDropAction
     visibleLength (WideText s) = realLength s
+    dropLengthUnits l r (WideText s) = dropWideLengthUnits id T.uncons T.unsnoc l r s
     measureAlignment p (WideText s) = measureAlignmentWideT p s
+    applyDropAction action (WideText s) = applyDropAction action s
     buildCell (WideText s) = buildCell s
-    buildCellView = buildCellViewLRHelper
-        (\(WideText s) -> buildCell s)
-        (\i (WideText s) -> WideText $ dropLeftWideT i s)
-        (\i (WideText s) -> WideText $ dropRightWideT i s)
-
-dropLeftWideT :: Int -> T.Text -> T.Text
-dropLeftWideT i txt = case T.uncons txt of
-    Nothing -> txt
-    Just (x, xs) -> let l = charWidth x in if
-        | i == 0 && l == 0 -> dropLeftWideT i xs
-        | i <= 0    -> txt
-        | l <= i    -> dropLeftWideT (i - l) xs
-        | otherwise -> T.replicate (l - i) " " <> dropLeftWideT 0 xs
-
-dropRightWideT :: Int -> T.Text -> T.Text
-dropRightWideT i txt = case T.unsnoc txt of
-    Nothing -> txt
-    Just (xs, x) -> let l = charWidth x in if
-        | i <= 0    -> txt
-        | l <= i    -> dropRightWideT (i - l) xs
-        | otherwise -> xs <> T.replicate (l - i) " "
 
 measureAlignmentWideT :: (Char -> Bool) -> T.Text -> AlignInfo
 measureAlignmentWideT p xs = case T.break p xs of
     (ls, rs) -> AlignInfo (realLength ls) $ if T.null rs
         then Nothing
         else Just . realLength $ T.drop 1 rs
+
+-- | Efficiently calculate the drop action for a type provided functions to
+-- measure width, measure number of characters, and drop characters from the
+-- left and right.
+dropWideLengthUnits :: HasChars a => (a -> a) -> (a -> Maybe (Char, a)) -> (a -> Maybe (a, Char))
+                    -> Int -> Int -> a -> DropResult DefaultDropAction
+dropWideLengthUnits preprocessRight unconsF unsnocF (truncateNegative -> l) (truncateNegative -> r) s
+    | l == 0 && r == 0    = DropResult fullLength 0 0 0 $ Drop 0 0
+    | l + r >= fullLength = DropResult 0 fullLength 0 0 DropAll
+    | r == 0              = left
+    | l == 0              = right
+    | otherwise           = combineLRDropResult fullLength left right
+  where
+    left = go 0 0 0 l s
+      where
+        go droppedLength padding droppedChars i txt = case unconsF txt of
+            Nothing -> DropResult (fullLength - droppedLength) droppedLength padding 0 (Drop droppedChars 0)
+            Just (x, xs) -> let w = charWidth x in if
+                | i == 0 && w == 0 -> go droppedLength padding (droppedChars + 1) i xs
+                | i <= 0           -> DropResult (fullLength - droppedLength) droppedLength padding 0 (Drop droppedChars 0)
+                | w <= i           -> go (droppedLength + w) padding (droppedChars + 1) (i - w) xs
+                | otherwise        -> go (droppedLength + w) (padding + w - i) (droppedChars + 1) 0 xs
+
+    right = go 0 0 0 r $ preprocessRight s
+      where
+        go droppedLength padding droppedChars i txt = case unsnocF txt of
+            Nothing -> DropResult (fullLength - droppedLength) droppedLength 0 padding (Drop 0 droppedChars)
+            Just (xs, x) -> let w = charWidth x in if
+                | i <= 0    -> DropResult (fullLength - droppedLength) droppedLength 0 padding (Drop 0 droppedChars)
+                | w <= i    -> go (droppedLength + w) padding (droppedChars + 1) (i - w) xs
+                | otherwise -> DropResult (fullLength - droppedLength - w) (droppedLength + w) 0 (padding + w - i) (Drop 0 (droppedChars + 1))
+
+    fullLength = realLength s
