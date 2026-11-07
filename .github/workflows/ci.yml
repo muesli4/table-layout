@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test with GHC 9.14
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Haskell
+        id: setup
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.14"
+          cabal-version: latest
+          cabal-update: true
+
+      - name: Generate Cabal build plan
+        run: cabal build all --enable-tests --dry-run
+
+      - name: Restore cached dependencies
+        id: cache
+        uses: actions/cache/restore@v6
+        env:
+          CACHE_PREFIX: ${{ runner.os }}-ghc-${{ steps.setup.outputs.ghc-version }}-cabal-${{ steps.setup.outputs.cabal-version }}
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ env.CACHE_PREFIX }}-plan-${{ hashFiles('**/plan.json') }}
+          restore-keys: |
+            ${{ env.CACHE_PREFIX }}-
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: cabal build all --enable-tests --only-dependencies
+
+      - name: Save cached dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.setup.outputs.cabal-store }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      - name: Build all components
+        run: cabal build all --enable-tests
+
+      - name: Run unit tests
+        run: cabal test all --test-show-details=direct
