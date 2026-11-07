@@ -1,5 +1,5 @@
 -- | Produce justified text, which is spread over multiple rows. For a simple
--- cut, 'chunksOf' from the `split` package is best suited.
+-- cut, the @chunksOf@ function from the @split@ package is best suited.
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards #-}
 module Text.Layout.Table.Justify
@@ -103,8 +103,8 @@ mapInit f g (x : xs) = go x xs
     go y []        = [g y]
     go y (y' : ys) = f y : go y' ys
 
--- | Spread out spaces with different widths more evenly (in comparison to
--- 'dimorphicSpaces').
+-- | Spread out spaces with different widths more evenly than grouping all
+-- wider spaces before the narrower ones.
 mixedDimorphicSpaces :: Int -> Int -> [String]
 mixedDimorphicSpaces = mixedDimorphicSummandsBy spaces
 
@@ -118,6 +118,8 @@ mixedDimorphicSpaces = mixedDimorphicSummandsBy spaces
 dimorphicSummands :: Int -> Int -> [Int]
 dimorphicSummands = dimorphicSummandsBy id
 
+-- | Split a number into almost-equal summands and transform each summand.
+-- Larger summands precede smaller ones.
 dimorphicSummandsBy :: (Int -> a) -> Int -> Int -> [a]
 dimorphicSummandsBy _ _ 0      = []
 dimorphicSummandsBy f n splits = replicate r largeS ++ replicate (splits - r) smallS

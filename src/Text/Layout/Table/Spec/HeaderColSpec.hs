@@ -1,3 +1,4 @@
+-- | Specifications for positioning and trimming header cells.
 module Text.Layout.Table.Spec.HeaderColSpec where
 
 import Data.Default.Class

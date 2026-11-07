@@ -253,6 +253,7 @@ gridStringB specs = concatLines . gridLinesB specs
 gridString :: Cell a => [ColSpec] -> [Row a] -> String
 gridString = gridStringB
 
+-- | Concatenate rendered lines with newline characters between them.
 concatLines :: StringBuilder b => [b] -> b
 concatLines = mconcat . intersperse (charB '\n')
 

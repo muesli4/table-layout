@@ -1,3 +1,4 @@
+-- | Policies for aligning cells at matching characters.
 module Text.Layout.Table.Spec.AlignSpec
     ( AlignSpec(..)
     , noAlign

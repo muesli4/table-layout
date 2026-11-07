@@ -1,3 +1,4 @@
+-- | Applying header-column specifications to derived column widths.
 module Text.Layout.Table.Primitives.Header where
 
 import Data.Maybe

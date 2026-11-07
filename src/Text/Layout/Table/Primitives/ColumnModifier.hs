@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+-- | Derivation and application of uniform column modifications.
 module Text.Layout.Table.Primitives.ColumnModifier where
 
 import Control.Arrow ((&&&))
@@ -79,7 +80,7 @@ fitTitlesCMI :: Cell a => [a] -> [Position H] -> [ColModInfo] -> [ColModInfo]
 fitTitlesCMI = zipWith3 ensureWidthOfCMI
 
 -- | Generates a function which modifies a given cell according to
--- 'Text.Layout.Table.Position.Position', 'CutMark' and 'ColModInfo'. This is
+-- 'Position', 'CutMark' and 'ColModInfo'. This is
 -- used to modify a single cell of a column to bring all cells of a column to
 -- the same width.
 columnModifier
@@ -98,6 +99,7 @@ columnModifier pos cms colModInfo = buildCellMod cms . case colModInfo of
 deriveAlignInfo :: Cell a => OccSpec -> a -> AlignInfo
 deriveAlignInfo occSpec = measureAlignment (predicate occSpec)
 
+-- | Extract the length and alignment policies from column specifications.
 unpackColSpecs :: [ColSpec] -> [(LenSpec, AlignSpec)]
 unpackColSpecs = fmap $ lenSpec &&& alignSpec
 

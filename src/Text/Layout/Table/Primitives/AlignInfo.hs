@@ -1,3 +1,4 @@
+-- | Measurements used to align cells around a matching character.
 module Text.Layout.Table.Primitives.AlignInfo where
 
 import Data.Foldable (asum)

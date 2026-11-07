@@ -1,4 +1,5 @@
 -- TODO rename cut marks (they are too long)
+-- | Cut marks used to indicate content trimmed from table cells.
 module Text.Layout.Table.Spec.CutMark
     ( CutMark
     , doubleCutMark
@@ -17,7 +18,9 @@ import Data.Default.Class
 data CutMark
     = CutMark
     { leftMark  :: String
+      -- ^ Mark displayed when content is removed from the left.
     , rightMark :: String
+      -- ^ Mark displayed when content is removed from the right.
     } deriving (Show, Eq)
 
 -- | A single ellipsis unicode character is used to show cut marks.

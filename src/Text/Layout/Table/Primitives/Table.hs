@@ -11,7 +11,7 @@ import           Text.Layout.Table.Spec.Util
 
 
 -- | Draw a horizontal line that will use the provided delimiters around
--- the content appropriately and visually separate by 'hSpace'.
+-- the content appropriately and visually separate by @hSpace@.
 horizontalDetailLine
     :: StringBuilder b
     => String                            -- ^ The space characters that are used as padding.

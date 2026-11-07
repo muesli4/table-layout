@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveFunctor #-}
+-- | A declarative description of padding and trimming applied to a cell.
 module Text.Layout.Table.Primitives.CellMod where
 
 -- | Provide all the information necessary to compare resulting dimensions and
--- to turn it into a 'StringBuilder'.
+-- to turn it into a string builder.
 data CellMod a =
     CellMod
     { baseCellCM :: a
@@ -41,6 +42,8 @@ trimCellRight :: Int -> Int -> a -> CellMod a
 trimCellRight rightTrim rightCMLen =
     trimCell 0 rightTrim 0 rightCMLen
 
+-- | Construct a cell modification with explicit adjustments and cut-mark
+-- lengths for the left and right sides.
 modifyCellWithCutMarkLen :: Int -> Int -> Int -> Int -> a -> CellMod a
 modifyCellWithCutMarkLen la ra lc rc c = CellMod c la ra lc rc
 
@@ -49,6 +52,7 @@ modifyCellWithCutMarkLen la ra lc rc c = CellMod c la ra lc rc
 modifyCell :: Int -> Int -> a -> CellMod a
 modifyCell la ra = modifyCellWithCutMarkLen la ra 0 0
 
+-- | Keep a cell unchanged.
 keepCell :: a -> CellMod a
 keepCell = modifyCellWithCutMarkLen 0 0 0 0
 

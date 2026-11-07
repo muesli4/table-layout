@@ -1,3 +1,4 @@
+-- | Line styles and join characters for drawing ASCII and Unicode tables.
 module Text.Layout.Table.LineStyle
     ( -- * Line Styling
       LineStyle(..)
@@ -217,11 +218,11 @@ unicodeJoinString4 w      e      n      s               = pure $ uJoins (joinTyp
 --
 -- Not all joins are fully supported by Unicode, and in these cases we try to
 -- gracefully substitute a similar character.
--- - Any join consisting solely of 'NoJoin', 'Light, and 'Heavy' is fully supported.
--- - Most joins consisting solely of 'NoJoin', 'Light, and 'Double' are supported.
---   For those that aren't, we substitute 'Heavy' for 'Double'.
--- - Any join which has both 'Heavy' and 'Double' is unsupported, and we
---   substitute 'Heavy' for 'Double'.
+-- - Any join consisting solely of @NoJoin@, @Light@, and @Heavy@ is fully supported.
+-- - Most joins consisting solely of @NoJoin@, @Light@, and @Double@ are supported.
+--   For those that aren't, we substitute @Heavy@ for @Double@.
+-- - Any join which has both @Heavy@ and @Double@ is unsupported, and we
+--   substitute @Heavy@ for @Double@.
 uJoins :: UnicodeJoin -> UnicodeJoin -> UnicodeJoin -> UnicodeJoin -> Char
 -- All NoJoin, 1 case
 uJoins NoJoin NoJoin NoJoin NoJoin = ' '

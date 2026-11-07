@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE EmptyDataDecls #-}
+-- | Horizontal and vertical positions used when laying out cells.
 module Text.Layout.Table.Spec.Position where
 
 import Data.Default.Class
@@ -37,17 +38,22 @@ data H
 -- | Vertical orientation.
 data V
 
+-- | Position content at the left edge.
 left :: Position H
 left = Start
 
+-- | Position content at the right edge.
 right :: Position H
 right = End
 
+-- | Position content in the center of either orientation.
 center :: Position orientation
 center = Center
 
+-- | Position content at the top edge.
 top :: Position V
 top = Start
 
+-- | Position content at the bottom edge.
 bottom :: Position V
 bottom = End

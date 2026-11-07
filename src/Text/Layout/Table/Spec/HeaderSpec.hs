@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveTraversable #-}
 
+-- | Hierarchical specifications for optional row and column headers.
 module Text.Layout.Table.Spec.HeaderSpec where
 
 import Data.Bifunctor

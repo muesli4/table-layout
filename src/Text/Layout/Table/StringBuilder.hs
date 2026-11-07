@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+-- | Builders used as output targets when rendering tables.
 module Text.Layout.Table.StringBuilder where
 
 import Data.Semigroup
@@ -13,7 +14,7 @@ class Monoid a => StringBuilder a where
     -- | Create a builder with a single 'Char'.
     charB :: Char -> a
 
-    -- | Create a builder with a 'Text'.
+    -- | Create a builder with strict 'T.Text'.
     textB :: T.Text -> a
     textB = stringB . T.unpack
 

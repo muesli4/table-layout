@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
+-- | Row groups and their column-oriented representations.
 module Text.Layout.Table.Spec.RowGroup where
 
 import Text.Layout.Table.Spec.Util
@@ -36,15 +37,18 @@ rowGroupShape rg = case rg of
         r : _ -> void r
         []    -> []
 
+-- | One vertically arranged segment obtained from a particular kind of
+-- 'RowGroup'.
 data ColumnSegment a
     = SingleValueSegment a
     | ColumnSegment (Col a)
     | NullableColumnSegment (Col (Maybe a))
     deriving (Functor, Foldable, Eq, Show)
 
+-- | A column split into segments that retain the grouping of its source rows.
 newtype SegmentedColumn a = SegmentedColumn [ColumnSegment a] deriving (Functor, Foldable, Eq, Show)
 
--- | Break down several 'RowGroups', which conceptually form a column by
+-- | Break down several 'RowGroup' values, which conceptually form a column by
 -- themselves, into a list of columns.
 transposeRowGroups :: Col (RowGroup a) -> [SegmentedColumn a]
 transposeRowGroups = fmap SegmentedColumn . transpose . map transposeRowGroup
