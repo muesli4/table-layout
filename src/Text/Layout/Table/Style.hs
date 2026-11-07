@@ -235,19 +235,21 @@ simpleTableStyleSpec headerStyle groupStyle
     , groupBottom       = groupStyle
     }
 
--- Generate an ASCII 'TableStyle' from a 'TableStyleSpec' using pluses for joins.
+-- | Generate an ASCII 'TableStyle' from a 'TableStyleSpec' using pluses for
+-- joins.
 asciiTableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
 asciiTableStyleFromSpec = tableStyleFromSpec asciiHorizontal asciiVertical asciiJoinString4
 
--- Generate an ASCII 'TableStyle' from a 'TableStyleSpec' using rounded joins.
+-- | Generate an ASCII 'TableStyle' from a 'TableStyleSpec' using rounded
+-- joins.
 roundedAsciiTableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
 roundedAsciiTableStyleFromSpec = tableStyleFromSpec asciiHorizontal asciiVertical roundedAsciiJoinString4
 
--- Generate a unicode 'TableStyle' from a 'TableStyleSpec'.
+-- | Generate a Unicode 'TableStyle' from a 'TableStyleSpec'.
 unicodeTableStyleFromSpec :: TableStyleSpec -> TableStyle LineStyle LineStyle
 unicodeTableStyleFromSpec = tableStyleFromSpec unicodeHorizontal unicodeVertical unicodeJoinString4
 
--- | Generate a 'TableStyle from a given 'TableStyleSpec', along with functions
+-- | Generate a 'TableStyle' from a given 'TableStyleSpec', along with functions
 -- to construct horizontal and vertical lines and joins.
 -- The function for constructing join strings takes its arguments in the order
 -- west, east, north, south.

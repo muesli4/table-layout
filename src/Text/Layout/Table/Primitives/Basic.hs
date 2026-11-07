@@ -29,18 +29,25 @@ module Text.Layout.Table.Primitives.Basic
 
 import Text.Layout.Table.Spec.CutMark
 
+-- | Produce the requested number of spaces.
 spaces :: Int -> String
 spaces = flip replicate ' '
 
+-- | Pad the beginning of a list to a target length, given its current length.
 fillStart' :: a -> Int -> Int -> [a] -> [a]
 fillStart' x i lenL l = replicate (i - lenL) x ++ l
 
+-- | Pad the beginning of a list to a target length.
 fillStart :: a -> Int -> [a] -> [a]
 fillStart x i l = fillStart' x i (length l) l
 
+-- | Pad the end of a list to a target length.
 fillEnd :: a -> Int -> [a] -> [a]
 fillEnd x i l = take i $ l ++ repeat x
 
+-- | Pad both ends of a list to a target length, given its current length.
+-- When an odd number of elements is required, the beginning receives the
+-- extra element.
 fillBoth' :: a -> Int -> Int -> [a] -> [a]
 fillBoth' x i lenL l = 
     -- Puts more on the beginning if odd.
@@ -50,9 +57,11 @@ fillBoth' x i lenL l =
     missing = i - lenL
     (q, r)  = missing `divMod` 2
 
+-- | Pad both ends of a list to a target length.
 fillBoth :: a -> Int -> [a] -> [a]
 fillBoth x i l = fillBoth' x i (length l) l
 
+-- | Pad the left of a 'String' to a target length, given its current length.
 fillLeft' :: Int -> Int -> String -> String
 fillLeft' = fillStart' ' '
 
@@ -64,6 +73,7 @@ fillLeft = fillStart ' '
 fillRight :: Int -> String -> String
 fillRight = fillEnd ' '
 
+-- | Pad both sides of a 'String' to a target length, given its current length.
 fillCenter' :: Int -> Int -> String -> String
 fillCenter' = fillBoth' ' '
 

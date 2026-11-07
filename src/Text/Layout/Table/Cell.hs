@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
 
+-- | Cell measurement, padding, trimming, and alignment primitives.
 module Text.Layout.Table.Cell where
 
 import Control.Monad (join)
@@ -142,7 +143,7 @@ instance Cell T.Text where
 --
 -- Used to define instances of 'Cell'.
 buildCellViewLRHelper :: StringBuilder b
-                      => (a -> b)  -- ^ Builder function for 'a'.
+                      => (a -> b)  -- ^ Builder function for @a@.
                       -> (Int -> a -> a)  -- ^ Function for trimming on the left.
                       -> (Int -> a -> a)  -- ^ Function for trimming on the right.
                       -> CellView a
@@ -156,7 +157,7 @@ buildCellViewLRHelper build trimL trimR =
 -- Used to define instanced of 'Cell'.
 buildCellViewBothHelper
     :: StringBuilder b
-    => (a -> b)  -- ^ Builder function for 'a'.
+    => (a -> b)  -- ^ Builder function for @a@.
     -> (Int -> Int -> a -> a)  -- ^ Function for trimming on the left and right simultaneously.
     -> CellView a
     -> b
@@ -168,7 +169,7 @@ buildCellViewBothHelper build trimBoth =
 -- Used to define instances of 'Cell'.
 buildCellViewHelper
     :: StringBuilder b
-    => (a -> b)  -- ^ Builder function for 'a'.
+    => (a -> b)  -- ^ Builder function for @a@.
     -> (Int -> a -> b)  -- ^ Function for trimming on the left.
     -> (Int -> a -> b)  -- ^ Function for trimming on the right.
     -> (Int -> Int -> a -> b)  -- ^ Function for trimming on the left and right simultaneously.
@@ -264,10 +265,10 @@ trimOrPad p cutMark n c = case compare k n of
   where
     k = visibleLength c
 
--- | If the given text is too long, it will be trimmed to length `upper`
+-- | If the given text is too long, it will be trimmed to length @upper@
 -- according to the position specification, and cut marks will be added to
 -- indicate that the column has been trimmed in length. Otherwise, if
--- the given text is too short, it will be padded to length `lower`.
+-- the given text is too short, it will be padded to length @lower@.
 --
 -- >>> let cm = singleCutMark ".."
 -- >>> buildCellMod cm $ trimOrPadBetween left cm 7 10 "A longer text." :: String
@@ -285,8 +286,8 @@ trimOrPadBetween
     :: Cell a
     => Position o
     -> CutMark
-    -> Int  -- ^ The length `lower` to pad to if too short
-    -> Int  -- ^ The length `upper` to trim to if too long
+    -> Int  -- ^ The length @lower@ to pad to if too short
+    -> Int  -- ^ The length @upper@ to trim to if too long
     -> a
     -> CellMod a
 trimOrPadBetween p cutMark lower upper c
@@ -341,24 +342,28 @@ align :: Cell a => OccSpec -> AlignInfo -> a -> CellMod a
 align oS (AlignInfo ln optRN) c = case measureAlignment (predicate oS) c of
     AlignInfo lk optRK -> padCell (truncateNegative $ ln - lk) (truncateNegative $ maybe 0 succ optRN - maybe 0 succ optRK) c
 
+-- | Padding or trimming required on one side of a cell.
 data CutAction
     = FillCA Int
     | CutCA Int
     | NoneCA
     deriving (Eq, Show)
 
+-- | Convert a cut action to its signed space adjustment.
 surplusSpace :: CutAction -> Int
 surplusSpace ca = case ca of
     CutCA n  -> negate n
     FillCA n -> n
     _        -> 0
 
+-- | Determine how to reconcile a required width with an actual width.
 determineCutAction :: Int -> Int -> CutAction
 determineCutAction requiredW actualW = case compare requiredW actualW of
     LT -> CutCA $ actualW - requiredW
     EQ -> NoneCA
     GT -> FillCA $ requiredW - actualW
 
+-- | Actions required after comparing a visible range with a cell range.
 data CutInfo
     -- | Apply a cut action to each side.
     = SidesCI CutAction CutAction
@@ -385,6 +390,8 @@ numSpacesAfterCut ca cellLen cutAmount = s + min r 0
     s = surplusSpace ca
     r = cellLen - cutAmount
 
+-- | Convert cut information into a concrete cell modification, distributing
+-- available cut-mark space between the affected sides.
 applyCutInfo
     :: Cell a
     => CutInfo

@@ -1,3 +1,4 @@
+-- | Complete layout specifications for table columns.
 module Text.Layout.Table.Spec.ColSpec
     ( ColSpec
     , lenSpec
@@ -23,9 +24,13 @@ import Text.Layout.Table.Spec.Position
 data ColSpec
     = ColSpec
     { lenSpec     :: LenSpec
+      -- ^ Policy for choosing the column width.
     , position    :: Position H
+      -- ^ Horizontal position of cell content.
     , alignSpec   :: AlignSpec
+      -- ^ Character-alignment policy for the column.
     , cutMark     :: CutMark
+      -- ^ Marks used when cell content is trimmed.
     }
 
 instance Default ColSpec where

@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
+-- | Cell wrappers that measure Unicode characters by display width.
 module Text.Layout.Table.Cell.WideString
     ( WideString(..)
     , WideText(..)
@@ -13,7 +14,7 @@ import Text.DocLayout
 import Text.Layout.Table.Cell
 import Text.Layout.Table.Primitives.AlignInfo
 
--- | A newtype for String in which characters can be wider than one space.
+-- | A newtype for 'String' in which characters can be wider than one space.
 newtype WideString = WideString String
     deriving (Eq, Ord, Show, Read, Semigroup, Monoid, IsString)
 
@@ -47,7 +48,8 @@ measureAlignmentWide p xs = case break p xs of
         []      -> Nothing
         _ : rs' -> Just $ realLength rs'
 
--- | A newtype for Text in which characters can be wider than one space.
+-- | A newtype for strict 'T.Text' in which characters can be wider than one
+-- space.
 newtype WideText = WideText T.Text
     deriving (Eq, Ord, Show, Read, Semigroup, Monoid, IsString)
 

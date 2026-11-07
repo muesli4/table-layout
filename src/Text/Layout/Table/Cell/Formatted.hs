@@ -26,6 +26,8 @@ import Text.Layout.Table.Primitives.AlignInfo
 import Text.Layout.Table.Cell
 import Text.Layout.Table.StringBuilder
 
+-- | Content interleaved with backend-specific prefix and suffix formatting
+-- directives.
 data Formatted a
     = Empty
     | Concat [Formatted a]

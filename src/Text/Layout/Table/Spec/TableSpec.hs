@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+-- | Complete specifications combining columns, headers, style, and row groups.
 module Text.Layout.Table.Spec.TableSpec where
 
 import Data.Default.Class

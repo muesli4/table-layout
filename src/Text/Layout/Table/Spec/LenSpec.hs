@@ -1,3 +1,4 @@
+-- | Policies for choosing the rendered width of a column.
 module Text.Layout.Table.Spec.LenSpec
     ( LenSpec (..)
     , expand

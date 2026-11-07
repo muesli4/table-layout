@@ -1,3 +1,4 @@
+-- | Specifications for locating an occurrence used for cell alignment.
 module Text.Layout.Table.Spec.OccSpec
     ( OccSpec
     , predOccSpec
@@ -10,6 +11,7 @@ import Control.Arrow
 -- | Specifies an occurence of a letter.
 data OccSpec = OccSpec (Char -> Bool) Int
 
+-- | Extract the character predicate from an occurrence specification.
 predicate :: OccSpec -> (Char -> Bool)
 predicate (OccSpec p _) = p
 
