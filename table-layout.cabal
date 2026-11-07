@@ -6,7 +6,7 @@ name:                table-layout
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             1.0.0.2
+version:             1.0.0.3
 
 synopsis:            Format tabular data as grid or table.
 
@@ -41,14 +41,15 @@ category:              Text
 build-type:            Simple
 -- Extra files to be distributed with the package, such as examples or a 
 -- README.
-extra-source-files:    README.md, CHANGELOG.md
+extra-source-files:    README.md
+extra-doc-files:       CHANGELOG.md
 
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:         2.0
 
 source-repository head
     type:              git
-    location:          git://github.com/muesli4/table-layout.git
+    location:          https://github.com/muesli4/table-layout.git
 
 
 library

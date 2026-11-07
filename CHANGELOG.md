@@ -2,7 +2,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.0.3] - 2026-11-07
+
+### Added
+
+- Add GitHub Actions continuous integration with GHC 9.14.
+- Declare `hspec-discover` as an explicit test build tool.
+
 ### Changed
+
+- Require Cabal 2.0 to support the explicit build-tool declaration.
+- Raise the upper bounds of `doclayout` and `QuickCheck`.
+- Add an upper bound for `text`.
+- Improve Haddock coverage and repair documentation links.
 
 ## [1.0.0.2] - 2025-05-18
 
