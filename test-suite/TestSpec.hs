@@ -122,6 +122,12 @@ spec = do
             it "right" $ trim' left  `shouldBe` ">"
             it "left" $ trim' right `shouldBe` "<"
 
+        describe "trim wide string" $ do
+            let trim' p = buildCellMod customCM $ trim p customCM 6 (WideString "㐀㐁㐂㐃")
+            it "right" $ trim' left `shouldBe` "㐀..> "
+            it "left" $ trim' right `shouldBe` " <..㐃"
+
+
     describe "trimOrPad" $ do
         let trimOrPad' p cm n s = buildCellMod cm $ trimOrPad p cm n s
         let pad' p n s = buildCellMod noCutMark $ pad p n s
@@ -298,16 +304,19 @@ spec = do
             it "doesn't find q" $ measureAlignmentAt 'q' exampleF `shouldBe` AlignInfo 10 Nothing
 
     describe "wide string" $ do
-        let wide = WideString "㐀㐁㐂"
-            narrow = WideString "Bien sûr!"
+        let wide   = WideString "㐀㐁㐂"
+            narrow = WideString "Bien su\x0302r!"
+            mixed  = WideString "A whole bunch of padding for fun a\x0302㐀\x0302"
         describe "buildCell" $ do
             prop "agrees for ascii strings" $ \(NonControlASCIIString x) -> buildCell (WideString x) `shouldBe` x
             it "renders double width" $ buildCell wide `shouldBe` "㐀㐁㐂"
-            it "renders zero width" $ buildCell narrow `shouldBe` "Bien sûr!"
+            it "renders zero width" $ buildCell narrow `shouldBe` "Bien su\x0302r!"
+            it "renders mixed width" $ buildCell mixed `shouldBe` "A whole bunch of padding for fun a\x0302㐀\x0302"
         describe "visibleLength" $ do
             prop "agrees for ascii strings" $ \(NonControlASCIIString x) -> visibleLength (WideString x) `shouldBe` visibleLength x
             it "detects double width" $ visibleLength wide `shouldBe` 6
             it "detects zero width" $ visibleLength narrow `shouldBe` 9
+            it "detects mixed width" $ visibleLength mixed `shouldBe` 36
         describe "measureAlignment" $ do
             prop "agrees for ascii strings" $ \(NonControlASCIIString x) -> measureAlignmentAt 'e' (WideString x) `shouldBe` measureAlignment (=='e') x
             it "detects double width" $ measureAlignmentAt '㐁' wide `shouldBe` AlignInfo 2 (Just 2)
@@ -318,18 +327,31 @@ spec = do
             prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropLeft n (WideString x)) `shouldBe` (buildCell (dropLeft n x) :: String)
             describe "on wide characters" $ do
                 it "drops 1 character of double width" $ buildCell (dropLeft 2 wide) `shouldBe` "㐁㐂"
-                it "drops 2 characters of double width and adds a space" $ buildCell (dropLeft 3 wide) `shouldBe` " 㐂"
+                it "drops 2 characters of double width" $ buildCell (dropLeft 3 wide) `shouldBe` "㐂"
             describe "on narrow characters" $ do
                 it "drops combining characters with their previous" $ buildCell (dropLeft 7 narrow) `shouldBe` "r!"
-                it "drops combining characters after a dropped wide character which overshoots" $ buildCell (dropLeft 1 (WideString "㐀̈㐁")) `shouldBe` " 㐁"
+                it "drops combining characters after a dropped wide character which overshoots" $ buildCell (dropLeft 1 (WideString "㐀̈\x0302㐁")) `shouldBe` "㐁"
+            describe "on mixed characters" $ do
+                it "drops 1 character" $ buildCell (dropLeft 1 mixed) `shouldBe` " whole bunch of padding for fun a\x0302㐀\x0302"
+                it "drops 32 characters" $ buildCell (dropLeft 32 mixed) `shouldBe` " a\x0302㐀\x0302"
+                it "drops 33 characters" $ buildCell (dropLeft 33 mixed) `shouldBe` "a\x0302㐀\x0302"
+                it "drops 34 characters" $ buildCell (dropLeft 34 mixed) `shouldBe` "㐀\x0302"
+                it "drops 35 characters" $ buildCell (dropLeft 35 mixed) `shouldBe` ""
+                it "drops 36 characters" $ buildCell (dropLeft 36 mixed) `shouldBe` ""
+                it "drops 37 characters" $ buildCell (dropLeft 37 mixed) `shouldBe` ""
         describe "dropRight" $ do
             prop "agrees for ascii strings" $ \(Small n) (NonControlASCIIString x) -> buildCell (dropRight n (WideString x)) `shouldBe` (buildCell (dropRight n x) :: String)
             describe "on wide characters" $ do
                 it "drops 1 character of double width" $ buildCell (dropRight 2 wide) `shouldBe` "㐀㐁"
-                it "drops 2 characters of double width and adds a space" $ buildCell (dropRight 3 wide) `shouldBe` "㐀 "
+                it "drops 2 characters of double width" $ buildCell (dropRight 3 wide) `shouldBe` "㐀"
             describe "on narrow characters" $ do
                 it "drops a combining character for free" $ buildCell (dropRight 3 narrow) `shouldBe` "Bien s"
-                it "does not drop a combining character without their previous" $ buildCell (dropRight 2 narrow) `shouldBe` "Bien sû"
+                it "does not drop a combining character without their previous" $ buildCell (dropRight 2 narrow) `shouldBe` "Bien su\x0302"
+            describe "on mixed characters" $ do
+                it "drops 1 character" $ buildCell (dropRight 1 mixed) `shouldBe` "A whole bunch of padding for fun a\x0302"
+                it "drops 2 characters" $ buildCell (dropRight 2 mixed) `shouldBe` "A whole bunch of padding for fun a\x0302"
+                it "drops 3 characters" $ buildCell (dropRight 3 mixed) `shouldBe` "A whole bunch of padding for fun "
+                it "drops 4 characters" $ buildCell (dropRight 4 mixed) `shouldBe` "A whole bunch of padding for fun"
 
     describe "wide text" $ do
         describe "buildCell" $ do
