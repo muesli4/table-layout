@@ -44,7 +44,7 @@ build-type:            Simple
 extra-source-files:    README.md, CHANGELOG.md
 
 -- Constraint on the version of Cabal needed to build this package.
-cabal-version:         >=1.10
+cabal-version:         2.0
 
 source-repository head
     type:              git
@@ -152,6 +152,7 @@ test-suite table-layout-tests
                        doclayout >=0.3 && <0.6,
                        text,
                        hspec
+  build-tool-depends:  hspec-discover:hspec-discover >=2 && <3
 
   other-modules:       TestSpec,
 
